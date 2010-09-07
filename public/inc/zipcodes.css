@@ -1,0 +1,29 @@
+#search {
+	float: right;
+}
+
+.links {
+	color: black;
+	font-size: medium;
+	font-weight: normal;
+	font-style: normal;
+	margin-bottom: 20px;
+	margin-top: 20px;
+}
+
+.links a {
+	color: green;
+	font-size: large;
+	text-decoration: none;
+	font-weight: normal;
+	font-style: normal;
+	padding-right: 1px;
+	padding-left: 1px;
+}
+.links a:hover{
+	color: teal;
+	font-weight: normal;
+	padding-right: 1px;
+	padding-left: 1px;
+	font-style: normal;
+}
