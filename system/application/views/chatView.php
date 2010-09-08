@@ -5,20 +5,20 @@
 	<script type="text/javascript">
 		$(document).ready(function(){
 			
-			loadMsg();
-			
+			loadMsg();			
 			hideLoading();
 						
 			$("form#chatform").submit(function(){
-				showLoading();								
+											
 				$.post("/chat/update",{
 							message: $("#content").val(),
 							name: $("#name").val(),
 							action: "postmsg"
-						}, function(xml) {
-					addMessages(xml);
-					$("#content").val("");
-					hideLoading();
+						}, function() {
+					
+					$("#messagewindow").prepend("<b>"+$("#name").val()+"</b>: "+$("#content").val()+"<br />");
+					
+					$("#content").val("");					
 					$("#content").focus();
 				});		
 				return false;
@@ -47,7 +47,6 @@
 				
 				$("#messagewindow").append("<b>"+author+"</b>: "+msg+"<br />");
 			});
-
 			
 		}
 		
@@ -56,7 +55,7 @@
 				$("#loading").remove();				
 				addMessages(xml);
 			});
-			console.log(xml);
+			
 			//setTimeout('loadMsg()', 4000);
 		}
 	</script>

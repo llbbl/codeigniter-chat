@@ -5,7 +5,7 @@ class chatmodel extends Model
 {
 	function __construct()
 	{
-		parent::Model();
+		parent::Model(); 
 	}
 	
 	

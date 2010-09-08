@@ -2,40 +2,40 @@
 
 class Chat extends Controller{
 	
-	function chat(){
+	function __construct()
+	{
 		parent::Controller();
+		$this->load->model('chatmodel');
 	}
 	
-	function index(){		
-		$this->load->view('chatty');		
+	function index()
+	{		
+		$this->load->view('chatView');		
 	}
 	
-	function backend(){
-		
-		$store_num = 10;
-		$display_num = 10;
-		
-		header("Content-type: text/xml");
-		header("Cache-Control: no-cache");
+	function update()
+	{
+		if(empty($_POST))
+		{
+			return false;
+		}
 		
 		foreach($_POST AS $key => $value) {
 		    ${$key} = mysql_real_escape_string($value);
 		}				
 
-		if(@$action == "postmsg"){
+		if($action == "postmsg"){
 			$current = time();		
-			$this->db->query("INSERT INTO messages SET user='$name', msg='$message', time='$current' ");		
-			$delid = mysql_insert_id() - $store_num;
-			$this->db->query("DELETE FROM messages WHERE id <= $delid");
-		}		
-		
-		if (empty($time)){
-			$sql = "SELECT * FROM messages ORDER BY id ASC LIMIT $display_num";
-		}else{
-			$sql = "SELECT * FROM messages WHERE time > $time ORDER BY id ASC LIMIT $display_num";
-		}
-		
-		$query = $this->db->query("$sql");
+			$this->chatmodel->insertMsg($name, $message, $current);		
+		}	
+	}
+	
+	function backend()
+	{								
+		header("Content-type: text/xml");
+		header("Cache-Control: no-cache");
+					
+		$query = $this->chatmodel->getMsg();
 		
 		if($query->num_rows()==0){
 			$status_code = 2;
@@ -52,14 +52,14 @@ class Chat extends Controller{
 			foreach($query->result() as $row){				
 				$escmsg = htmlspecialchars(stripslashes($row->msg));
 				echo "\t<message>\n";
+				echo "\t\t<id>$row->id</id>\n";
 				echo "\t\t<author>$row->user</author>\n";
 				echo "\t\t<text>$escmsg</text>\n";
 				echo "\t</message>\n";
 			}
 		}
 		echo "</response>";
-		
-		
+				
 	}
 	
 }
