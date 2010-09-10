@@ -62,5 +62,26 @@ class Chat extends Controller{
 				
 	}
 	
+	function json()
+	{
+		$this->load->view('jsonView');
+	}
+	
+	function json_backend()
+	{
+		header('Cache-Control: no-cache, must-revalidate');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		header('Content-type: application/json');
+		
+		$query = $this->chatmodel->getMsg();
+		
+		$data = $query->result_array();
+		
+		$jsonData = json_encode($data);
+		
+		echo $jsonData;
+	}
+
+	
 }
 ?>

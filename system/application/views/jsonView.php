@@ -1,6 +1,6 @@
 <html>
 <head>
-	<title>CodeIgniter Shoutbox</title>
+	<title>CodeIgniter Shoutbox - JSON edition</title>
 	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
 	<script type="text/javascript">
 		$(document).ready(function(){
@@ -38,22 +38,19 @@
 			$("#author").show();
 		}
 		
-		function addMessages(xml) {
+		function addMessages(json) {
+			//console.log(json);
 			
-			$(xml).find('message').each(function() {
-				
-				author = $(this).find("author").text();
-				msg = $(this).find("text").text();
-				
-				$("#messagewindow").append("<b>"+author+"</b>: "+msg+"<br />");
+			$.each(json, function(i,val){
+				//console.log(val.id);
+				$("#messagewindow").append("<b>"+val.user+"</b>: "+val.msg+"<br />");				
 			});
-			
 		}
 		
 		function loadMsg() {
-			$.get("/chat/backend", function(xml) {
+			$.getJSON("/chat/json_backend", function(json) {
 				$("#loading").remove();				
-				addMessages(xml);
+				addMessages(json);
 			});
 			
 			//setTimeout('loadMsg()', 4000);
