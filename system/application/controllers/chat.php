@@ -16,7 +16,7 @@ class Chat extends Controller{
 	 * Loads the default page for the XML example
 	 * 
 	 */
-	function index()
+	public function index()
 	{		
 		$this->load->view('chatView');		
 	}
@@ -27,7 +27,7 @@ class Chat extends Controller{
 	 * @param $_POST array
 	 * @return bool
 	 */
-	function update()
+	public function update()
 	{
 		//POST up or GTFO
 		if(empty($_POST))
@@ -48,6 +48,11 @@ class Chat extends Controller{
 		if($action == "postmsg"){
 			$current = time();		
 			$this->chatmodel->insertMsg($name, $message, $current);		
+		}
+		
+		if($html_redirect == "true")
+		{
+			header('Location: /chat/html');
 		}	
 	}
 	
@@ -56,7 +61,7 @@ class Chat extends Controller{
 	 * 
 	 * @return
 	 */
-	function backend()
+	public function backend()
 	{	
 		//HTTP headers for XML							
 		header("Content-type: text/xml");
@@ -99,7 +104,7 @@ class Chat extends Controller{
 	 * Loads the default view for the JSON example
 	 * 
 	 */
-	function json()
+	public function json()
 	{
 		$this->load->view('jsonView');
 	}
@@ -107,7 +112,7 @@ class Chat extends Controller{
 	/**
 	 * Displays the JSON formatted data
 	 */
-	function json_backend()
+	public function json_backend()
 	{
 		// Headers for the JSON
 		header('Cache-Control: no-cache, must-revalidate');
@@ -126,7 +131,37 @@ class Chat extends Controller{
 		//JSON sized dump to STDOUT
 		echo $jsonData;
 	}
-
 	
+	/**
+	* Main for the HTML example
+	* @return a web page
+	*/
+	public function html()
+	{
+		$data = array();
+		
+		$data['html'] = $this->html_backend();
+		
+		$this->load->view('htmlView',$data);
+	}
+	
+	/** 
+	* Function to display the data in HTML
+	* @return HTML data
+	*/	
+	public function html_backend()
+	{
+		//create 
+		$data = array();
+		$ret = false;
+		
+		//store
+		$data['query'] = $this->chatmodel->getMsg();
+		
+		//send to view, store the results in variable
+		$ret = $this->load->view('htmlBackView',$data, true);
+		
+		return $ret;
+	}
 }
 ?>
