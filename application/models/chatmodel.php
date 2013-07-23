@@ -1,11 +1,11 @@
 <?php
 
 
-class chatmodel extends Model
+class Chatmodel extends CI_Model
 {
 	function __construct()
 	{
-		parent::Model(); 
+		parent::__construct(); 
 	}
 	
 	

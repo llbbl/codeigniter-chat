@@ -1,6 +1,6 @@
 <?php
 
-class Chat extends Controller{
+class Chat extends CI_Controller{
 	
 	/**
 	 * Constructor duh
@@ -8,8 +8,8 @@ class Chat extends Controller{
 	 */
 	function __construct()
 	{
-		parent::Controller();
-		$this->load->model('chatmodel');
+		parent::__construct();
+		$this->load->model('Chatmodel');		
 	}
 	
 	/**
@@ -17,7 +17,7 @@ class Chat extends Controller{
 	 * 
 	 */
 	public function index()
-	{		
+	{	
 		$this->load->view('chatView');		
 	}
 	
@@ -47,7 +47,7 @@ class Chat extends Controller{
 		 */
 		if($action == "postmsg"){
 			$current = time();		
-			$this->chatmodel->insertMsg($name, $message, $current);		
+			$this->Chatmodel->insertMsg($name, $message, $current);		
 		}
 		
 		if($html_redirect == "true")
@@ -68,7 +68,9 @@ class Chat extends Controller{
 		header("Cache-Control: no-cache");
 		
 		//get the data		
-		$query = $this->chatmodel->getMsg();
+		$query = $this->Chatmodel->getMsg();
+		
+		//var_dump($query); die();
 		
 		//if empty change the status
 		if($query->num_rows()==0){
@@ -120,7 +122,7 @@ class Chat extends Controller{
 		header('Content-type: application/json');
 		
 		//get the data
-		$query = $this->chatmodel->getMsg();
+		$query = $this->Chatmodel->getMsg();
 
 		//store the results in an array
 		$data = $query->result_array();
@@ -156,7 +158,7 @@ class Chat extends Controller{
 		$ret = false;
 		
 		//store
-		$data['query'] = $this->chatmodel->getMsg();
+		$data['query'] = $this->Chatmodel->getMsg();
 		
 		//send to view, store the results in variable
 		$ret = $this->load->view('htmlBackView',$data, true);
