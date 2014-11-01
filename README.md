@@ -1,5 +1,6 @@
 # Codeigniter Chat
 
+
 This is a basic shoutboard built using codeigniter. It originally only used XML for the backend, 
 but was rewritten to illustrate different types of web services. It has been updated to use 
 CodeIgniter 2.1.4. A basic LAMP stack is required. It uses sessions.
