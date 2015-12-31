@@ -7,8 +7,7 @@ class Chatmodel extends CI_Model
 	{
 		parent::__construct(); 
 	}
-	
-	
+		
 	function getMsg($limit = 10)
 	{
 		$sql = "SELECT * FROM messages ORDER BY id DESC LIMIT $limit";		

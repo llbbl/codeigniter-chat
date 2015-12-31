@@ -29,31 +29,14 @@ class Chat extends CI_Controller{
 	 */
 	public function update()
 	{
-		//POST up or GTFO
-		if(empty($_POST))
-		{
-			return false;
-		}
+
+		$name = $this->input->post('name');
+		$message = $this->input->post('message');
+		$action = $this->input->post('action');
+
+		$current = new DateTime();		
+		$this->Chatmodel->insertMsg($name, $message, $current->getTimestamp());
 		
-		// Loops through the post array and makes variables equal to the array key
-		foreach($_POST AS $key => $value) {
-			// sanitize for SQL Injection
-		    ${$key} = mysql_real_escape_string($value);
-		}
-		
-		/*
-		 * If the key is correct, find the current time and pass all the data to 
-		 * the model for insertion
-		 */
-		if($action == "postmsg"){
-			$current = time();		
-			$this->Chatmodel->insertMsg($name, $message, $current);		
-		}
-		
-		if($html_redirect == "true")
-		{
-			header('Location: /chat/html');
-		}	
 	}
 	
 	/**
