@@ -32,11 +32,15 @@ class Chat extends CI_Controller{
 
 		$name = $this->input->post('name');
 		$message = $this->input->post('message');
-		$action = $this->input->post('action');
+		$html_redirect = $this->input->post('html_redirect');
 
 		$current = new DateTime();		
 		$this->Chatmodel->insertMsg($name, $message, $current->getTimestamp());
 		
+		if($html_redirect === "true")
+		{
+			redirect('/chat');
+		}
 	}
 	
 	/**

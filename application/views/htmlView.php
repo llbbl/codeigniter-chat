@@ -32,7 +32,6 @@
 	</div>
 	
 	<br />
-	<input type="hidden" name="action" value="postmsg" />
 	<input type="hidden" name="html_redirect" value="true" />
 	<input type="submit" value="ok" /><br />
 	</form>
