@@ -2,7 +2,7 @@
 
 This is a basic shoutboard built using codeigniter. Originally only used XML for the backend, 
 but was rewritten to illustrate different types of web services. It has been updated to use 
-CodeIgniter 3.0.3.
+CodeIgniter 3.1.0.
 
 ## Installation
 
