@@ -35,6 +35,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'rateLimit'     => \App\Filters\RateLimitFilter::class,
     ];
 
     /**
@@ -109,6 +110,14 @@ class Filters extends BaseFilters
             'before' => [
                 'chat',
                 'chat/*',
+            ],
+        ],
+        'rateLimit' => [
+            'before' => [
+                'chat/update',
+                'chat/backend',
+                'chat/json_backend',
+                'chat/html_backend',
             ],
         ],
     ];
