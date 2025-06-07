@@ -137,15 +137,6 @@ abstract class BaseController extends Controller
     }
 
     /**
-     * Return a view response.
-     *
-     * @param string $view    The view file to load
-     * @param array  $data    The data to pass to the view
-     * @param array  $options View options
-     *
-     * @return string
-     */
-    /**
      * Return a view response with appropriate caching headers.
      *
      * @param string $view       The view file to load
