@@ -2,15 +2,23 @@
 
 namespace Tests\Feature;
 
-use CodeIgniter\Test\FeatureTestCase;
+use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\FeatureTestTrait;
 use App\Models\ChatModel;
 use Config\Services;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * @internal
  */
-final class ChatTest extends FeatureTestCase
+final class ChatTest extends CIUnitTestCase
 {
+    use FeatureTestTrait;
+    
+    private MockObject $mockChatModel;
+    private array $sampleMessages;
+    private array $samplePagination;
+    
     protected function setUp(): void
     {
         parent::setUp();

@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests\Session;
+
 use CodeIgniter\Test\CIUnitTestCase;
 
 /**

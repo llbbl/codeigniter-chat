@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests\Unit;
+
 use CodeIgniter\Test\CIUnitTestCase;
 use App\Helpers\DateTimeHelper;
 use CodeIgniter\I18n\Time;

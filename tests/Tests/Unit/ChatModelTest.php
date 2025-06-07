@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests\Unit;
+
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\MockBuilder;
 use App\Models\ChatModel;

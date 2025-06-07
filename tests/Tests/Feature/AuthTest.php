@@ -2,15 +2,22 @@
 
 namespace Tests\Feature;
 
-use CodeIgniter\Test\FeatureTestCase;
+use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\FeatureTestTrait;
 use App\Models\UserModel;
 use Config\Services;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * @internal
  */
-final class AuthTest extends FeatureTestCase
+final class AuthTest extends CIUnitTestCase
 {
+    use FeatureTestTrait;
+    
+    private MockObject $mockUserModel;
+    private array $sampleUser;
+    
     protected function setUp(): void
     {
         parent::setUp();
