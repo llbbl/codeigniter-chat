@@ -1,0 +1,85 @@
+/**
+ * Common styles for the chat application
+ */
+
+// Variables
+$primary-color: #000;
+$error-color: red;
+$background-light: #f0f0f0;
+$background-lighter: #e0e0e0;
+$border-color: #ddd;
+$logout-color: #d9534f;
+$border-radius: 4px;
+
+// Message window
+#messagewindow {
+    height: 250px;
+    border: 1px solid $primary-color;
+    padding: 5px;
+    overflow: auto;
+}
+
+// Wrapper
+#wrapper {
+    margin: auto;
+    width: 438px;
+}
+
+// Error styles
+.error {
+    color: $error-color;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.error-field {
+    border: 1px solid $error-color;
+}
+
+// User info
+#user-info {
+    margin-bottom: 10px;
+    padding: 5px;
+    background-color: $background-light;
+    border-radius: $border-radius;
+}
+
+// Logout button
+.logout-btn {
+    float: right;
+    color: $logout-color;
+    text-decoration: none;
+    
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+// Loading indicator
+.contentLoading {
+    display: none;
+}
+
+// Load More button
+#load-more-container {
+    text-align: center;
+    margin: 15px 0;
+}
+
+#load-more-btn {
+    padding: 8px 15px;
+    background-color: $background-light;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: 14px;
+    
+    &:hover {
+        background-color: $background-lighter;
+    }
+    
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}

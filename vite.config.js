@@ -4,15 +4,15 @@ import { resolve } from 'path';
 export default defineConfig({
   // Base public path when served in production
   base: '/',
-  
+
   // Define the build output directory
   build: {
     // Output directory for the built files
     outDir: 'public/dist',
-    
+
     // Generate manifest.json in the output directory
     manifest: true,
-    
+
     // Configure rollup options
     rollupOptions: {
       input: {
@@ -20,7 +20,8 @@ export default defineConfig({
         'chat': resolve(__dirname, 'src/js/chat.js'),
         'chat-json': resolve(__dirname, 'src/js/chat-json.js'),
         'chat-html': resolve(__dirname, 'src/js/chat-html.js'),
-        'styles': resolve(__dirname, 'src/css/chat.css')
+        'styles': resolve(__dirname, 'src/css/chat.scss'),
+        'zipcodes': resolve(__dirname, 'src/css/zipcodes.scss')
       },
       output: {
         // Configure output file naming
@@ -37,7 +38,7 @@ export default defineConfig({
       }
     }
   },
-  
+
   // Configure the development server
   server: {
     // Serve from the project root

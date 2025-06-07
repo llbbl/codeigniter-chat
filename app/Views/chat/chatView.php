@@ -17,7 +17,7 @@
         const CURRENT_USERNAME = "<?= esc(session()->get('username')) ?>";
     </script>
     <!-- Load jQuery first as it's a dependency -->
-    <script type="text/javascript" src="<?= esc(base_url('js/min/jquery-1.4.2.min.js')) ?>"></script>
+    <script type="text/javascript" src="<?= esc(base_url('js/min/jquery-3.7.1.min.js')) ?>"></script>
     <!-- Load assets built with Vite -->
     <?= vite_tags('src/js/chat.js') ?>
 </head>
