@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\UserModel;
+use App\Helpers\UserHelper;
 use CodeIgniter\I18n\Time;
 
 class Auth extends BaseController
@@ -41,7 +42,7 @@ class Auth extends BaseController
         ];
 
         // Validate registration data using UserHelper
-        $validation = \App\Helpers\UserHelper::validateRegistration($data);
+        $validation = UserHelper::validateRegistration($data);
 
         if ($validation !== true) {
             // Return to the registration form with errors
@@ -84,7 +85,7 @@ class Auth extends BaseController
         ];
 
         // Validate login data using UserHelper
-        $validation = \App\Helpers\UserHelper::validateLogin($data);
+        $validation = UserHelper::validateLogin($data);
 
         if ($validation !== true) {
             // Return to the login form with errors
@@ -103,7 +104,7 @@ class Auth extends BaseController
         }
 
         // Set user session using UserHelper
-        \App\Helpers\UserHelper::setUserSession($user);
+        UserHelper::setUserSession($user);
 
         // Redirect to chat
         return redirect()->to('/chat');
@@ -115,7 +116,7 @@ class Auth extends BaseController
     public function logout()
     {
         // Clear user session using UserHelper
-        \App\Helpers\UserHelper::clearUserSession();
+        UserHelper::clearUserSession();
 
         // Redirect to login page
         return redirect()->to('/auth/login')->with('success', 'You have been logged out successfully.');

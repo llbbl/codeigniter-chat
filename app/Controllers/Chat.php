@@ -93,7 +93,7 @@ class Chat extends BaseController
         $messages = $this->chatModel->getMsg();
 
         // Format messages as XML using ChatHelper
-        $output = \App\Helpers\ChatHelper::formatAsXml($messages);
+        $output = ChatHelper::formatAsXml($messages);
 
         return $output;
     }
@@ -124,7 +124,7 @@ class Chat extends BaseController
         $messages = $this->chatModel->getMsg();
 
         // Format messages as JSON using ChatHelper
-        $data = \App\Helpers\ChatHelper::formatAsJson($messages);
+        $data = ChatHelper::formatAsJson($messages);
 
         // JSON sized dump to STDOUT
         return $this->response->setJSON($data);
