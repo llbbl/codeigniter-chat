@@ -54,7 +54,7 @@ class Cookie extends BaseConfig
      *
      * Cookie will only be set if a secure HTTPS connection exists.
      */
-    public bool $secure = false;
+    public bool $secure = true;
 
     /**
      * --------------------------------------------------------------------------
@@ -87,7 +87,7 @@ class Cookie extends BaseConfig
      *
      * @phpstan-var 'None'|'Lax'|'Strict'|''
      */
-    public string $samesite = 'Lax';
+    public string $samesite = 'Strict';
 
     /**
      * --------------------------------------------------------------------------
