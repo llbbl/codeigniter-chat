@@ -16,9 +16,9 @@ use Config\Services;
  */
 class ChatModel extends Model
 {
-    protected string $table = 'messages';
-    protected string $primaryKey = 'id';
-    protected array $allowedFields = ['user', 'msg', 'time'];
+    protected $table = 'messages';
+    protected $primaryKey = 'id';
+    protected $allowedFields = ['user', 'msg', 'time'];
 
     /**
      * Cache key for messages
