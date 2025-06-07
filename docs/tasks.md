@@ -39,7 +39,7 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 
 ## Modern Development Practices
 
-27. [ ] Update jQuery to the latest version (current: 1.4.2)
+27. [ ] Update jQuery to the latest version 3.7.1
 28. [x] Implement a front-end build system with Vite
 29. [ ] Add a CSS preprocessor (SASS/LESS) for better style management
 30. [ ] Implement a modern front-end framework (Vue) for better UI
