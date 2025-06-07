@@ -101,21 +101,19 @@ export default {
       loadingMore: false,
       currentPage: 1,
       hasMoreMessages: false,
-      refreshInterval: null,
+      webSocket: null,
+      webSocketConnected: false,
+      reconnectAttempts: 0,
+      reconnectInterval: null,
       lastMessageTime: null,
       selectionStart: 0,
       selectionEnd: 0
     };
   },
   mounted() {
-    this.loadMessages();
+    this.connectWebSocket();
 
-    // Set up auto-refresh every 30 seconds
-    this.refreshInterval = setInterval(() => {
-      this.refreshMessages();
-    }, 30000);
-
-    // Clean up interval when component is destroyed
+    // Clean up when component is destroyed
     this.$nextTick(() => {
       window.addEventListener('beforeunload', this.cleanUp);
     });
@@ -124,14 +122,116 @@ export default {
     this.cleanUp();
   },
   methods: {
-    cleanUp() {
-      if (this.refreshInterval) {
-        clearInterval(this.refreshInterval);
+    connectWebSocket() {
+      // Close existing connection if any
+      if (this.webSocket) {
+        this.webSocket.close();
       }
+
+      // Create WebSocket connection
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname;
+      const port = 8080; // This should match the port in your WebSocket server
+      this.webSocket = new WebSocket(`${protocol}//${host}:${port}`);
+
+      // Connection opened
+      this.webSocket.addEventListener('open', (event) => {
+        console.log('WebSocket connection established');
+        this.webSocketConnected = true;
+        this.reconnectAttempts = 0;
+
+        if (this.reconnectInterval) {
+          clearInterval(this.reconnectInterval);
+          this.reconnectInterval = null;
+        }
+
+        // Load initial messages
+        this.loadMessages();
+      });
+
+      // Listen for messages
+      this.webSocket.addEventListener('message', (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.action === 'messages') {
+          // Handle messages list
+          this.messages = data.data.messages || [];
+          this.hasMoreMessages = data.data.pagination?.hasNext || false;
+          this.loading = false;
+
+          // Store timestamp of the newest message for refresh comparison
+          if (this.messages.length > 0 && this.messages[0].timestamp) {
+            this.lastMessageTime = this.messages[0].timestamp;
+          }
+        } else if (data.action === 'newMessage') {
+          // Handle new message
+          if (!this.lastMessageTime || data.data.timestamp > this.lastMessageTime) {
+            // Add new message to the beginning of our list
+            this.messages.unshift(data.data);
+            this.lastMessageTime = data.data.timestamp;
+          }
+        }
+      });
+
+      // Connection closed
+      this.webSocket.addEventListener('close', (event) => {
+        console.log('WebSocket connection closed');
+        this.webSocketConnected = false;
+
+        // Attempt to reconnect
+        if (!this.reconnectInterval) {
+          this.reconnectInterval = setInterval(() => {
+            if (this.reconnectAttempts < 5) {
+              console.log(`Attempting to reconnect (${this.reconnectAttempts + 1}/5)...`);
+              this.reconnectAttempts++;
+              this.connectWebSocket();
+            } else {
+              clearInterval(this.reconnectInterval);
+              this.reconnectInterval = null;
+              console.error('Failed to reconnect after 5 attempts');
+            }
+          }, 5000);
+        }
+      });
+
+      // Connection error
+      this.webSocket.addEventListener('error', (event) => {
+        console.error('WebSocket error:', event);
+        this.webSocketConnected = false;
+      });
+    },
+
+    cleanUp() {
+      if (this.webSocket) {
+        this.webSocket.close();
+      }
+
+      if (this.reconnectInterval) {
+        clearInterval(this.reconnectInterval);
+      }
+
       window.removeEventListener('beforeunload', this.cleanUp);
     },
 
-    async loadMessages() {
+    loadMessages() {
+      if (!this.webSocketConnected) {
+        console.log('WebSocket not connected, using HTTP fallback');
+        this.loadMessagesHttp();
+        return;
+      }
+
+      this.loading = true;
+
+      // Request messages via WebSocket
+      this.webSocket.send(JSON.stringify({
+        action: 'getMessages',
+        page: this.currentPage,
+        perPage: 10
+      }));
+    },
+
+    // HTTP fallback for loading messages
+    async loadMessagesHttp() {
       try {
         const response = await fetch(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`);
         const data = await response.json();
@@ -150,37 +250,37 @@ export default {
       }
     },
 
-    async refreshMessages() {
-      try {
-        const response = await fetch(`${this.$chatRoutes.api}?page=1&per_page=10`);
-        const data = await response.json();
-
-        if (data.messages && data.messages.length > 0) {
-          // Check if we have new messages
-          if (this.lastMessageTime && data.messages[0].timestamp > this.lastMessageTime) {
-            // Find messages newer than our last known message
-            const newMessages = data.messages.filter(msg => 
-              !this.lastMessageTime || msg.timestamp > this.lastMessageTime
-            );
-
-            if (newMessages.length > 0) {
-              // Add new messages to the beginning of our list
-              this.messages = [...newMessages, ...this.messages];
-              this.lastMessageTime = data.messages[0].timestamp;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error refreshing messages:', error);
-      }
-    },
-
-    async loadMoreMessages() {
+    loadMoreMessages() {
       if (this.loadingMore) return;
 
       this.loadingMore = true;
       this.currentPage++;
 
+      if (!this.webSocketConnected) {
+        console.log('WebSocket not connected, using HTTP fallback');
+        this.loadMoreMessagesHttp();
+        return;
+      }
+
+      // Request more messages via WebSocket
+      this.webSocket.send(JSON.stringify({
+        action: 'getMessages',
+        page: this.currentPage,
+        perPage: 10
+      }));
+
+      // The response will be handled by the message event listener
+      // We'll need to update the loadingMore state there
+      setTimeout(() => {
+        // Fallback to reset loading state if no response
+        if (this.loadingMore) {
+          this.loadingMore = false;
+        }
+      }, 5000);
+    },
+
+    // HTTP fallback for loading more messages
+    async loadMoreMessagesHttp() {
       try {
         const response = await fetch(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`);
         const data = await response.json();
@@ -190,15 +290,15 @@ export default {
         }
 
         this.hasMoreMessages = data.pagination?.hasNext || false;
-        this.loadingMore = false;
       } catch (error) {
         console.error('Error loading more messages:', error);
         this.currentPage--; // Revert page increment on failure
+      } finally {
         this.loadingMore = false;
       }
     },
 
-    async sendMessage() {
+    sendMessage() {
       // Clear previous errors
       this.error = '';
 
@@ -215,6 +315,25 @@ export default {
 
       this.sending = true;
 
+      if (this.webSocketConnected) {
+        // Send message via WebSocket
+        this.webSocket.send(JSON.stringify({
+          action: 'sendMessage',
+          username: this.username,
+          message: this.message
+        }));
+
+        // Clear message field
+        this.message = '';
+        this.sending = false;
+      } else {
+        // Fallback to HTTP if WebSocket is not connected
+        this.sendMessageHttp();
+      }
+    },
+
+    // HTTP fallback for sending messages
+    async sendMessageHttp() {
       try {
         const formData = new FormData();
         formData.append('message', this.message);
@@ -376,7 +495,7 @@ $transition-speed: 0.2s;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   color: $text-color;
-  
+
   @media (max-width: 640px) {
     margin: 10px;
     width: auto;
@@ -409,7 +528,7 @@ $transition-speed: 0.2s;
   border-radius: $border-radius;
   background-color: rgba(255, 255, 255, 0.1);
   transition: background-color $transition-speed;
-  
+
   &:hover {
     background-color: rgba(255, 255, 255, 0.2);
   }
@@ -427,7 +546,7 @@ $transition-speed: 0.2s;
   overflow-y: auto;
   padding: 15px;
   background-color: $background-color;
-  
+
   @media (max-width: 640px) {
     height: 300px;
   }
@@ -440,7 +559,7 @@ $transition-speed: 0.2s;
   border-radius: $border-radius;
   box-shadow: $box-shadow;
   transition: transform $transition-speed;
-  
+
   &:hover {
     transform: translateY(-2px);
   }
@@ -466,16 +585,16 @@ $transition-speed: 0.2s;
 .message-content {
   line-height: 1.5;
   word-break: break-word;
-  
+
   a {
     color: $primary-color;
     text-decoration: none;
-    
+
     &:hover {
       text-decoration: underline;
     }
   }
-  
+
   code {
     background-color: $background-color;
     padding: 2px 4px;
@@ -483,7 +602,7 @@ $transition-speed: 0.2s;
     font-family: monospace;
     font-size: 0.9em;
   }
-  
+
   blockquote {
     border-left: 3px solid $border-color;
     margin: 5px 0;
@@ -559,11 +678,11 @@ $transition-speed: 0.2s;
   cursor: pointer;
   font-size: 14px;
   transition: background-color $transition-speed;
-  
+
   &:hover:not(:disabled) {
     background-color: $hover-color;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -583,13 +702,13 @@ $transition-speed: 0.2s;
 
 .form-group {
   margin-bottom: 15px;
-  
+
   label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
   }
-  
+
   textarea {
     width: 100%;
     padding: 10px;
@@ -598,12 +717,12 @@ $transition-speed: 0.2s;
     font-family: inherit;
     font-size: 14px;
     resize: vertical;
-    
+
     &:focus {
       outline: none;
       border-color: $primary-color;
     }
-    
+
     &.error-field {
       border-color: $error-color;
     }
@@ -615,7 +734,7 @@ $transition-speed: 0.2s;
   align-items: center;
   margin-top: 5px;
   flex-wrap: wrap;
-  
+
   button {
     background-color: $background-color;
     border: 1px solid $border-color;
@@ -625,18 +744,18 @@ $transition-speed: 0.2s;
     font-size: 12px;
     cursor: pointer;
     transition: background-color $transition-speed;
-    
+
     &:hover {
       background-color: $hover-color;
     }
   }
-  
+
   .format-info {
     font-size: 12px;
     color: $light-text-color;
     margin-left: 5px;
   }
-  
+
   @media (max-width: 640px) {
     .format-info {
       display: none;
@@ -653,36 +772,36 @@ $transition-speed: 0.2s;
 .form-actions {
   display: flex;
   gap: 10px;
-  
+
   button {
     padding: 10px 15px;
     border-radius: $border-radius;
     font-size: 14px;
     cursor: pointer;
     transition: background-color $transition-speed;
-    
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
   }
-  
+
   .send-btn {
     background-color: $primary-color;
     color: white;
     border: none;
     flex: 1;
-    
+
     &:hover:not(:disabled) {
       background-color: darken($primary-color, 10%);
     }
   }
-  
+
   .clear-btn {
     background-color: $secondary-color;
     color: white;
     border: none;
-    
+
     &:hover:not(:disabled) {
       background-color: darken($secondary-color, 10%);
     }
@@ -699,16 +818,16 @@ $transition-speed: 0.2s;
     display: flex;
     flex-direction: column;
   }
-  
+
   .message-container {
     flex: 1;
     overflow: hidden;
   }
-  
+
   .messages {
     height: 100%;
   }
-  
+
   .form-actions {
     button {
       padding: 12px 15px;

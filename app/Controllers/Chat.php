@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\ChatModel;
 use App\Helpers\ChatHelper;
+use App\Libraries\WebSocketClient;
 use CodeIgniter\I18n\Time;
 
 /**
@@ -82,7 +83,7 @@ class Chat extends BaseController
 
             // Insert message and handle potential database errors
             try {
-                $this->chatModel->insertMsg($name, $message, $current->getTimestamp());
+                $messageId = $this->chatModel->insertMsg($name, $message, $current->getTimestamp());
             } catch (\Exception $e) {
                 return $this->handleDatabaseError('Failed to save message', [
                     'error' => $e->getMessage()
@@ -94,6 +95,21 @@ class Chat extends BaseController
                 'user' => $name,
                 'message_length' => strlen($message)
             ]);
+
+            // Broadcast the message to all connected WebSocket clients
+            try {
+                $webSocketClient = new WebSocketClient();
+                $webSocketClient->send([
+                    'action' => 'sendMessage',
+                    'username' => $name,
+                    'message' => $message
+                ]);
+            } catch (\Exception $e) {
+                // Log the error but don't fail the request
+                $this->logMessage('error', 'Failed to broadcast message to WebSocket', [
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             if ($html_redirect === "true") {
                 return redirect()->to('/chat/html');
