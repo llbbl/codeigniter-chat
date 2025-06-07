@@ -52,40 +52,53 @@ class Auth extends BaseController
      */
     public function processRegistration()
     {
-        // Get data for validation
-        $data = [
-            'username' => $this->request->getPost('username'),
-            'email' => $this->request->getPost('email'),
-            'password' => $this->request->getPost('password'),
-            'password_confirm' => $this->request->getPost('password_confirm')
-        ];
+        try {
+            // Get data for validation
+            $data = [
+                'username' => $this->request->getPost('username'),
+                'email' => $this->request->getPost('email'),
+                'password' => $this->request->getPost('password'),
+                'password_confirm' => $this->request->getPost('password_confirm')
+            ];
 
-        // Validate registration data using UserHelper
-        $validation = UserHelper::validateRegistration($data);
+            // Validate registration data using UserHelper
+            $validation = UserHelper::validateRegistration($data);
 
-        if ($validation !== true) {
-            // Return to the registration form with errors
-            return redirect()->back()->withInput()->with('errors', $validation);
+            if ($validation !== true) {
+                // Use the error handler for validation errors
+                return $this->handleValidationError($validation, 'Registration validation failed');
+            }
+
+            // Get sanitized inputs
+            $sanitized = $this->sanitizeInput($data);
+            $username = $sanitized['username'];
+            $email = $sanitized['email'];
+            $password = $data['password']; // Don't sanitize password as it will be hashed
+
+            // Create the user
+            try {
+                $userId = $this->userModel->createUser($username, $email, $password);
+
+                if (!$userId) {
+                    return $this->handleDatabaseError('Failed to create user account', [
+                        'username' => $username
+                    ]);
+                }
+            } catch (\Exception $e) {
+                return $this->handleDatabaseError('Error creating user account', [
+                    'error' => $e->getMessage(),
+                    'username' => $username
+                ]);
+            }
+
+            $this->logMessage('info', 'New user registered: ' . $username);
+
+            // Set success message and redirect to login
+            return redirect()->to('/auth/login')->with('success', 'Registration successful! You can now log in.');
+        } catch (\Throwable $e) {
+            // Catch any unexpected exceptions
+            return $this->handleException($e);
         }
-
-        // Get sanitized inputs
-        $sanitized = $this->sanitizeInput($data);
-        $username = $sanitized['username'];
-        $email = $sanitized['email'];
-        $password = $data['password']; // Don't sanitize password as it will be hashed
-
-        // Create the user
-        $userId = $this->userModel->createUser($username, $email, $password);
-
-        if (!$userId) {
-            $this->logMessage('error', 'Failed to create user account for username: ' . $username);
-            return redirect()->back()->withInput()->with('error', 'Failed to create user account. Please try again.');
-        }
-
-        $this->logMessage('info', 'New user registered: ' . $username);
-
-        // Set success message and redirect to login
-        return redirect()->to('/auth/login')->with('success', 'Registration successful! You can now log in.');
     }
 
     /**
@@ -105,39 +118,51 @@ class Auth extends BaseController
      */
     public function processLogin()
     {
-        // Get data for validation
-        $data = [
-            'username' => $this->request->getPost('username'),
-            'password' => $this->request->getPost('password')
-        ];
+        try {
+            // Get data for validation
+            $data = [
+                'username' => $this->request->getPost('username'),
+                'password' => $this->request->getPost('password')
+            ];
 
-        // Validate login data using UserHelper
-        $validation = UserHelper::validateLogin($data);
+            // Validate login data using UserHelper
+            $validation = UserHelper::validateLogin($data);
 
-        if ($validation !== true) {
-            // Return to the login form with errors
-            return redirect()->back()->withInput()->with('errors', $validation);
+            if ($validation !== true) {
+                // Use the error handler for validation errors
+                return $this->handleValidationError($validation, 'Login validation failed');
+            }
+
+            // Get inputs - username should be sanitized but password should not
+            $username = $this->sanitizeInput(['username' => $data['username']])['username'];
+            $password = $data['password'];
+
+            // Verify credentials
+            try {
+                $user = $this->userModel->verifyCredentials($username, $password);
+
+                if (!$user) {
+                    $this->logMessage('warning', 'Failed login attempt for username: ' . $username);
+                    return $this->handleAuthenticationError('Invalid username or password');
+                }
+            } catch (\Exception $e) {
+                return $this->handleDatabaseError('Error verifying credentials', [
+                    'error' => $e->getMessage(),
+                    'username' => $username
+                ]);
+            }
+
+            // Set user session using UserHelper
+            UserHelper::setUserSession($user);
+
+            $this->logMessage('info', 'User logged in: ' . $username);
+
+            // Redirect to chat
+            return redirect()->to('/chat');
+        } catch (\Throwable $e) {
+            // Catch any unexpected exceptions
+            return $this->handleException($e);
         }
-
-        // Get inputs - username should be sanitized but password should not
-        $username = $this->sanitizeInput(['username' => $data['username']])['username'];
-        $password = $data['password'];
-
-        // Verify credentials
-        $user = $this->userModel->verifyCredentials($username, $password);
-
-        if (!$user) {
-            $this->logMessage('warning', 'Failed login attempt for username: ' . $username);
-            return redirect()->back()->withInput()->with('error', 'Invalid username or password');
-        }
-
-        // Set user session using UserHelper
-        UserHelper::setUserSession($user);
-
-        $this->logMessage('info', 'User logged in: ' . $username);
-
-        // Redirect to chat
-        return redirect()->to('/chat');
     }
 
     /**
@@ -147,16 +172,21 @@ class Auth extends BaseController
      */
     public function logout()
     {
-        $username = $this->getCurrentUsername();
+        try {
+            $username = $this->getCurrentUsername();
 
-        // Clear user session using UserHelper
-        UserHelper::clearUserSession();
+            // Clear user session using UserHelper
+            UserHelper::clearUserSession();
 
-        if ($username) {
-            $this->logMessage('info', 'User logged out: ' . $username);
+            if ($username) {
+                $this->logMessage('info', 'User logged out: ' . $username);
+            }
+
+            // Redirect to login page
+            return redirect()->to('/auth/login')->with('success', 'You have been logged out successfully.');
+        } catch (\Throwable $e) {
+            // Catch any unexpected exceptions
+            return $this->handleException($e);
         }
-
-        // Redirect to login page
-        return redirect()->to('/auth/login')->with('success', 'You have been logged out successfully.');
     }
 }

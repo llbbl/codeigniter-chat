@@ -53,47 +53,62 @@ class Chat extends BaseController
      */
     public function update()
     {
-        // Get data for validation
-        $data = [
-            'message' => $this->request->getPost('message')
-        ];
+        try {
+            // Get data for validation
+            $data = [
+                'message' => $this->request->getPost('message')
+            ];
 
-        // Validate message using ChatHelper
-        $validation = ChatHelper::validateMessage($data);
+            // Validate message using ChatHelper
+            $validation = ChatHelper::validateMessage($data);
 
-        if ($validation !== true) {
-            // If AJAX request, return JSON with errors
-            if (!$this->request->getPost('html_redirect')) {
-                return $this->respondWithJson([
-                    'success' => false,
-                    'errors' => $validation
+            if ($validation !== true) {
+                // Use the error handler for validation errors
+                return $this->handleValidationError($validation, 'Message validation failed');
+            }
+
+            // Get username from session
+            $name = $this->getCurrentUsername();
+
+            if (!$name) {
+                return $this->handleAuthenticationError('You must be logged in to post messages');
+            }
+
+            // Get sanitized inputs
+            $message = $this->sanitizeInput($data)['message'];
+            $html_redirect = $this->request->getPost('html_redirect');
+
+            $current = Time::now();
+
+            // Insert message and handle potential database errors
+            try {
+                $this->chatModel->insertMsg($name, $message, $current->getTimestamp());
+            } catch (\Exception $e) {
+                return $this->handleDatabaseError('Failed to save message', [
+                    'error' => $e->getMessage()
                 ]);
             }
 
-            // For HTML form, redirect back with errors
-            return redirect()->back()->withInput()->with('errors', $validation);
+            // Log successful message
+            $this->logMessage('info', 'New message posted', [
+                'user' => $name,
+                'message_length' => strlen($message)
+            ]);
+
+            if ($html_redirect === "true") {
+                return redirect()->to('/chat/html');
+            }
+
+            // For AJAX requests, return success JSON
+            if ($this->request->isAJAX()) {
+                return $this->respondWithJson(['success' => true]);
+            }
+
+            return '';
+        } catch (\Throwable $e) {
+            // Catch any unexpected exceptions
+            return $this->handleException($e);
         }
-
-        // Get username from session
-        $name = $this->getCurrentUsername();
-
-        // Get sanitized inputs
-        $message = $this->sanitizeInput($data)['message'];
-        $html_redirect = $this->request->getPost('html_redirect');
-
-        $current = Time::now();
-        $this->chatModel->insertMsg($name, $message, $current->getTimestamp());
-
-        if ($html_redirect === "true") {
-            return redirect()->to('/chat/html');
-        }
-
-        // For AJAX requests, return success JSON
-        if ($this->request->isAJAX()) {
-            return $this->respondWithJson(['success' => true]);
-        }
-
-        return '';
     }
 
     /**
