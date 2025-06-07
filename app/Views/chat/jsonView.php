@@ -127,7 +127,7 @@
                 }
             });
 
-            $.getJSON("<?= esc(site_url('chat/json_backend')) ?>", function(json) {
+            $.getJSON("<?= esc(site_url('chat/jsonBackend')) ?>", function(json) {
                 $("#loading").remove();                
                 addMessages(json);
             });

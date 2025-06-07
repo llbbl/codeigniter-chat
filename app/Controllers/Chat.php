@@ -141,7 +141,7 @@ class Chat extends BaseController
      * 
      * @return string
      */
-    public function json_backend()
+    public function jsonBackend()
     {
         // Headers for the JSON
         $this->response->setHeader('Cache-Control', 'no-cache, must-revalidate');
@@ -163,7 +163,7 @@ class Chat extends BaseController
     public function html()
     {
         $data = [
-            'html' => $this->html_backend()
+            'html' => $this->htmlBackend()
         ];
 
         return view('chat/htmlView', $data);
@@ -174,7 +174,7 @@ class Chat extends BaseController
      * 
      * @return string
      */
-    public function html_backend()
+    public function htmlBackend()
     {
         $data = [
             'query' => $this->chatModel->getMsg()

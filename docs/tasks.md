@@ -16,8 +16,8 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 
 ## Code Structure and Organization
 
-10. [ ] Refactor model to use CodeIgniter's Query Builder instead of raw SQL
-11. [ ] Standardize controller method naming conventions
+10. [x] Refactor model to use CodeIgniter's Query Builder instead of raw SQL
+11. [x] Standardize controller method naming conventions
 12. [ ] Implement proper MVC separation (move business logic from controllers to models)
 13. [ ] Create a base controller for common functionality
 14. [ ] Organize JavaScript code into separate files instead of embedding in views

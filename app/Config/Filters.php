@@ -117,8 +117,8 @@ class Filters extends BaseFilters
             'before' => [
                 'chat/update',
                 'chat/backend',
-                'chat/json_backend',
-                'chat/html_backend',
+                'chat/jsonBackend',
+                'chat/htmlBackend',
             ],
         ],
     ];
