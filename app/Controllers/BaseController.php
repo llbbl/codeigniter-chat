@@ -105,7 +105,13 @@ abstract class BaseController extends Controller
      */
     protected function respondWithJson($data, int $status = 200)
     {
+        // Set cache headers for JSON responses
+        // - max-age: Client should cache for 60 seconds
+        // - stale-while-revalidate: Client can use stale response for up to 30 seconds while revalidating
+        // - private: Response is intended for a single user and shouldn't be stored in shared caches
         return $this->response->setStatusCode($status)
+                             ->setHeader('Cache-Control', 'private, max-age=60, stale-while-revalidate=30')
+                             ->setHeader('Expires', gmdate('D, d M Y H:i:s', time() + 60) . ' GMT')
                              ->setJSON($data);
     }
 
@@ -119,9 +125,14 @@ abstract class BaseController extends Controller
      */
     protected function respondWithXml(string $xml, int $status = 200)
     {
+        // Set cache headers for XML responses
+        // - max-age: Client should cache for 60 seconds
+        // - stale-while-revalidate: Client can use stale response for up to 30 seconds while revalidating
+        // - private: Response is intended for a single user and shouldn't be stored in shared caches
         return $this->response->setStatusCode($status)
                              ->setHeader('Content-Type', 'text/xml')
-                             ->setHeader('Cache-Control', 'no-cache')
+                             ->setHeader('Cache-Control', 'private, max-age=60, stale-while-revalidate=30')
+                             ->setHeader('Expires', gmdate('D, d M Y H:i:s', time() + 60) . ' GMT')
                              ->setBody($xml);
     }
 
@@ -134,8 +145,30 @@ abstract class BaseController extends Controller
      *
      * @return string
      */
-    protected function respondWithView(string $view, array $data = [], array $options = [])
+    /**
+     * Return a view response with appropriate caching headers.
+     *
+     * @param string $view       The view file to load
+     * @param array  $data       The data to pass to the view
+     * @param array  $options    View options
+     * @param bool   $cacheable  Whether the view should be cacheable (default: false)
+     * @param int    $cacheTime  Cache time in seconds (default: 300 - 5 minutes)
+     *
+     * @return string
+     */
+    protected function respondWithView(string $view, array $data = [], array $options = [], bool $cacheable = false, int $cacheTime = 300)
     {
+        // If the view is cacheable, set appropriate cache headers
+        if ($cacheable) {
+            // For static content, we can use a longer cache time
+            $this->response->setHeader('Cache-Control', 'public, max-age=' . $cacheTime . ', stale-while-revalidate=60')
+                          ->setHeader('Expires', gmdate('D, d M Y H:i:s', time() + $cacheTime) . ' GMT');
+        } else {
+            // For dynamic content, we should prevent caching
+            $this->response->setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate')
+                          ->setHeader('Expires', '0');
+        }
+
         return view($view, $data, $options);
     }
 

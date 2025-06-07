@@ -2,11 +2,25 @@
  * JavaScript for the XML version of the chat application
  */
 
+// Debounce function to prevent excessive function calls
+function debounce(func, wait) {
+    let timeout;
+    return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            func.apply(context, args);
+        }, wait);
+    };
+}
+
 $(document).ready(function(){
     loadMsg();            
     hideLoading();
 
-    $("form#chatform").submit(function(){
+    // Create a debounced submit handler to prevent multiple submissions
+    const debouncedSubmitHandler = debounce(function(event) {
         // Clear previous errors
         $(".error").text("");
         $("input").removeClass("error-field");
@@ -47,8 +61,14 @@ $(document).ready(function(){
                 } else {
                     // Success - add message to window
                     // Escape HTML in the message before adding to the DOM
-                    var escapedMessage = $('<div/>').text(message).html();
-                    $("#messagewindow").prepend("<b>" + CURRENT_USERNAME + "</b>: "+escapedMessage+"<br />");
+                    var escapedMessage = escapeHTML(message);
+
+                    // Create a new message element
+                    var messageElement = document.createElement('div');
+                    messageElement.innerHTML = "<b>" + CURRENT_USERNAME + "</b>: " + escapedMessage;
+
+                    // Prepend to message window (more efficient than string concatenation)
+                    $("#messagewindow").prepend(messageElement);
 
                     // Clear message field and focus
                     $("#content").val("");                    
@@ -60,6 +80,12 @@ $(document).ready(function(){
             });
         }
 
+        return false;
+    }, 300); // 300ms debounce time
+
+    // Attach the debounced handler to the form submit event
+    $("form#chatform").submit(function(event) {
+        debouncedSubmitHandler(event);
         return false;
     });
 });
@@ -76,17 +102,40 @@ function hideLoading(){
     $("#author").show();
 }
 
+function escapeHTML(str) {
+    // More efficient way to escape HTML
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function addMessages(xml) {
+    // Create a document fragment to batch DOM operations
+    var fragment = document.createDocumentFragment();
+    var messageContainer = document.createElement('div');
+
     $(xml).find('message').each(function() {
         author = $(this).find("author").text();
         msg = $(this).find("text").text();
 
-        // Escape HTML in the author and message before adding to the DOM
-        var escapedAuthor = $('<div/>').text(author).html();
-        var escapedMsg = $('<div/>').text(msg).html();
+        // Escape HTML in the author and message
+        var escapedAuthor = escapeHTML(author);
+        var escapedMsg = escapeHTML(msg);
 
-        $("#messagewindow").append("<b>"+escapedAuthor+"</b>: "+escapedMsg+"<br />");
+        // Create message element
+        var messageElement = document.createElement('div');
+        messageElement.innerHTML = "<b>" + escapedAuthor + "</b>: " + escapedMsg;
+        messageContainer.appendChild(messageElement);
     });
+
+    // Add all messages to the fragment
+    fragment.appendChild(messageContainer);
+
+    // Append the fragment to the DOM (single reflow/repaint)
+    $("#messagewindow").append(fragment);
 }
 
 function loadMsg() {
@@ -100,7 +149,14 @@ function loadMsg() {
     $.get(CHAT_ROUTES.backend, function(xml) {
         $("#loading").remove();                
         addMessages(xml);
-    });
 
-    //setTimeout('loadMsg()', 4000);
+        // Schedule next update using requestAnimationFrame for better performance
+        // This ensures the browser is ready to perform the next update
+        requestAnimationFrame(function() {
+            setTimeout(loadMsg, 4000); // 4 second interval
+        });
+    }).fail(function() {
+        // If request fails, try again after a longer delay
+        setTimeout(loadMsg, 10000); // 10 second interval on failure
+    });
 }

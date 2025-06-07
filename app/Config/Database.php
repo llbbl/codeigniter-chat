@@ -32,7 +32,7 @@ class Database extends Config
         'database'     => 'your_database_name',  // Change this to your database name
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
-        'pConnect'     => false,
+        'pConnect'     => true, // Enabled persistent connections for database connection pooling
         'DBDebug'      => true,
         'charset'      => 'utf8mb4',
         'DBCollat'     => 'utf8mb4_general_ci',
@@ -170,7 +170,7 @@ class Database extends Config
         'database'    => ':memory:',
         'DBDriver'    => 'SQLite3',
         'DBPrefix'    => 'db_',  // Needed to ensure we're working correctly with prefixes live. DO NOT REMOVE FOR CI DEVS
-        'pConnect'    => false,
+        'pConnect'    => false, // SQLite3 doesn't support persistent connections
         'DBDebug'     => true,
         'charset'     => 'utf8',
         'DBCollat'    => '',

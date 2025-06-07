@@ -33,8 +33,8 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 21. [x] Implement pagination for message retrieval to handle large datasets
 22. [x] Minify and combine CSS and JavaScript files
 23. [x] Implement lazy loading for older messages
-24. [ ] Add database connection pooling
-25. [ ] Optimize front-end rendering performance
+24. [x] Add database connection pooling
+25. [x] Optimize front-end rendering performance
 26. [ ] Implement proper HTTP caching headers
 
 ## Modern Development Practices
