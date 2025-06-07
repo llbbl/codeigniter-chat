@@ -26,7 +26,22 @@ PHP version 8.1 or higher is required, with the following extensions installed:
    git clone git@github.com:llbbl/codeigniter-chat.git
    ```
 
-2. Database Configuration:
+2. Install PHP dependencies:
+   ```bash
+   composer install
+   ```
+
+3. Install Node.js dependencies (for front-end build system):
+   ```bash
+   npm install
+   ```
+
+4. Build front-end assets:
+   ```bash
+   npm run build
+   ```
+
+5. Database Configuration:
    - Edit `app/Config/Database.php` to include your MySQL connection details:
      ```php
      public array $default = [
@@ -103,6 +118,34 @@ If you encounter any issues:
 2. Ensure your database configuration is correct
 3. Make sure your web server is configured correctly
 4. Verify that the database tables have been created properly
+
+## Front-end Build System
+
+This project uses [Vite](https://vitejs.dev/) as a front-end build system to process CSS and JavaScript files.
+
+### Development Mode
+
+To start the development server:
+
+```bash
+npm run dev
+```
+
+This will start a development server at http://localhost:5173/ that will automatically reload when you make changes to the source files.
+
+### Building for Production
+
+To build the assets for production:
+
+```bash
+npm run build
+```
+
+This will generate optimized files in the `public/dist/` directory.
+
+### More Information
+
+For more detailed information about the front-end build system, please refer to the [src/README.md](src/README.md) file.
 
 ## Migration from CodeIgniter 3 to CodeIgniter 4
 

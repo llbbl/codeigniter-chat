@@ -2,8 +2,12 @@
 <html>
 <head>
     <title>CodeIgniter Shoutbox</title>
-    <link rel="stylesheet" href="<?= esc(base_url('css/chat.css')) ?>">
-    <script type="text/javascript" src="<?= esc(base_url('js/chat-html.js')) ?>"></script>
+    <?php
+    // Use the Vite helper to load assets
+    helper('vite');
+    ?>
+    <!-- Load assets built with Vite -->
+    <?= vite_tags('src/js/chat-html.js') ?>
 </head>
 <body>
     <div id="wrapper">

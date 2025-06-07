@@ -3,8 +3,10 @@
 <head>
     <title>CodeIgniter Shoutbox - JSON edition</title>
     <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">
-    <link rel="stylesheet" href="<?= esc(base_url('css/chat.css')) ?>">
-    <script type="text/javascript" src="<?= esc(base_url('js/jquery-1.4.2.min.js')) ?>"></script>
+    <?php
+    // Use the Vite helper to load assets
+    helper('vite');
+    ?>
     <script type="text/javascript">
         // Define constants for use in the external JavaScript file
         const CHAT_ROUTES = {
@@ -13,7 +15,10 @@
         };
         const CSRF_TOKEN_NAME = "<?= csrf_token() ?>";
     </script>
-    <script type="text/javascript" src="<?= esc(base_url('js/chat-json.js')) ?>"></script>
+    <!-- Load jQuery first as it's a dependency -->
+    <script type="text/javascript" src="<?= esc(base_url('js/min/jquery-1.4.2.min.js')) ?>"></script>
+    <!-- Load assets built with Vite -->
+    <?= vite_tags('src/js/chat-json.js') ?>
 </head>
 <body>
     <div id="wrapper">

@@ -1,0 +1,46 @@
+/**
+ * Common styles for the chat application
+ */
+
+#messagewindow {
+    height: 250px;
+    border: 1px solid;
+    padding: 5px;
+    overflow: auto;
+}
+
+#wrapper {
+    margin: auto;
+    width: 438px;
+}
+
+.error {
+    color: red;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.error-field {
+    border: 1px solid red;
+}
+
+#user-info {
+    margin-bottom: 10px;
+    padding: 5px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+}
+
+.logout-btn {
+    float: right;
+    color: #d9534f;
+    text-decoration: none;
+}
+
+.logout-btn:hover {
+    text-decoration: underline;
+}
+
+.contentLoading {
+    display: none;
+}
