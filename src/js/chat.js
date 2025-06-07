@@ -5,9 +5,26 @@
 // Import CSS
 import '../css/chat.css';
 
+// Track current page for lazy loading
+let currentPage = 1;
+const messagesPerPage = 10;
+let hasMoreMessages = true;
+
 $(document).ready(function(){
-    loadMsg();            
+    loadMsg(currentPage);            
     hideLoading();
+
+    // Add load more button after message window
+    $("#messagewindow").after('<div id="load-more-container"><button id="load-more-btn" style="display:none;">Load More Messages</button></div>');
+
+    // Add click handler for load more button
+    $("#load-more-btn").click(function() {
+        if (hasMoreMessages) {
+            currentPage++;
+            $(this).text('Loading...');
+            loadOlderMessages(currentPage);
+        }
+    });
 
     $("form#chatform").submit(function(){
         // Clear previous errors
@@ -79,7 +96,9 @@ function hideLoading(){
     $("#author").show();
 }
 
-function addMessages(xml) {
+function addMessages(xml, append = false) {
+    let messagesAdded = 0;
+
     $(xml).find('message').each(function() {
         var author = $(this).find("author").text();
         var msg = $(this).find("text").text();
@@ -88,11 +107,29 @@ function addMessages(xml) {
         var escapedAuthor = $('<div/>').text(author).html();
         var escapedMsg = $('<div/>').text(msg).html();
 
-        $("#messagewindow").append("<b>"+escapedAuthor+"</b>: "+escapedMsg+"<br />");
+        if (append) {
+            $("#messagewindow").append("<b>"+escapedAuthor+"</b>: "+escapedMsg+"<br />");
+        } else {
+            $("#messagewindow").append("<b>"+escapedAuthor+"</b>: "+escapedMsg+"<br />");
+        }
+        messagesAdded++;
     });
+
+    // Check if we have pagination info
+    const totalPages = parseInt($(xml).find('pagination totalPages').text()) || 0;
+    hasMoreMessages = currentPage < totalPages;
+
+    // Show or hide load more button based on whether there are more messages
+    if (hasMoreMessages) {
+        $("#load-more-btn").show().text('Load More Messages');
+    } else {
+        $("#load-more-btn").hide();
+    }
+
+    return messagesAdded;
 }
 
-function loadMsg() {
+function loadMsg(page = 1) {
     // Set up AJAX with CSRF token
     $.ajaxSetup({
         headers: {
@@ -100,10 +137,23 @@ function loadMsg() {
         }
     });
 
-    $.get(CHAT_ROUTES.backend, function(xml) {
+    $.get(CHAT_ROUTES.backend + '?page=' + page + '&per_page=' + messagesPerPage, function(xml) {
         $("#loading").remove();                
         addMessages(xml);
     });
+}
 
-    //setTimeout('loadMsg()', 4000);
+function loadOlderMessages(page) {
+    $.get(CHAT_ROUTES.backend + '?page=' + page + '&per_page=' + messagesPerPage, function(xml) {
+        const messagesAdded = addMessages(xml, true);
+
+        if (messagesAdded === 0) {
+            $("#load-more-btn").text('No more messages').prop('disabled', true);
+        } else {
+            $("#load-more-btn").text('Load More Messages');
+        }
+    }).fail(function() {
+        currentPage--; // Revert page increment on failure
+        $("#load-more-btn").text('Failed to load. Try again.');
+    });
 }

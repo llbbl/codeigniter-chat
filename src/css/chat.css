@@ -44,3 +44,27 @@
 .contentLoading {
     display: none;
 }
+
+/* Styles for the Load More button */
+#load-more-container {
+    text-align: center;
+    margin: 15px 0;
+}
+
+#load-more-btn {
+    padding: 8px 15px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+#load-more-btn:hover {
+    background-color: #e0e0e0;
+}
+
+#load-more-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
