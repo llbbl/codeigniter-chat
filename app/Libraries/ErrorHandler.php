@@ -108,7 +108,7 @@ class ErrorHandler
      * 
      * @return void
      */
-    protected function logError(string $message, string $logLevel, array $context = [])
+    protected function logError(string $message, string $logLevel, array $context = []): void
     {
         log_message($logLevel, $message, $context);
     }

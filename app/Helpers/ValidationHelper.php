@@ -18,7 +18,7 @@ class ValidationHelper
      * @param array $rules Validation rules
      * @return array|bool Validation errors or true if valid
      */
-    public static function validate(array $data, array $rules)
+    public static function validate(array $data, array $rules): array|bool
     {
         $validation = Services::validation();
         $validation->setRules($rules);

@@ -20,7 +20,7 @@ class ResponseHelper
      * @param array $headers Additional headers to include
      * @return Response
      */
-    public static function json($data, int $status = 200, array $headers = []): Response
+    public static function json(mixed $data, int $status = 200, array $headers = []): Response
     {
         $response = Services::response();
         
@@ -67,7 +67,7 @@ class ResponseHelper
      * @param int $status The HTTP status code
      * @return array
      */
-    public static function success($data = null, string $message = 'Success', int $status = 200): array
+    public static function success(mixed $data = null, string $message = 'Success', int $status = 200): array
     {
         return [
             'status' => $status,
@@ -85,7 +85,7 @@ class ResponseHelper
      * @param int $status The HTTP status code
      * @return array
      */
-    public static function error(string $message = 'Error', $errors = null, int $status = 400): array
+    public static function error(string $message = 'Error', mixed $errors = null, int $status = 400): array
     {
         return [
             'status' => $status,

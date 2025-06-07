@@ -19,7 +19,7 @@ class UserModel extends Model
      * @param string $username The username to search for
      * @return array|null The user data or null if not found
      */
-    public function findUserByUsername($username)
+    public function findUserByUsername(string $username): ?array
     {
         return $this->where('username', $username)->first();
     }
@@ -30,7 +30,7 @@ class UserModel extends Model
      * @param string $email The email to search for
      * @return array|null The user data or null if not found
      */
-    public function findUserByEmail($email)
+    public function findUserByEmail(string $email): ?array
     {
         return $this->where('email', $email)->first();
     }
@@ -43,7 +43,7 @@ class UserModel extends Model
      * @param string $password The password (will be hashed)
      * @return int|false The inserted ID or false on failure
      */
-    public function createUser($username, $email, $password)
+    public function createUser(string $username, string $email, string $password): int|false
     {
         return $this->insert([
             'username' => $username,
@@ -59,7 +59,7 @@ class UserModel extends Model
      * @param string $password The password to verify
      * @return array|null The user data if verified, null otherwise
      */
-    public function verifyCredentials($username, $password)
+    public function verifyCredentials(string $username, string $password): ?array
     {
         $user = $this->findUserByUsername($username);
 

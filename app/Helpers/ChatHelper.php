@@ -17,7 +17,7 @@ class ChatHelper
      * @param array $data Data to validate
      * @return array|bool Validation errors or true if valid
      */
-    public static function validateMessage($data)
+    public static function validateMessage(array $data): array|bool
     {
         $rules = [
             'message' => [
@@ -47,7 +47,7 @@ class ChatHelper
      * @param array|null $pagination Pagination data
      * @return string XML formatted string
      */
-    public static function formatAsXml($messages, $pagination = null)
+    public static function formatAsXml(array $messages, ?array $pagination = null): string
     {
         // Determine status code
         $status_code = (count($messages) == 0) ? 2 : 1;
@@ -96,7 +96,7 @@ class ChatHelper
      * @param array|null $pagination Pagination data
      * @return array JSON-ready array
      */
-    public static function formatAsJson($messages, $pagination = null)
+    public static function formatAsJson(array $messages, ?array $pagination = null): array
     {
         // For JSON, we can structure the data with messages and pagination
         $result = [

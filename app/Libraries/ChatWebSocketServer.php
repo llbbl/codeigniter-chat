@@ -19,19 +19,19 @@ class ChatWebSocketServer implements MessageComponentInterface
      * 
      * @var \SplObjectStorage
      */
-    protected $clients;
+    protected \SplObjectStorage $clients;
 
     /**
      * Chat model instance
      * 
      * @var ChatModel
      */
-    protected $chatModel;
+    protected ChatModel $chatModel;
 
     /**
      * Constructor
      */
-    public function __construct()
+    public function __construct(): void
     {
         $this->clients = new \SplObjectStorage;
         $this->chatModel = new ChatModel();
@@ -60,7 +60,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param string $msg
      * @return void
      */
-    public function onMessage(ConnectionInterface $from, $msg)
+    public function onMessage(ConnectionInterface $from, string $msg): void
     {
         $data = json_decode($msg, true);
         

@@ -14,14 +14,14 @@ class RateLimitFilter implements FilterInterface
      *
      * @var int
      */
-    protected $maxRequests = 10;
+    protected int $maxRequests = 10;
 
     /**
      * Time window in seconds
      *
      * @var int
      */
-    protected $timeWindow = 60;
+    protected int $timeWindow = 60;
 
     /**
      * Check if the request exceeds the rate limit
@@ -30,7 +30,7 @@ class RateLimitFilter implements FilterInterface
      * @param array|null $arguments
      * @return mixed
      */
-    public function before(RequestInterface $request, $arguments = null)
+    public function before(RequestInterface $request, ?array $arguments = null): mixed
     {
         // Get the user's identifier (IP address for guests, user_id for logged in users)
         $identifier = session()->get('user_id') ?? $request->getIPAddress();
@@ -69,7 +69,7 @@ class RateLimitFilter implements FilterInterface
      * @param array|null $arguments
      * @return mixed
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
+    public function after(RequestInterface $request, ResponseInterface $response, ?array $arguments = null): void
     {
         // Do nothing
     }

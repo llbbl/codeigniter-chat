@@ -122,7 +122,7 @@ class FileHelper
      * @param string $path The file path
      * @return string|false The file contents or false on failure
      */
-    public static function readFile(string $path)
+    public static function readFile(string $path): string|false
     {
         if (!self::exists($path)) {
             return false;

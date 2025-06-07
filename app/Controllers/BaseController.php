@@ -76,7 +76,7 @@ abstract class BaseController extends Controller
      *
      * @return void
      */
-    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
+    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger): void
     {
         // Do Not Edit This Line
         parent::initController($request, $response, $logger);
@@ -103,7 +103,7 @@ abstract class BaseController extends Controller
      *
      * @return ResponseInterface
      */
-    protected function respondWithJson($data, int $status = 200)
+    protected function respondWithJson(mixed $data, int $status = 200): \CodeIgniter\HTTP\ResponseInterface
     {
         // Set cache headers for JSON responses
         // - max-age: Client should cache for 60 seconds
@@ -182,7 +182,7 @@ abstract class BaseController extends Controller
      *
      * @return bool
      */
-    protected function isLoggedIn()
+    protected function isLoggedIn(): bool
     {
         return (bool) $this->session->get('logged_in');
     }
@@ -192,7 +192,7 @@ abstract class BaseController extends Controller
      *
      * @return int|null
      */
-    protected function getCurrentUserId()
+    protected function getCurrentUserId(): ?int
     {
         return $this->session->get('user_id');
     }
@@ -202,7 +202,7 @@ abstract class BaseController extends Controller
      *
      * @return string|null
      */
-    protected function getCurrentUsername()
+    protected function getCurrentUsername(): ?string
     {
         return $this->session->get('username');
     }
@@ -214,7 +214,7 @@ abstract class BaseController extends Controller
      *
      * @return array
      */
-    protected function sanitizeInput(array $data)
+    protected function sanitizeInput(array $data): array
     {
         $sanitized = [];
         foreach ($data as $key => $value) {

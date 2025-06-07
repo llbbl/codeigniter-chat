@@ -14,21 +14,21 @@ class ViteHelper
      * 
      * @var string
      */
-    private static $manifestPath = ROOTPATH . 'public/dist/manifest.json';
+    private static string $manifestPath = ROOTPATH . 'public/dist/manifest.json';
 
     /**
      * The Vite manifest data
      * 
      * @var array|null
      */
-    private static $manifest = null;
+    private static ?array $manifest = null;
 
     /**
      * The Vite development server URL
      * 
      * @var string
      */
-    private static $devServerUrl = 'http://localhost:5173';
+    private static string $devServerUrl = 'http://localhost:5173';
 
     /**
      * Check if we're in development mode

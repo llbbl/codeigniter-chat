@@ -17,7 +17,7 @@ class SecurityHelper
      * @param mixed $input The input to sanitize
      * @return mixed The sanitized input
      */
-    public static function sanitizeInput($input)
+    public static function sanitizeInput(mixed $input): mixed
     {
         if (is_array($input)) {
             $sanitized = [];

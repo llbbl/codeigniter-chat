@@ -16,23 +16,23 @@ use Config\Services;
  */
 class ChatModel extends Model
 {
-    protected $table = 'messages';
-    protected $primaryKey = 'id';
-    protected $allowedFields = ['user', 'msg', 'time'];
+    protected string $table = 'messages';
+    protected string $primaryKey = 'id';
+    protected array $allowedFields = ['user', 'msg', 'time'];
 
     /**
      * Cache key for messages
      * 
      * @var string
      */
-    protected $cacheKey = 'chat_messages';
+    protected string $cacheKey = 'chat_messages';
 
     /**
      * Cache TTL in seconds
      * 
      * @var int
      */
-    protected $cacheTTL = 300; // 5 minutes
+    protected int $cacheTTL = 300; // 5 minutes
 
     /**
      * Get messages from the database with caching and pagination
@@ -41,7 +41,7 @@ class ChatModel extends Model
      * @param int $perPage Number of messages per page
      * @return array
      */
-    public function getMsgPaginated($page = 1, $perPage = 10)
+    public function getMsgPaginated(int $page = 1, int $perPage = 10): array
     {
         // Ensure page is at least 1
         $page = max(1, (int)$page);
@@ -105,7 +105,7 @@ class ChatModel extends Model
      * @param int $limit Number of messages to retrieve
      * @return array
      */
-    public function getMsg($limit = 10)
+    public function getMsg(int $limit = 10): array
     {
         // For backward compatibility, get the first page with the specified limit
         $result = $this->getMsgPaginated(1, $limit);
@@ -128,7 +128,7 @@ class ChatModel extends Model
      * 
      * @return int|bool The insert ID if the insert was successful, or false on failure
      */
-    public function insertMsg($name, $message, $current)
+    public function insertMsg(string $name, string $message, int $current): int|bool
     {
         $result = $this->insert([
             'user' => $name,
@@ -155,7 +155,7 @@ class ChatModel extends Model
      * 
      * @return void
      */
-    protected function invalidateCache()
+    protected function invalidateCache(): void
     {
         $cache = Services::cache();
 
@@ -173,7 +173,7 @@ class ChatModel extends Model
      * @param int $perPage Number of messages per page
      * @return array
      */
-    public function getMsgByUserPaginated($username, $page = 1, $perPage = 10)
+    public function getMsgByUserPaginated(string $username, int $page = 1, int $perPage = 10): array
     {
         // Ensure page is at least 1
         $page = max(1, (int)$page);
@@ -238,7 +238,7 @@ class ChatModel extends Model
      * @param int $limit Number of messages to retrieve
      * @return array
      */
-    public function getMsgByUser($username, $limit = 10)
+    public function getMsgByUser(string $username, int $limit = 10): array
     {
         // For backward compatibility, get the first page with the specified limit
         $result = $this->getMsgByUserPaginated($username, 1, $limit);
@@ -256,7 +256,7 @@ class ChatModel extends Model
      * @param int $perPage Number of messages per page
      * @return array
      */
-    public function getMsgByTimeRangePaginated($startTime, $endTime, $page = 1, $perPage = 10)
+    public function getMsgByTimeRangePaginated(int $startTime, int $endTime, int $page = 1, int $perPage = 10): array
     {
         // Ensure page is at least 1
         $page = max(1, (int)$page);
@@ -325,7 +325,7 @@ class ChatModel extends Model
      * @param int $limit Number of messages to retrieve
      * @return array
      */
-    public function getMsgByTimeRange($startTime, $endTime, $limit = 10)
+    public function getMsgByTimeRange(int $startTime, int $endTime, int $limit = 10): array
     {
         // For backward compatibility, get the first page with the specified limit
         $result = $this->getMsgByTimeRangePaginated($startTime, $endTime, 1, $limit);

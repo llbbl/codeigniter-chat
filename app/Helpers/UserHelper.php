@@ -17,7 +17,7 @@ class UserHelper
      * @param array $data Registration data to validate
      * @return array|bool Validation errors or true if valid
      */
-    public static function validateRegistration($data)
+    public static function validateRegistration(array $data): array|bool
     {
         $rules = [
             'username' => [
@@ -70,7 +70,7 @@ class UserHelper
      * @param array $data Login data to validate
      * @return array|bool Validation errors or true if valid
      */
-    public static function validateLogin($data)
+    public static function validateLogin(array $data): array|bool
     {
         $rules = [
             'username' => [
@@ -103,7 +103,7 @@ class UserHelper
      * @param array $user User data
      * @return void
      */
-    public static function setUserSession($user)
+    public static function setUserSession(array $user): void
     {
         $userData = [
             'user_id' => $user['id'],
@@ -120,7 +120,7 @@ class UserHelper
      * 
      * @return void
      */
-    public static function clearUserSession()
+    public static function clearUserSession(): void
     {
         session()->remove(['user_id', 'username', 'email', 'logged_in']);
     }

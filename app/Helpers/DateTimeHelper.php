@@ -18,7 +18,7 @@ class DateTimeHelper
      * @param string $format The date format (default: 'Y-m-d H:i:s')
      * @return string The formatted date
      */
-    public static function formatDate($timestamp, string $format = 'Y-m-d H:i:s'): string
+    public static function formatDate(int|string $timestamp, string $format = 'Y-m-d H:i:s'): string
     {
         return Time::createFromTimestamp($timestamp)->format($format);
     }
@@ -29,7 +29,7 @@ class DateTimeHelper
      * @param int|string $timestamp The timestamp to compare
      * @return string The human-readable time difference
      */
-    public static function timeAgo($timestamp): string
+    public static function timeAgo(int|string $timestamp): string
     {
         return Time::createFromTimestamp($timestamp)->humanize();
     }
@@ -50,7 +50,7 @@ class DateTimeHelper
      * @param int|string $timestamp The timestamp to check
      * @return bool True if the timestamp is in the future
      */
-    public static function isFuture($timestamp): bool
+    public static function isFuture(int|string $timestamp): bool
     {
         return Time::createFromTimestamp($timestamp)->isAfter(Time::now());
     }
@@ -61,7 +61,7 @@ class DateTimeHelper
      * @param int|string $timestamp The timestamp to check
      * @return bool True if the timestamp is in the past
      */
-    public static function isPast($timestamp): bool
+    public static function isPast(int|string $timestamp): bool
     {
         return Time::createFromTimestamp($timestamp)->isBefore(Time::now());
     }
@@ -73,7 +73,7 @@ class DateTimeHelper
      * @param string $interval The interval to add (e.g., '1 day', '2 hours')
      * @return int The new timestamp
      */
-    public static function addTime($timestamp, string $interval): int
+    public static function addTime(int|string $timestamp, string $interval): int
     {
         return Time::createFromTimestamp($timestamp)->modify('+' . $interval)->getTimestamp();
     }
@@ -85,7 +85,7 @@ class DateTimeHelper
      * @param string $interval The interval to subtract (e.g., '1 day', '2 hours')
      * @return int The new timestamp
      */
-    public static function subtractTime($timestamp, string $interval): int
+    public static function subtractTime(int|string $timestamp, string $interval): int
     {
         return Time::createFromTimestamp($timestamp)->modify('-' . $interval)->getTimestamp();
     }

@@ -14,14 +14,14 @@ class WebSocketClient
      * 
      * @var string
      */
-    protected $host;
+    protected string $host;
     
     /**
      * WebSocket server port
      * 
      * @var int
      */
-    protected $port;
+    protected int $port;
     
     /**
      * Socket resource

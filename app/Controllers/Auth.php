@@ -18,7 +18,7 @@ class Auth extends BaseController
      * 
      * @var UserModel
      */
-    protected $userModel;
+    protected UserModel $userModel;
 
     /**
      * Constructor - loads the model
@@ -40,7 +40,7 @@ class Auth extends BaseController
      * 
      * @return string
      */
-    public function register()
+    public function register(): string
     {
         return $this->respondWithView('auth/register');
     }
@@ -50,7 +50,7 @@ class Auth extends BaseController
      * 
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
-    public function processRegistration()
+    public function processRegistration(): \CodeIgniter\HTTP\RedirectResponse
     {
         try {
             // Get data for validation
@@ -106,7 +106,7 @@ class Auth extends BaseController
      * 
      * @return string
      */
-    public function login()
+    public function login(): string
     {
         return $this->respondWithView('auth/login');
     }
@@ -116,7 +116,7 @@ class Auth extends BaseController
      * 
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
-    public function processLogin()
+    public function processLogin(): \CodeIgniter\HTTP\RedirectResponse
     {
         try {
             // Get data for validation
@@ -170,7 +170,7 @@ class Auth extends BaseController
      * 
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
-    public function logout()
+    public function logout(): \CodeIgniter\HTTP\RedirectResponse
     {
         try {
             $username = $this->getCurrentUsername();

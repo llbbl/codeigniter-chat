@@ -20,7 +20,7 @@ class Chat extends BaseController
      * 
      * @var ChatModel
      */
-    protected $chatModel;
+    protected ChatModel $chatModel;
 
     /**
      * Constructor - initializes the controller and loads the model
@@ -48,7 +48,7 @@ class Chat extends BaseController
      * 
      * @return string The rendered view with the chat interface
      */
-    public function index()
+    public function index(): string
     {
         return $this->respondWithView('chat/chatView');
     }
@@ -68,7 +68,7 @@ class Chat extends BaseController
      * 
      * @throws \Exception If there's an error saving the message to the database
      */
-    public function update()
+    public function update(): \CodeIgniter\HTTP\ResponseInterface
     {
         try {
             // Get data for validation
@@ -152,7 +152,7 @@ class Chat extends BaseController
      * 
      * @return string XML-formatted chat messages with pagination information
      */
-    public function backend()
+    public function backend(): string
     {
         // Get page from request or default to 1
         $page = $this->request->getGet('page') ?? 1;
@@ -177,7 +177,7 @@ class Chat extends BaseController
      * 
      * @return string The rendered view with the JSON-based chat interface
      */
-    public function json()
+    public function json(): string
     {
         return $this->respondWithView('chat/jsonView');
     }
@@ -218,7 +218,7 @@ class Chat extends BaseController
      * 
      * @return string The rendered view with the HTML-based chat interface
      */
-    public function html()
+    public function html(): string
     {
         $data = [
             'html' => $this->htmlBackend()
@@ -236,7 +236,7 @@ class Chat extends BaseController
      * 
      * @return string The rendered HTML view containing chat messages and pagination controls
      */
-    public function htmlBackend()
+    public function htmlBackend(): string
     {
         // Get page from request or default to 1
         $page = $this->request->getGet('page') ?? 1;
@@ -266,7 +266,7 @@ class Chat extends BaseController
      * @return string|RedirectResponse The rendered view with the Vue.js-based chat interface
      *                                 or a redirect response to the login page if not authenticated
      */
-    public function vue()
+    public function vue(): string|\CodeIgniter\HTTP\RedirectResponse
     {
         // Check if user is logged in
         if (!session()->get('logged_in')) {
@@ -285,7 +285,7 @@ class Chat extends BaseController
      * 
      * @return \CodeIgniter\HTTP\ResponseInterface JSON response containing chat messages and pagination information
      */
-    public function vueApi()
+    public function vueApi(): \CodeIgniter\HTTP\ResponseInterface
     {
         return $this->jsonBackend();
     }

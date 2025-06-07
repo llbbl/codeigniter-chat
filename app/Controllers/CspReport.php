@@ -16,7 +16,7 @@ class CspReport extends BaseController
      *
      * @return ResponseInterface
      */
-    public function index()
+    public function index(): \CodeIgniter\HTTP\ResponseInterface
     {
         // Get the raw POST data
         $json = $this->request->getJSON(true);

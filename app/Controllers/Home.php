@@ -14,7 +14,7 @@ class Home extends BaseController
      * 
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
-    public function index()
+    public function index(): \CodeIgniter\HTTP\RedirectResponse
     {
         // If user is not logged in, redirect to login page
         if (!$this->isLoggedIn()) {
