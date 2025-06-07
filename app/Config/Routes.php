@@ -7,6 +7,13 @@ use CodeIgniter\Router\RouteCollection;
  */
 $routes->get('/', 'Home::index');
 
+// Auth routes
+$routes->get('auth/register', 'Auth::register');
+$routes->post('auth/processRegistration', 'Auth::processRegistration');
+$routes->get('auth/login', 'Auth::login');
+$routes->post('auth/processLogin', 'Auth::processLogin');
+$routes->get('auth/logout', 'Auth::logout');
+
 // Chat routes
 $routes->get('chat', 'Chat::index');
 $routes->post('chat/update', 'Chat::update');

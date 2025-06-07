@@ -4,8 +4,14 @@ namespace App\Controllers;
 
 class Home extends BaseController
 {
-    public function index(): string
+    public function index()
     {
-        return view('welcome_message');
+        // If user is already logged in, redirect to chat
+        if (session()->get('logged_in')) {
+            return redirect()->to('/chat');
+        }
+
+        // Otherwise, redirect to login page
+        return redirect()->to('/auth/login');
     }
 }

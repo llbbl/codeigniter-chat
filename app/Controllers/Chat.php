@@ -36,15 +36,6 @@ class Chat extends BaseController
     {
         // Validation rules
         $rules = [
-            'name' => [
-                'rules' => 'required|min_length[2]|max_length[50]|alpha_numeric_space',
-                'errors' => [
-                    'required' => 'Name is required',
-                    'min_length' => 'Name must be at least 2 characters long',
-                    'max_length' => 'Name cannot exceed 50 characters',
-                    'alpha_numeric_space' => 'Name can only contain alphanumeric characters and spaces'
-                ]
-            ],
             'message' => [
                 'rules' => 'required|min_length[1]|max_length[500]',
                 'errors' => [
@@ -69,8 +60,10 @@ class Chat extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // Get username from session
+        $name = session()->get('username');
+
         // Get sanitized inputs
-        $name = esc($this->request->getPost('name'));
         $message = esc($this->request->getPost('message'));
         $html_redirect = $this->request->getPost('html_redirect');
 

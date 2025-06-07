@@ -16,28 +16,8 @@
                 $("input").removeClass("error-field");
 
                 // Get values
-                var name = $("#name").val().trim();
                 var message = $("#content").val().trim();
                 var isValid = true;
-
-                // Validate name
-                if (name === "") {
-                    $("#name-error").text("Name is required");
-                    $("#name").addClass("error-field");
-                    isValid = false;
-                } else if (name.length < 2) {
-                    $("#name-error").text("Name must be at least 2 characters long");
-                    $("#name").addClass("error-field");
-                    isValid = false;
-                } else if (name.length > 50) {
-                    $("#name-error").text("Name cannot exceed 50 characters");
-                    $("#name").addClass("error-field");
-                    isValid = false;
-                } else if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
-                    $("#name-error").text("Name can only contain alphanumeric characters and spaces");
-                    $("#name").addClass("error-field");
-                    isValid = false;
-                }
 
                 // Validate message
                 if (message === "") {
@@ -57,7 +37,6 @@
                     // Add CSRF token to the request
                     $.post("<?= site_url('chat/update') ?>", {
                                 message: message,
-                                name: name,
                                 action: "postmsg",
                                 <?= csrf_token() ?>: $('meta[name="csrf-token"]').attr('content')
                             }, function(response) {
@@ -65,17 +44,13 @@
 
                         if (response && response.success === false) {
                             // Display server-side validation errors
-                            if (response.errors.name) {
-                                $("#name-error").text(response.errors.name);
-                                $("#name").addClass("error-field");
-                            }
                             if (response.errors.message) {
                                 $("#content-error").text(response.errors.message);
                                 $("#content").addClass("error-field");
                             }
                         } else {
                             // Success - add message to window
-                            $("#messagewindow").prepend("<b>"+name+"</b>: "+message+"<br />");
+                            $("#messagewindow").prepend("<b><?= session()->get('username') ?></b>: "+message+"<br />");
 
                             // Clear message field and focus
                             $("#content").val("");                    
@@ -151,17 +126,30 @@
         .error-field {
             border: 1px solid red;
         }
+        #user-info {
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        .logout-btn {
+            float: right;
+            color: #d9534f;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div id="wrapper">
+    <div id="user-info">
+        Welcome, <b><?= session()->get('username') ?></b>! 
+        <a href="<?= site_url('auth/logout') ?>" class="logout-btn">Logout</a>
+    </div>
     <p id="messagewindow"><span id="loading">Loading...</span></p>
     <form id="chatform">
-    <div id="author">
-        Name: <input type="text" id="name" />
-        <div id="name-error" class="error"></div>
-    </div><br />
-
     <div id="txt">
         Message: <input type="text" name="content" id="content" value="" />
         <div id="content-error" class="error"></div>
