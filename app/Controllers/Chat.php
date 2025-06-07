@@ -6,13 +6,29 @@ use App\Models\ChatModel;
 use App\Helpers\ChatHelper;
 use CodeIgniter\I18n\Time;
 
+/**
+ * Chat Controller
+ * 
+ * Handles all chat-related functionality including displaying and updating messages
+ * in various formats (XML, JSON, HTML)
+ */
 class Chat extends BaseController
 {
+    /**
+     * Chat model instance
+     * 
+     * @var ChatModel
+     */
     protected $chatModel;
 
     /**
-     * Constructor
-     * - loads the model
+     * Constructor - loads the model
+     * 
+     * @param RequestInterface  $request
+     * @param ResponseInterface $response
+     * @param LoggerInterface   $logger
+     * 
+     * @return void
      */
     public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger)
     {
@@ -22,14 +38,16 @@ class Chat extends BaseController
 
     /**
      * Loads the default page for the XML example
+     * 
+     * @return string
      */
     public function index()
     {
-        return view('chat/chatView');
+        return $this->respondWithView('chat/chatView');
     }
 
     /**
-     * UPDATES the DB
+     * Updates the database with a new chat message
      * 
      * @return mixed
      */
@@ -46,7 +64,7 @@ class Chat extends BaseController
         if ($validation !== true) {
             // If AJAX request, return JSON with errors
             if (!$this->request->getPost('html_redirect')) {
-                return $this->response->setJSON([
+                return $this->respondWithJson([
                     'success' => false,
                     'errors' => $validation
                 ]);
@@ -57,10 +75,10 @@ class Chat extends BaseController
         }
 
         // Get username from session
-        $name = session()->get('username');
+        $name = $this->getCurrentUsername();
 
         // Get sanitized inputs
-        $message = esc($data['message']);
+        $message = $this->sanitizeInput($data)['message'];
         $html_redirect = $this->request->getPost('html_redirect');
 
         $current = Time::now();
@@ -72,30 +90,26 @@ class Chat extends BaseController
 
         // For AJAX requests, return success JSON
         if ($this->request->isAJAX()) {
-            return $this->response->setJSON(['success' => true]);
+            return $this->respondWithJson(['success' => true]);
         }
 
         return '';
     }
 
     /**
-     * XML Backend
+     * XML Backend - returns chat messages in XML format
      * 
      * @return string
      */
     public function backend()
     {
-        // HTTP headers for XML
-        $this->response->setHeader('Content-Type', 'text/xml');
-        $this->response->setHeader('Cache-Control', 'no-cache');
-
         // Get the data
         $messages = $this->chatModel->getMsg();
 
         // Format messages as XML using ChatHelper
         $output = ChatHelper::formatAsXml($messages);
 
-        return $output;
+        return $this->respondWithXml($output);
     }
 
     /**
@@ -105,29 +119,24 @@ class Chat extends BaseController
      */
     public function json()
     {
-        return view('chat/jsonView');
+        return $this->respondWithView('chat/jsonView');
     }
 
     /**
      * Displays the JSON formatted data
      * 
-     * @return string
+     * @return ResponseInterface
      */
     public function jsonBackend()
     {
-        // Headers for the JSON
-        $this->response->setHeader('Cache-Control', 'no-cache, must-revalidate');
-        $this->response->setHeader('Expires', 'Mon, 26 Jul 1997 05:00:00 GMT');
-        $this->response->setHeader('Content-Type', 'application/json');
-
         // Get the data
         $messages = $this->chatModel->getMsg();
 
         // Format messages as JSON using ChatHelper
         $data = ChatHelper::formatAsJson($messages);
 
-        // JSON sized dump to STDOUT
-        return $this->response->setJSON($data);
+        // Return JSON response
+        return $this->respondWithJson($data);
     }
 
     /**
@@ -141,7 +150,7 @@ class Chat extends BaseController
             'html' => $this->htmlBackend()
         ];
 
-        return view('chat/htmlView', $data);
+        return $this->respondWithView('chat/htmlView', $data);
     }
 
     /** 
@@ -155,6 +164,6 @@ class Chat extends BaseController
             'query' => $this->chatModel->getMsg()
         ];
 
-        return view('chat/htmlBackView', $data, ['saveData' => true]);
+        return $this->respondWithView('chat/htmlBackView', $data, ['saveData' => true]);
     }
 }

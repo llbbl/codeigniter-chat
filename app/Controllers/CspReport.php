@@ -2,7 +2,6 @@
 
 namespace App\Controllers;
 
-use CodeIgniter\Controller;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -10,17 +9,8 @@ use Psr\Log\LoggerInterface;
 /**
  * Controller for handling Content Security Policy (CSP) violation reports
  */
-class CspReport extends Controller
+class CspReport extends BaseController
 {
-    /**
-     * Constructor.
-     */
-    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
-    {
-        // Do Not Edit This Line
-        parent::initController($request, $response, $logger);
-    }
-
     /**
      * Handle CSP violation reports
      *
@@ -32,13 +22,13 @@ class CspReport extends Controller
         $json = $this->request->getJSON(true);
 
         if (empty($json) || !isset($json['csp-report'])) {
-            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid CSP report format']);
+            return $this->respondWithJson(['error' => 'Invalid CSP report format'], 400);
         }
 
         $report = $json['csp-report'];
 
         // Log the CSP violation
-        log_message('warning', 'CSP Violation: ' . json_encode($report));
+        $this->logMessage('warning', 'CSP Violation: ' . json_encode($report));
 
         // Return a 204 No Content response
         return $this->response->setStatusCode(204);

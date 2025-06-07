@@ -29,21 +29,42 @@ abstract class BaseController extends Controller
     protected $request;
 
     /**
+     * Instance of the main Response object.
+     *
+     * @var ResponseInterface
+     */
+    protected $response;
+
+    /**
+     * Instance of the logger.
+     *
+     * @var LoggerInterface
+     */
+    protected $logger;
+
+    /**
+     * Instance of the session.
+     *
+     * @var \CodeIgniter\Session\Session
+     */
+    protected $session;
+
+    /**
      * An array of helpers to be loaded automatically upon
      * class instantiation. These helpers will be available
      * to all other controllers that extend BaseController.
      *
      * @var list<string>
      */
-    protected $helpers = [];
+    protected $helpers = ['form', 'url', 'text', 'html'];
 
     /**
-     * Be sure to declare properties for any property fetch you initialized.
-     * The creation of dynamic property is deprecated in PHP 8.2.
-     */
-    // protected $session;
-
-    /**
+     * Initialize the controller.
+     *
+     * @param RequestInterface  $request
+     * @param ResponseInterface $response
+     * @param LoggerInterface   $logger
+     *
      * @return void
      */
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
@@ -51,8 +72,117 @@ abstract class BaseController extends Controller
         // Do Not Edit This Line
         parent::initController($request, $response, $logger);
 
-        // Preload any models, libraries, etc, here.
+        // Store objects for later use
+        $this->response = $response;
+        $this->logger = $logger;
 
-        // E.g.: $this->session = service('session');
+        // Initialize session
+        $this->session = service('session');
+
+        // Load helpers
+        helper($this->helpers);
+    }
+
+    /**
+     * Return a JSON response with the specified data.
+     *
+     * @param mixed $data    The data to be converted to JSON
+     * @param int   $status  The HTTP status code
+     *
+     * @return ResponseInterface
+     */
+    protected function respondWithJson($data, int $status = 200)
+    {
+        return $this->response->setStatusCode($status)
+                             ->setJSON($data);
+    }
+
+    /**
+     * Return an XML response with the specified data.
+     *
+     * @param string $xml     The XML string
+     * @param int    $status  The HTTP status code
+     *
+     * @return ResponseInterface
+     */
+    protected function respondWithXml(string $xml, int $status = 200)
+    {
+        return $this->response->setStatusCode($status)
+                             ->setHeader('Content-Type', 'text/xml')
+                             ->setHeader('Cache-Control', 'no-cache')
+                             ->setBody($xml);
+    }
+
+    /**
+     * Return a view response.
+     *
+     * @param string $view    The view file to load
+     * @param array  $data    The data to pass to the view
+     * @param array  $options View options
+     *
+     * @return string
+     */
+    protected function respondWithView(string $view, array $data = [], array $options = [])
+    {
+        return view($view, $data, $options);
+    }
+
+    /**
+     * Log a message with the specified level.
+     *
+     * @param string $level   The log level (debug, info, notice, warning, error, critical, alert, emergency)
+     * @param string $message The message to log
+     *
+     * @return void
+     */
+    protected function logMessage(string $level, string $message)
+    {
+        log_message($level, $message);
+    }
+
+    /**
+     * Check if the user is logged in.
+     *
+     * @return bool
+     */
+    protected function isLoggedIn()
+    {
+        return (bool) $this->session->get('logged_in');
+    }
+
+    /**
+     * Get the current user's ID.
+     *
+     * @return int|null
+     */
+    protected function getCurrentUserId()
+    {
+        return $this->session->get('user_id');
+    }
+
+    /**
+     * Get the current user's username.
+     *
+     * @return string|null
+     */
+    protected function getCurrentUsername()
+    {
+        return $this->session->get('username');
+    }
+
+    /**
+     * Sanitize input data.
+     *
+     * @param array $data The data to sanitize
+     *
+     * @return array
+     */
+    protected function sanitizeInput(array $data)
+    {
+        $sanitized = [];
+        foreach ($data as $key => $value) {
+            $sanitized[$key] = is_string($value) ? esc($value) : $value;
+        }
+        return $sanitized;
     }
 }
