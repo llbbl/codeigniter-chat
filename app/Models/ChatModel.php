@@ -44,7 +44,9 @@ class ChatModel extends Model
 
         // If not in cache or cache expired, get from database and store in cache
         if ($messages === null) {
-            $messages = $this->orderBy('id', 'DESC')
+            // Use time index for ordering instead of id
+            // This is more efficient for chat applications where time-based ordering is natural
+            $messages = $this->orderBy('time', 'DESC')
                             ->limit($limit)
                             ->get()
                             ->getResultArray();
@@ -100,5 +102,87 @@ class ChatModel extends Model
         // This is a simple approach; for more complex scenarios, 
         // you might want to track and delete specific keys
         $cache->deleteMatching($this->cacheKey . '_*');
+    }
+
+    /**
+     * Get messages by user with caching
+     * 
+     * @param string $username Username to filter by
+     * @param int $limit Number of messages to retrieve
+     * @return array
+     */
+    public function getMsgByUser($username, $limit = 10)
+    {
+        // Create a unique cache key based on the username and limit
+        $cacheKey = $this->cacheKey . '_user_' . md5($username) . '_' . $limit;
+
+        // Get the cache service
+        $cache = Services::cache();
+
+        // Try to get data from cache first
+        $messages = $cache->get($cacheKey);
+
+        // If not in cache or cache expired, get from database and store in cache
+        if ($messages === null) {
+            // Use user index for filtering and time index for ordering
+            $messages = $this->where('user', $username)
+                            ->orderBy('time', 'DESC')
+                            ->limit($limit)
+                            ->get()
+                            ->getResultArray();
+
+            // Store in cache
+            $cache->save($cacheKey, $messages, $this->cacheTTL);
+
+            // Log cache miss
+            log_message('debug', 'User chat messages cache miss. Fetched from database.');
+        } else {
+            // Log cache hit
+            log_message('debug', 'User chat messages retrieved from cache.');
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Get messages by time range with caching
+     * 
+     * @param int $startTime Start timestamp
+     * @param int $endTime End timestamp
+     * @param int $limit Number of messages to retrieve
+     * @return array
+     */
+    public function getMsgByTimeRange($startTime, $endTime, $limit = 10)
+    {
+        // Create a unique cache key based on the time range and limit
+        $cacheKey = $this->cacheKey . '_time_' . $startTime . '_' . $endTime . '_' . $limit;
+
+        // Get the cache service
+        $cache = Services::cache();
+
+        // Try to get data from cache first
+        $messages = $cache->get($cacheKey);
+
+        // If not in cache or cache expired, get from database and store in cache
+        if ($messages === null) {
+            // Use time index for filtering and ordering
+            $messages = $this->where('time >=', $startTime)
+                            ->where('time <=', $endTime)
+                            ->orderBy('time', 'DESC')
+                            ->limit($limit)
+                            ->get()
+                            ->getResultArray();
+
+            // Store in cache
+            $cache->save($cacheKey, $messages, $this->cacheTTL);
+
+            // Log cache miss
+            log_message('debug', 'Time range chat messages cache miss. Fetched from database.');
+        } else {
+            // Log cache hit
+            log_message('debug', 'Time range chat messages retrieved from cache.');
+        }
+
+        return $messages;
     }
 }

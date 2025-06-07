@@ -29,7 +29,7 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 ## Performance Optimizations
 
 19. [x] Implement caching for frequently accessed data
-20. [ ] Optimize database queries and add proper indexes
+20. [x] Optimize database queries and add proper indexes
 21. [ ] Implement pagination for message retrieval to handle large datasets
 22. [ ] Minify and combine CSS and JavaScript files
 23. [ ] Implement lazy loading for older messages
