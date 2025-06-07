@@ -28,14 +28,14 @@ class ContentSecurityPolicy extends BaseConfig
      * Specifies a URL where a browser will send reports
      * when a content security policy is violated.
      */
-    public ?string $reportURI = null;
+    public ?string $reportURI = '/csp-report';
 
     /**
      * Instructs user agents to rewrite URL schemes, changing
      * HTTP to HTTPS. This directive is for websites with
      * large numbers of old URLs that need to be rewritten.
      */
-    public bool $upgradeInsecureRequests = false;
+    public bool $upgradeInsecureRequests = true;
 
     // -------------------------------------------------------------------------
     // Sources allowed
@@ -47,21 +47,21 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var list<string>|string|null
      */
-    public $defaultSrc;
+    public $defaultSrc = 'self';
 
     /**
      * Lists allowed scripts' URLs.
      *
      * @var list<string>|string
      */
-    public $scriptSrc = 'self';
+    public $scriptSrc = ['self', 'unsafe-inline'];
 
     /**
      * Lists allowed stylesheets' URLs.
      *
      * @var list<string>|string
      */
-    public $styleSrc = 'self';
+    public $styleSrc = ['self', 'unsafe-inline'];
 
     /**
      * Defines the origins from which images can be loaded.

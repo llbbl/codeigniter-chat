@@ -151,8 +151,8 @@
 <body>
     <div id="wrapper">
     <div id="user-info">
-        Welcome, <b><?= session()->get('username') ?></b>! 
-        <a href="<?= site_url('auth/logout') ?>" class="logout-btn">Logout</a>
+        Welcome, <b><?= esc(session()->get('username')) ?></b>! 
+        <a href="<?= esc(site_url('auth/logout')) ?>" class="logout-btn">Logout</a>
     </div>
     <p id="messagewindow"><span id="loading">Loading...</span></p>
     <form id="chatform">
@@ -162,7 +162,7 @@
     </div>
 
     <div id="contentLoading" class="contentLoading">  
-        <img src="<?= base_url('images/blueloading.gif') ?>" alt="Loading data, please wait...">  
+        <img src="<?= esc(base_url('images/blueloading.gif')) ?>" alt="Loading data, please wait...">  
     </div><br />
 
     <input type="submit" value="ok" /><br />

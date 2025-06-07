@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>CodeIgniter Shoutbox - JSON edition</title>
-    <meta name="csrf-token" content="<?= csrf_hash() ?>">
-    <script type="text/javascript" src="<?= base_url('js/jquery-1.4.2.min.js') ?>"></script>
+    <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">
+    <script type="text/javascript" src="<?= esc(base_url('js/jquery-1.4.2.min.js')) ?>"></script>
     <script type="text/javascript">
         $(document).ready(function(){
 
@@ -55,7 +55,7 @@
                     showLoading();
 
                     // Add CSRF token to the request
-                    $.post("<?= site_url('chat/update') ?>", {
+                    $.post("<?= esc(site_url('chat/update')) ?>", {
                                 message: message,
                                 name: name,
                                 action: "postmsg",
@@ -75,7 +75,10 @@
                             }
                         } else {
                             // Success - add message to window
-                            $("#messagewindow").prepend("<b>"+name+"</b>: "+message+"<br />");
+                            // Escape HTML in the name and message before adding to the DOM
+                            var escapedName = $('<div/>').text(name).html();
+                            var escapedMessage = $('<div/>').text(message).html();
+                            $("#messagewindow").prepend("<b>"+escapedName+"</b>: "+escapedMessage+"<br />");
 
                             // Clear message field and focus
                             $("#content").val("");                    
@@ -109,7 +112,10 @@
 
             $.each(json, function(i,val){
                 //console.log(val.id);
-                $("#messagewindow").append("<b>"+val.user+"</b>: "+val.msg+"<br />");                
+                // Escape HTML in the user and message before adding to the DOM
+                var escapedUser = $('<div/>').text(val.user).html();
+                var escapedMsg = $('<div/>').text(val.msg).html();
+                $("#messagewindow").append("<b>"+escapedUser+"</b>: "+escapedMsg+"<br />");                
             });
         }
 
@@ -121,7 +127,7 @@
                 }
             });
 
-            $.getJSON("<?= site_url('chat/json_backend') ?>", function(json) {
+            $.getJSON("<?= esc(site_url('chat/json_backend')) ?>", function(json) {
                 $("#loading").remove();                
                 addMessages(json);
             });
@@ -165,7 +171,7 @@
     </div>
 
     <div id="contentLoading" class="contentLoading">  
-        <img src="<?= base_url('images/blueloading.gif') ?>" alt="Loading data, please wait...">  
+        <img src="<?= esc(base_url('images/blueloading.gif')) ?>" alt="Loading data, please wait...">  
     </div><br />
 
     <input type="submit" value="ok" /><br />

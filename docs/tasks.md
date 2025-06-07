@@ -10,8 +10,8 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 4. [x] Implement proper user authentication system instead of just using name field
 5. [x] Add rate limiting to prevent spam and DoS attacks
 6. [x] Update session handling to use more secure configurations
-7. [ ] Implement output escaping consistently across all views
-8. [ ] Add Content Security Policy headers
+7. [x] Implement output escaping consistently across all views
+8. [x] Add Content Security Policy headers
 9. [ ] Configure proper CORS settings
 
 ## Code Structure and Organization
