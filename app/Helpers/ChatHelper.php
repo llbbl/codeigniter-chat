@@ -44,9 +44,10 @@ class ChatHelper
      * Format messages as XML
      * 
      * @param array $messages Array of message data
+     * @param array|null $pagination Pagination data
      * @return string XML formatted string
      */
-    public static function formatAsXml($messages)
+    public static function formatAsXml($messages, $pagination = null)
     {
         // Determine status code
         $status_code = (count($messages) == 0) ? 2 : 1;
@@ -57,17 +58,31 @@ class ChatHelper
         $output .= "\t<status>$status_code</status>\n";
         $output .= "\t<time>" . time() . "</time>\n";
 
+        // Add pagination data if available
+        if ($pagination !== null) {
+            $output .= "\t<pagination>\n";
+            $output .= "\t\t<page>{$pagination['page']}</page>\n";
+            $output .= "\t\t<perPage>{$pagination['perPage']}</perPage>\n";
+            $output .= "\t\t<totalItems>{$pagination['totalItems']}</totalItems>\n";
+            $output .= "\t\t<totalPages>{$pagination['totalPages']}</totalPages>\n";
+            $output .= "\t\t<hasNext>" . ($pagination['hasNext'] ? 'true' : 'false') . "</hasNext>\n";
+            $output .= "\t\t<hasPrev>" . ($pagination['hasPrev'] ? 'true' : 'false') . "</hasPrev>\n";
+            $output .= "\t</pagination>\n";
+        }
+
         // Loop through all the data
         if (count($messages) > 0) {
+            $output .= "\t<messages>\n";
             foreach ($messages as $row) {
                 // Sanitize so XML is valid
                 $escmsg = htmlspecialchars(stripslashes($row['msg']));
-                $output .= "\t<message>\n";
-                $output .= "\t\t<id>{$row['id']}</id>\n";
-                $output .= "\t\t<author>{$row['user']}</author>\n";
-                $output .= "\t\t<text>$escmsg</text>\n";
-                $output .= "\t</message>\n";
+                $output .= "\t\t<message>\n";
+                $output .= "\t\t\t<id>{$row['id']}</id>\n";
+                $output .= "\t\t\t<author>{$row['user']}</author>\n";
+                $output .= "\t\t\t<text>$escmsg</text>\n";
+                $output .= "\t\t</message>\n";
             }
+            $output .= "\t</messages>\n";
         }
         $output .= "</response>";
 
@@ -78,12 +93,24 @@ class ChatHelper
      * Format messages as JSON
      * 
      * @param array $messages Array of message data
+     * @param array|null $pagination Pagination data
      * @return array JSON-ready array
      */
-    public static function formatAsJson($messages)
+    public static function formatAsJson($messages, $pagination = null)
     {
-        // For JSON, we can just return the array directly
-        // as CodeIgniter's response class will handle the conversion
-        return $messages;
+        // For JSON, we can structure the data with messages and pagination
+        $result = [
+            'messages' => $messages,
+            'status' => (count($messages) == 0) ? 2 : 1,
+            'time' => time()
+        ];
+
+        // Add pagination data if available
+        if ($pagination !== null) {
+            $result['pagination'] = $pagination;
+        }
+
+        // CodeIgniter's response class will handle the conversion to JSON
+        return $result;
     }
 }

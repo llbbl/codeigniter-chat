@@ -26,6 +26,71 @@ class ChatModel extends Model
     protected $cacheTTL = 300; // 5 minutes
 
     /**
+     * Get messages from the database with caching and pagination
+     * 
+     * @param int $page Page number (1-based)
+     * @param int $perPage Number of messages per page
+     * @return array
+     */
+    public function getMsgPaginated($page = 1, $perPage = 10)
+    {
+        // Ensure page is at least 1
+        $page = max(1, (int)$page);
+
+        // Calculate offset
+        $offset = ($page - 1) * $perPage;
+
+        // Create a unique cache key based on the pagination parameters
+        $cacheKey = $this->cacheKey . '_page_' . $page . '_' . $perPage;
+
+        // Get the cache service
+        $cache = Services::cache();
+
+        // Try to get data from cache first
+        $result = $cache->get($cacheKey);
+
+        // If not in cache or cache expired, get from database and store in cache
+        if ($result === null) {
+            // Get total count for pagination
+            $totalCount = $this->countAllResults();
+
+            // Use time index for ordering instead of id
+            // This is more efficient for chat applications where time-based ordering is natural
+            $messages = $this->orderBy('time', 'DESC')
+                            ->limit($perPage, $offset)
+                            ->get()
+                            ->getResultArray();
+
+            // Calculate total pages
+            $totalPages = ceil($totalCount / $perPage);
+
+            // Create result with pagination data
+            $result = [
+                'messages' => $messages,
+                'pagination' => [
+                    'page' => $page,
+                    'perPage' => $perPage,
+                    'totalItems' => $totalCount,
+                    'totalPages' => $totalPages,
+                    'hasNext' => $page < $totalPages,
+                    'hasPrev' => $page > 1
+                ]
+            ];
+
+            // Store in cache
+            $cache->save($cacheKey, $result, $this->cacheTTL);
+
+            // Log cache miss
+            log_message('debug', 'Chat messages cache miss. Fetched from database with pagination.');
+        } else {
+            // Log cache hit
+            log_message('debug', 'Chat messages with pagination retrieved from cache.');
+        }
+
+        return $result;
+    }
+
+    /**
      * Get messages from the database with caching
      * 
      * @param int $limit Number of messages to retrieve
@@ -33,35 +98,11 @@ class ChatModel extends Model
      */
     public function getMsg($limit = 10)
     {
-        // Create a unique cache key based on the limit
-        $cacheKey = $this->cacheKey . '_' . $limit;
+        // For backward compatibility, get the first page with the specified limit
+        $result = $this->getMsgPaginated(1, $limit);
 
-        // Get the cache service
-        $cache = Services::cache();
-
-        // Try to get data from cache first
-        $messages = $cache->get($cacheKey);
-
-        // If not in cache or cache expired, get from database and store in cache
-        if ($messages === null) {
-            // Use time index for ordering instead of id
-            // This is more efficient for chat applications where time-based ordering is natural
-            $messages = $this->orderBy('time', 'DESC')
-                            ->limit($limit)
-                            ->get()
-                            ->getResultArray();
-
-            // Store in cache
-            $cache->save($cacheKey, $messages, $this->cacheTTL);
-
-            // Log cache miss
-            log_message('debug', 'Chat messages cache miss. Fetched from database.');
-        } else {
-            // Log cache hit
-            log_message('debug', 'Chat messages retrieved from cache.');
-        }
-
-        return $messages;
+        // Return just the messages for backward compatibility
+        return $result['messages'];
     }
 
     /**
@@ -105,6 +146,72 @@ class ChatModel extends Model
     }
 
     /**
+     * Get messages by user with caching and pagination
+     * 
+     * @param string $username Username to filter by
+     * @param int $page Page number (1-based)
+     * @param int $perPage Number of messages per page
+     * @return array
+     */
+    public function getMsgByUserPaginated($username, $page = 1, $perPage = 10)
+    {
+        // Ensure page is at least 1
+        $page = max(1, (int)$page);
+
+        // Calculate offset
+        $offset = ($page - 1) * $perPage;
+
+        // Create a unique cache key based on the username and pagination parameters
+        $cacheKey = $this->cacheKey . '_user_' . md5($username) . '_page_' . $page . '_' . $perPage;
+
+        // Get the cache service
+        $cache = Services::cache();
+
+        // Try to get data from cache first
+        $result = $cache->get($cacheKey);
+
+        // If not in cache or cache expired, get from database and store in cache
+        if ($result === null) {
+            // Get total count for pagination
+            $totalCount = $this->where('user', $username)->countAllResults();
+
+            // Use user index for filtering and time index for ordering
+            $messages = $this->where('user', $username)
+                            ->orderBy('time', 'DESC')
+                            ->limit($perPage, $offset)
+                            ->get()
+                            ->getResultArray();
+
+            // Calculate total pages
+            $totalPages = ceil($totalCount / $perPage);
+
+            // Create result with pagination data
+            $result = [
+                'messages' => $messages,
+                'pagination' => [
+                    'page' => $page,
+                    'perPage' => $perPage,
+                    'totalItems' => $totalCount,
+                    'totalPages' => $totalPages,
+                    'hasNext' => $page < $totalPages,
+                    'hasPrev' => $page > 1
+                ]
+            ];
+
+            // Store in cache
+            $cache->save($cacheKey, $result, $this->cacheTTL);
+
+            // Log cache miss
+            log_message('debug', 'User chat messages cache miss. Fetched from database with pagination.');
+        } else {
+            // Log cache hit
+            log_message('debug', 'User chat messages with pagination retrieved from cache.');
+        }
+
+        return $result;
+    }
+
+    /**
      * Get messages by user with caching
      * 
      * @param string $username Username to filter by
@@ -113,35 +220,81 @@ class ChatModel extends Model
      */
     public function getMsgByUser($username, $limit = 10)
     {
-        // Create a unique cache key based on the username and limit
-        $cacheKey = $this->cacheKey . '_user_' . md5($username) . '_' . $limit;
+        // For backward compatibility, get the first page with the specified limit
+        $result = $this->getMsgByUserPaginated($username, 1, $limit);
+
+        // Return just the messages for backward compatibility
+        return $result['messages'];
+    }
+
+    /**
+     * Get messages by time range with caching and pagination
+     * 
+     * @param int $startTime Start timestamp
+     * @param int $endTime End timestamp
+     * @param int $page Page number (1-based)
+     * @param int $perPage Number of messages per page
+     * @return array
+     */
+    public function getMsgByTimeRangePaginated($startTime, $endTime, $page = 1, $perPage = 10)
+    {
+        // Ensure page is at least 1
+        $page = max(1, (int)$page);
+
+        // Calculate offset
+        $offset = ($page - 1) * $perPage;
+
+        // Create a unique cache key based on the time range and pagination parameters
+        $cacheKey = $this->cacheKey . '_time_' . $startTime . '_' . $endTime . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
         $cache = Services::cache();
 
         // Try to get data from cache first
-        $messages = $cache->get($cacheKey);
+        $result = $cache->get($cacheKey);
 
         // If not in cache or cache expired, get from database and store in cache
-        if ($messages === null) {
-            // Use user index for filtering and time index for ordering
-            $messages = $this->where('user', $username)
+        if ($result === null) {
+            // Get total count for pagination
+            $totalCount = $this->where('time >=', $startTime)
+                               ->where('time <=', $endTime)
+                               ->countAllResults();
+
+            // Use time index for filtering and ordering
+            $messages = $this->where('time >=', $startTime)
+                            ->where('time <=', $endTime)
                             ->orderBy('time', 'DESC')
-                            ->limit($limit)
+                            ->limit($perPage, $offset)
                             ->get()
                             ->getResultArray();
 
+            // Calculate total pages
+            $totalPages = ceil($totalCount / $perPage);
+
+            // Create result with pagination data
+            $result = [
+                'messages' => $messages,
+                'pagination' => [
+                    'page' => $page,
+                    'perPage' => $perPage,
+                    'totalItems' => $totalCount,
+                    'totalPages' => $totalPages,
+                    'hasNext' => $page < $totalPages,
+                    'hasPrev' => $page > 1
+                ]
+            ];
+
             // Store in cache
-            $cache->save($cacheKey, $messages, $this->cacheTTL);
+            $cache->save($cacheKey, $result, $this->cacheTTL);
 
             // Log cache miss
-            log_message('debug', 'User chat messages cache miss. Fetched from database.');
+            log_message('debug', 'Time range chat messages cache miss. Fetched from database with pagination.');
         } else {
             // Log cache hit
-            log_message('debug', 'User chat messages retrieved from cache.');
+            log_message('debug', 'Time range chat messages with pagination retrieved from cache.');
         }
 
-        return $messages;
+        return $result;
     }
 
     /**
@@ -154,35 +307,10 @@ class ChatModel extends Model
      */
     public function getMsgByTimeRange($startTime, $endTime, $limit = 10)
     {
-        // Create a unique cache key based on the time range and limit
-        $cacheKey = $this->cacheKey . '_time_' . $startTime . '_' . $endTime . '_' . $limit;
+        // For backward compatibility, get the first page with the specified limit
+        $result = $this->getMsgByTimeRangePaginated($startTime, $endTime, 1, $limit);
 
-        // Get the cache service
-        $cache = Services::cache();
-
-        // Try to get data from cache first
-        $messages = $cache->get($cacheKey);
-
-        // If not in cache or cache expired, get from database and store in cache
-        if ($messages === null) {
-            // Use time index for filtering and ordering
-            $messages = $this->where('time >=', $startTime)
-                            ->where('time <=', $endTime)
-                            ->orderBy('time', 'DESC')
-                            ->limit($limit)
-                            ->get()
-                            ->getResultArray();
-
-            // Store in cache
-            $cache->save($cacheKey, $messages, $this->cacheTTL);
-
-            // Log cache miss
-            log_message('debug', 'Time range chat messages cache miss. Fetched from database.');
-        } else {
-            // Log cache hit
-            log_message('debug', 'Time range chat messages retrieved from cache.');
-        }
-
-        return $messages;
+        // Return just the messages for backward compatibility
+        return $result['messages'];
     }
 }

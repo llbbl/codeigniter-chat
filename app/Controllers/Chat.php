@@ -118,11 +118,17 @@ class Chat extends BaseController
      */
     public function backend()
     {
-        // Get the data
-        $messages = $this->chatModel->getMsg();
+        // Get page from request or default to 1
+        $page = $this->request->getGet('page') ?? 1;
+
+        // Get per_page from request or default to 10
+        $perPage = $this->request->getGet('per_page') ?? 10;
+
+        // Get the data with pagination
+        $result = $this->chatModel->getMsgPaginated($page, $perPage);
 
         // Format messages as XML using ChatHelper
-        $output = ChatHelper::formatAsXml($messages);
+        $output = ChatHelper::formatAsXml($result['messages'], $result['pagination']);
 
         return $this->respondWithXml($output);
     }
@@ -144,11 +150,17 @@ class Chat extends BaseController
      */
     public function jsonBackend()
     {
-        // Get the data
-        $messages = $this->chatModel->getMsg();
+        // Get page from request or default to 1
+        $page = $this->request->getGet('page') ?? 1;
+
+        // Get per_page from request or default to 10
+        $perPage = $this->request->getGet('per_page') ?? 10;
+
+        // Get the data with pagination
+        $result = $this->chatModel->getMsgPaginated($page, $perPage);
 
         // Format messages as JSON using ChatHelper
-        $data = ChatHelper::formatAsJson($messages);
+        $data = ChatHelper::formatAsJson($result['messages'], $result['pagination']);
 
         // Return JSON response
         return $this->respondWithJson($data);
@@ -175,8 +187,18 @@ class Chat extends BaseController
      */
     public function htmlBackend()
     {
+        // Get page from request or default to 1
+        $page = $this->request->getGet('page') ?? 1;
+
+        // Get per_page from request or default to 10
+        $perPage = $this->request->getGet('per_page') ?? 10;
+
+        // Get the data with pagination
+        $result = $this->chatModel->getMsgPaginated($page, $perPage);
+
         $data = [
-            'query' => $this->chatModel->getMsg()
+            'query' => $result['messages'],
+            'pagination' => $result['pagination']
         ];
 
         return $this->respondWithView('chat/htmlBackView', $data, ['saveData' => true]);
