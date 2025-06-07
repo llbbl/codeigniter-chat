@@ -27,9 +27,9 @@ class Database extends Config
     public array $default = [
         'DSN'          => '',
         'hostname'     => 'localhost',
-        'username'     => '',
-        'password'     => '',
-        'database'     => '',
+        'username'     => 'your_mysql_username', // Change this to your MySQL username
+        'password'     => 'your_mysql_password', // Change this to your MySQL password
+        'database'     => 'your_database_name',  // Change this to your database name
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,
