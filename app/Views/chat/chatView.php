@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>CodeIgniter Shoutbox</title>
-    <meta name="csrf-token" content="<?= csrf_hash() ?>">
-    <script type="text/javascript" src="<?= base_url('js/jquery-1.4.2.min.js') ?>"></script>
+    <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">
+    <script type="text/javascript" src="<?= esc(base_url('js/jquery-1.4.2.min.js')) ?>"></script>
     <script type="text/javascript">
         $(document).ready(function(){
 
@@ -35,7 +35,7 @@
                     showLoading();
 
                     // Add CSRF token to the request
-                    $.post("<?= site_url('chat/update') ?>", {
+                    $.post("<?= esc(site_url('chat/update')) ?>", {
                                 message: message,
                                 action: "postmsg",
                                 <?= csrf_token() ?>: $('meta[name="csrf-token"]').attr('content')
@@ -50,7 +50,9 @@
                             }
                         } else {
                             // Success - add message to window
-                            $("#messagewindow").prepend("<b><?= session()->get('username') ?></b>: "+message+"<br />");
+                            // Escape HTML in the message before adding to the DOM
+                            var escapedMessage = $('<div/>').text(message).html();
+                            $("#messagewindow").prepend("<b><?= esc(session()->get('username')) ?></b>: "+escapedMessage+"<br />");
 
                             // Clear message field and focus
                             $("#content").val("");                    
@@ -86,7 +88,11 @@
                 author = $(this).find("author").text();
                 msg = $(this).find("text").text();
 
-                $("#messagewindow").append("<b>"+author+"</b>: "+msg+"<br />");
+                // Escape HTML in the author and message before adding to the DOM
+                var escapedAuthor = $('<div/>').text(author).html();
+                var escapedMsg = $('<div/>').text(msg).html();
+
+                $("#messagewindow").append("<b>"+escapedAuthor+"</b>: "+escapedMsg+"<br />");
             });
 
         }

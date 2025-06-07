@@ -81,7 +81,7 @@
     <div id="wrapper">
     <p id="messagewindow">
 
-    <?= $html ?? '' ?>
+    <?= esc($html ?? '') ?>
 
     </p>
     <?php if (session()->has('errors')): ?>
@@ -91,15 +91,15 @@
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
-    <form id="chatform" action="<?= site_url('chat/update') ?>" method="post">
+    <form id="chatform" action="<?= esc(site_url('chat/update')) ?>" method="post">
     <?= csrf_field() ?>
     <div id="author">
-        Name: <input type="text" name="name" id="name" value="<?= old('name') ?>" />
+        Name: <input type="text" name="name" id="name" value="<?= esc(old('name')) ?>" />
         <div id="name-error" class="error"></div>
     </div><br />
 
     <div id="txt">
-        Message: <input type="text" name="message" id="content" value="<?= old('message') ?>" />
+        Message: <input type="text" name="message" id="content" value="<?= esc(old('message')) ?>" />
         <div id="content-error" class="error"></div>
     </div>
 
