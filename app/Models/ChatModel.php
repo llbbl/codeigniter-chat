@@ -5,6 +5,15 @@ namespace App\Models;
 use CodeIgniter\Model;
 use Config\Services;
 
+/**
+ * Chat Model
+ * 
+ * This model handles all database operations related to chat messages.
+ * It provides methods for retrieving, inserting, and filtering messages,
+ * with support for caching and pagination to improve performance.
+ * 
+ * @package App\Models
+ */
 class ChatModel extends Model
 {
     protected $table = 'messages';
@@ -108,10 +117,16 @@ class ChatModel extends Model
     /**
      * Insert a new message into the database and invalidate cache
      * 
-     * @param string $name User name
-     * @param string $message Message text
-     * @param int $current Timestamp
-     * @return bool
+     * This method inserts a new chat message into the database with the given
+     * user name, message text, and timestamp. If the insertion is successful,
+     * it invalidates all related cache entries to ensure that subsequent requests
+     * will receive the updated data.
+     * 
+     * @param string $name     User name of the message author
+     * @param string $message  Message text content
+     * @param int    $current  Unix timestamp when the message was created
+     * 
+     * @return int|bool The insert ID if the insert was successful, or false on failure
      */
     public function insertMsg($name, $message, $current)
     {
@@ -132,6 +147,11 @@ class ChatModel extends Model
 
     /**
      * Invalidate all message caches
+     * 
+     * This method clears all cached chat messages by deleting cache entries
+     * that match the base cache key pattern. It's called after a new message
+     * is inserted to ensure that subsequent requests will fetch fresh data
+     * from the database instead of using outdated cached data.
      * 
      * @return void
      */

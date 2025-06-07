@@ -23,11 +23,14 @@ class Chat extends BaseController
     protected $chatModel;
 
     /**
-     * Constructor - loads the model
+     * Constructor - initializes the controller and loads the model
      * 
-     * @param RequestInterface  $request
-     * @param ResponseInterface $response
-     * @param LoggerInterface   $logger
+     * This method is called by the framework when the controller is instantiated.
+     * It initializes the parent controller and creates a new instance of the ChatModel.
+     * 
+     * @param \CodeIgniter\HTTP\RequestInterface  $request  The HTTP request object
+     * @param \CodeIgniter\HTTP\ResponseInterface $response The HTTP response object
+     * @param \Psr\Log\LoggerInterface            $logger   The logger object
      * 
      * @return void
      */
@@ -40,7 +43,10 @@ class Chat extends BaseController
     /**
      * Loads the default page for the XML example
      * 
-     * @return string
+     * This method renders the main chat view that uses XML for data exchange.
+     * It's the entry point for the XML-based chat interface.
+     * 
+     * @return string The rendered view with the chat interface
      */
     public function index()
     {
@@ -50,7 +56,17 @@ class Chat extends BaseController
     /**
      * Updates the database with a new chat message
      * 
-     * @return mixed
+     * This method processes a chat message submission. It validates the message,
+     * checks user authentication, sanitizes the input, saves the message to the database,
+     * and broadcasts it to all connected WebSocket clients.
+     * 
+     * @return mixed Returns one of the following:
+     *               - Redirect response (for HTML form submissions)
+     *               - JSON response (for AJAX requests)
+     *               - Empty string (for other requests)
+     *               - Error response (for validation, authentication, or database errors)
+     * 
+     * @throws \Exception If there's an error saving the message to the database
      */
     public function update()
     {
@@ -130,7 +146,11 @@ class Chat extends BaseController
     /**
      * XML Backend - returns chat messages in XML format
      * 
-     * @return string
+     * This method retrieves chat messages from the database with pagination
+     * and formats them as XML. It's used by the XML-based chat interface
+     * to fetch messages via AJAX.
+     * 
+     * @return string XML-formatted chat messages with pagination information
      */
     public function backend()
     {
@@ -152,7 +172,10 @@ class Chat extends BaseController
     /**
      * Loads the default view for the JSON example
      * 
-     * @return string
+     * This method renders the chat view that uses JSON for data exchange.
+     * It's the entry point for the JSON-based chat interface.
+     * 
+     * @return string The rendered view with the JSON-based chat interface
      */
     public function json()
     {
@@ -162,7 +185,11 @@ class Chat extends BaseController
     /**
      * Displays the JSON formatted data
      * 
-     * @return ResponseInterface
+     * This method retrieves chat messages from the database with pagination
+     * and formats them as JSON. It's used by the JSON-based chat interface
+     * to fetch messages via AJAX.
+     * 
+     * @return \CodeIgniter\HTTP\ResponseInterface JSON response containing chat messages and pagination information
      */
     public function jsonBackend()
     {
@@ -185,7 +212,11 @@ class Chat extends BaseController
     /**
      * Main for the HTML example
      * 
-     * @return string
+     * This method renders the chat view that uses traditional HTML form submission.
+     * It's the entry point for the HTML-based chat interface, which works without JavaScript.
+     * It calls htmlBackend() to get the HTML content for the messages.
+     * 
+     * @return string The rendered view with the HTML-based chat interface
      */
     public function html()
     {
@@ -199,7 +230,11 @@ class Chat extends BaseController
     /** 
      * Function to display the data in HTML
      * 
-     * @return string
+     * This method retrieves chat messages from the database with pagination
+     * and renders them as HTML. It's used by the HTML-based chat interface
+     * to display messages without requiring JavaScript.
+     * 
+     * @return string The rendered HTML view containing chat messages and pagination controls
      */
     public function htmlBackend()
     {
@@ -223,7 +258,13 @@ class Chat extends BaseController
     /**
      * Loads the Vue.js version of the chat
      * 
-     * @return string
+     * This method renders the chat view that uses Vue.js for a reactive UI.
+     * It's the entry point for the Vue.js-based chat interface.
+     * This method requires authentication and will redirect to the login page
+     * if the user is not logged in.
+     * 
+     * @return string|RedirectResponse The rendered view with the Vue.js-based chat interface
+     *                                 or a redirect response to the login page if not authenticated
      */
     public function vue()
     {
@@ -237,9 +278,12 @@ class Chat extends BaseController
 
     /**
      * API endpoint for the Vue.js version
-     * Reuses the existing jsonBackend method
      * 
-     * @return ResponseInterface
+     * This method serves as the API endpoint for the Vue.js chat interface.
+     * It reuses the existing jsonBackend method to retrieve and format chat messages.
+     * This endpoint is called by the Vue.js frontend to fetch messages via AJAX.
+     * 
+     * @return \CodeIgniter\HTTP\ResponseInterface JSON response containing chat messages and pagination information
      */
     public function vueApi()
     {

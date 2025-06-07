@@ -42,6 +42,8 @@
         "test": "phpunit",
         "test:unit": "phpunit tests/unit",
         "test:database": "phpunit tests/database",
-        "test:coverage": "phpunit --colors --coverage-html build/logs/html"
+        "test:feature": "phpunit tests/feature",
+        "test:coverage": "phpunit --colors --coverage-html build/logs/html",
+        "test:coverage:text": "phpunit --colors --coverage-text"
     }
 }
