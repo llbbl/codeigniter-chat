@@ -22,6 +22,8 @@ $routes->get('chat/json', 'Chat::json');
 $routes->get('chat/jsonBackend', 'Chat::jsonBackend');
 $routes->get('chat/html', 'Chat::html');
 $routes->get('chat/htmlBackend', 'Chat::htmlBackend');
+$routes->get('chat/vue', 'Chat::vue');
+$routes->get('chat/vueApi', 'Chat::vueApi');
 
 // CSP report route
 $routes->post('csp-report', 'CspReport::index');

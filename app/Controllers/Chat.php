@@ -203,4 +203,30 @@ class Chat extends BaseController
 
         return $this->respondWithView('chat/htmlBackView', $data, ['saveData' => true]);
     }
+
+    /**
+     * Loads the Vue.js version of the chat
+     * 
+     * @return string
+     */
+    public function vue()
+    {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            return redirect()->to('auth/login');
+        }
+
+        return $this->respondWithView('chat/vueView');
+    }
+
+    /**
+     * API endpoint for the Vue.js version
+     * Reuses the existing jsonBackend method
+     * 
+     * @return ResponseInterface
+     */
+    public function vueApi()
+    {
+        return $this->jsonBackend();
+    }
 }

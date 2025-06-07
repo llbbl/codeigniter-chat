@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+  plugins: [vue()],
   // Base public path when served in production
   base: '/',
 
@@ -20,6 +22,7 @@ export default defineConfig({
         'chat': resolve(__dirname, 'src/js/chat.js'),
         'chat-json': resolve(__dirname, 'src/js/chat-json.js'),
         'chat-html': resolve(__dirname, 'src/js/chat-html.js'),
+        'chat-vue': resolve(__dirname, 'src/vue/main.js'), // Vue.js entry point
         'styles': resolve(__dirname, 'src/css/chat.scss'),
         'zipcodes': resolve(__dirname, 'src/css/zipcodes.scss')
       },

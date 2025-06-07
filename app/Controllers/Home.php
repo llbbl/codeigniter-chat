@@ -16,12 +16,12 @@ class Home extends BaseController
      */
     public function index()
     {
-        // If user is already logged in, redirect to chat
-        if ($this->isLoggedIn()) {
-            return redirect()->to('/chat');
+        // If user is not logged in, redirect to login page
+        if (!$this->isLoggedIn()) {
+            return redirect()->to('/auth/login');
         }
 
-        // Otherwise, redirect to login page
-        return redirect()->to('/auth/login');
+        // Show the home page with links to different chat implementations
+        return $this->respondWithView('home');
     }
 }
