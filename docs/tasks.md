@@ -4,9 +4,9 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 
 ## Security Improvements
 
-1. [ ] Fix SQL injection vulnerabilities in Chatmodel by using parameterized queries or CodeIgniter's Query Builder
-2. [ ] Implement input validation and sanitization for all user inputs (both server-side and client-side)
-3. [ ] Add CSRF protection to all forms
+1. [x] Fix SQL injection vulnerabilities in Chatmodel by using parameterized queries or CodeIgniter's Query Builder
+2. [x] Implement input validation and sanitization for all user inputs (both server-side and client-side)
+3. [x] Add CSRF protection to all forms
 4. [ ] Implement proper user authentication system instead of just using name field
 5. [ ] Add rate limiting to prevent spam and DoS attacks
 6. [ ] Update session handling to use more secure configurations
@@ -66,4 +66,3 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 49. [ ] Add contribution guidelines
 50. [ ] Document testing procedures and requirements
 51. [ ] Create architectural overview and diagrams
-
