@@ -2,8 +2,12 @@
  * JavaScript for the XML version of the chat application
  */
 
-// Import CSS
+// Import jQuery and CSS
+import $ from 'jquery';
 import '../css/chat.css';
+
+// Make jQuery available globally
+window.$ = window.jQuery = $;
 
 // Track current page for lazy loading
 let currentPage = 1;

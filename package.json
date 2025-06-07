@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "jquery": "^3.7.1"
+  },
   "devDependencies": {
     "vite": "^6.3.5",
     "sass": "^1.72.0",
