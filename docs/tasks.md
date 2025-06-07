@@ -51,7 +51,7 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 
 ## Testing Enhancements
 
-36. [ ] Expand unit tests to cover all model methods
+36. [x] Expand unit tests to cover all model methods
 37. [ ] Add integration tests for controllers
 39. [ ] Add test coverage reporting
 
