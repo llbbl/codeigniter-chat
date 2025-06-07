@@ -38,6 +38,9 @@
         "sort-packages": true
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "test:unit": "phpunit tests/unit",
+        "test:database": "phpunit tests/database",
+        "test:coverage": "phpunit --colors --coverage-html build/logs/html"
     }
 }
