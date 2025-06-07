@@ -2,10 +2,12 @@
 
 namespace App\Libraries;
 
+use Exception;
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use App\Models\ChatModel;
 use CodeIgniter\I18n\Time;
+use SplObjectStorage;
 
 /**
  * Chat WebSocket Server
@@ -17,9 +19,9 @@ class ChatWebSocketServer implements MessageComponentInterface
     /**
      * Connected clients
      * 
-     * @var \SplObjectStorage
+     * @var SplObjectStorage
      */
-    protected \SplObjectStorage $clients;
+    protected SplObjectStorage $clients;
 
     /**
      * Chat model instance
@@ -31,11 +33,22 @@ class ChatWebSocketServer implements MessageComponentInterface
     /**
      * Constructor
      */
-    public function __construct(): void
+
+    public function __construct(?SplObjectStorage $clients = null, ?ChatModel $chatModel = null)
     {
-        $this->clients = new \SplObjectStorage;
-        $this->chatModel = new ChatModel();
-        
+        $this->clients = $clients ?? new SplObjectStorage();
+        $this->chatModel = $chatModel ?? new ChatModel();
+
+        $this->logServerStart();
+    }
+
+    /**
+     * Log server startup message
+     *
+     * @return void
+     */
+    private function logServerStart(): void
+    {
         echo "Chat WebSocket Server started\n";
     }
 
@@ -45,12 +58,12 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param ConnectionInterface $conn
      * @return void
      */
-    public function onOpen(ConnectionInterface $conn)
+    public function onOpen(ConnectionInterface $conn): void
     {
         // Store the new connection
         $this->clients->attach($conn);
         
-        echo "New connection! ({$conn->resourceId})\n";
+        echo "New connection! (" . spl_object_id($conn) . ")\n";
     }
 
     /**
@@ -60,7 +73,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param string $msg
      * @return void
      */
-    public function onMessage(ConnectionInterface $from, string $msg): void
+    public function onMessage(ConnectionInterface $from, $msg)
     {
         $data = json_decode($msg, true);
         
@@ -120,22 +133,22 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param ConnectionInterface $conn
      * @return void
      */
-    public function onClose(ConnectionInterface $conn)
+    public function onClose(ConnectionInterface $conn): void
     {
         // Remove the connection
         $this->clients->detach($conn);
         
-        echo "Connection {$conn->resourceId} has disconnected\n";
+        echo "Connection " . spl_object_id($conn) . " has disconnected\n";
     }
 
     /**
      * When an error occurs
      * 
      * @param ConnectionInterface $conn
-     * @param \Exception $e
+     * @param Exception $e
      * @return void
      */
-    public function onError(ConnectionInterface $conn, \Exception $e)
+    public function onError(ConnectionInterface $conn, Exception $e): void
     {
         echo "An error has occurred: {$e->getMessage()}\n";
         

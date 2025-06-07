@@ -2,6 +2,8 @@
 
 namespace App\Libraries;
 
+use Exception;
+
 /**
  * WebSocket Client
  * 
@@ -88,7 +90,7 @@ class WebSocketClient
             }
             
             // Check if the handshake was successful
-            if (strpos($response, '101 Switching Protocols') === false) {
+            if (!str_contains($response, '101 Switching Protocols')) {
                 log_message('error', 'WebSocketClient: Handshake failed: ' . $response);
                 socket_close($socket);
                 return false;
@@ -110,7 +112,7 @@ class WebSocketClient
             socket_close($socket);
             
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             log_message('error', 'WebSocketClient: Exception: ' . $e->getMessage());
             if (isset($socket) && is_resource($socket)) {
                 socket_close($socket);
