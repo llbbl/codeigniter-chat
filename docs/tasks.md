@@ -22,7 +22,7 @@ This document contains a comprehensive list of tasks for improving the CodeIgnit
 13. [x] Create a base controller for common functionality
 14. [x] Organize JavaScript code into separate files instead of embedding in views
 15. [x] Implement a consistent error handling strategy
-16. [ ] Create helper classes for common functionality
+16. [x] Create helper classes for common functionality
 17. [ ] Standardize file naming conventions (e.g., Chatmodel.php vs chatmodel.php)
 18. [ ] Implement proper namespacing for classes
 
