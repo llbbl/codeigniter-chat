@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ChatModel;
+use App\Helpers\ChatHelper;
 use CodeIgniter\I18n\Time;
 
 class Chat extends BaseController
@@ -34,37 +35,32 @@ class Chat extends BaseController
      */
     public function update()
     {
-        // Validation rules
-        $rules = [
-            'message' => [
-                'rules' => 'required|min_length[1]|max_length[500]',
-                'errors' => [
-                    'required' => 'Message is required',
-                    'min_length' => 'Message must be at least 1 character long',
-                    'max_length' => 'Message cannot exceed 500 characters'
-                ]
-            ]
+        // Get data for validation
+        $data = [
+            'message' => $this->request->getPost('message')
         ];
 
-        // Run validation
-        if (!$this->validate($rules)) {
+        // Validate message using ChatHelper
+        $validation = ChatHelper::validateMessage($data);
+
+        if ($validation !== true) {
             // If AJAX request, return JSON with errors
             if (!$this->request->getPost('html_redirect')) {
                 return $this->response->setJSON([
                     'success' => false,
-                    'errors' => $this->validator->getErrors()
+                    'errors' => $validation
                 ]);
             }
 
             // For HTML form, redirect back with errors
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+            return redirect()->back()->withInput()->with('errors', $validation);
         }
 
         // Get username from session
         $name = session()->get('username');
 
         // Get sanitized inputs
-        $message = esc($this->request->getPost('message'));
+        $message = esc($data['message']);
         $html_redirect = $this->request->getPost('html_redirect');
 
         $current = Time::now();
@@ -94,34 +90,10 @@ class Chat extends BaseController
         $this->response->setHeader('Cache-Control', 'no-cache');
 
         // Get the data
-        $query = $this->chatModel->getMsg();
+        $messages = $this->chatModel->getMsg();
 
-        // If empty change the status
-        if (count($query) == 0) {
-            $status_code = 2;
-        } else {
-            $status_code = 1;
-        }
-
-        // XML headers
-        $output = "<?xml version=\"1.0\"?>\n";
-        $output .= "<response>\n";
-        $output .= "\t<status>$status_code</status>\n";
-        $output .= "\t<time>" . time() . "</time>\n";
-
-        // Loop through all the data
-        if (count($query) > 0) {
-            foreach ($query as $row) {
-                // Sanitize so XML is valid
-                $escmsg = htmlspecialchars(stripslashes($row['msg']));
-                $output .= "\t<message>\n";
-                $output .= "\t\t<id>{$row['id']}</id>\n";
-                $output .= "\t\t<author>{$row['user']}</author>\n";
-                $output .= "\t\t<text>$escmsg</text>\n";
-                $output .= "\t</message>\n";
-            }
-        }
-        $output .= "</response>";
+        // Format messages as XML using ChatHelper
+        $output = \App\Helpers\ChatHelper::formatAsXml($messages);
 
         return $output;
     }
@@ -149,7 +121,10 @@ class Chat extends BaseController
         $this->response->setHeader('Content-Type', 'application/json');
 
         // Get the data
-        $data = $this->chatModel->getMsg();
+        $messages = $this->chatModel->getMsg();
+
+        // Format messages as JSON using ChatHelper
+        $data = \App\Helpers\ChatHelper::formatAsJson($messages);
 
         // JSON sized dump to STDOUT
         return $this->response->setJSON($data);

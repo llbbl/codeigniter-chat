@@ -9,7 +9,7 @@ class ChatModel extends Model
     protected $table = 'messages';
     protected $primaryKey = 'id';
     protected $allowedFields = ['user', 'msg', 'time'];
-    
+
     /**
      * Get messages from the database
      * 
@@ -23,7 +23,7 @@ class ChatModel extends Model
                     ->get()
                     ->getResultArray();
     }
-    
+
     /**
      * Insert a new message into the database
      * 

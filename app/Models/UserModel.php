@@ -12,7 +12,7 @@ class UserModel extends Model
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
-    
+
     /**
      * Find a user by their username
      * 
@@ -23,7 +23,7 @@ class UserModel extends Model
     {
         return $this->where('username', $username)->first();
     }
-    
+
     /**
      * Find a user by their email
      * 
@@ -34,7 +34,7 @@ class UserModel extends Model
     {
         return $this->where('email', $email)->first();
     }
-    
+
     /**
      * Create a new user
      * 
@@ -51,7 +51,7 @@ class UserModel extends Model
             'password' => password_hash($password, PASSWORD_DEFAULT)
         ]);
     }
-    
+
     /**
      * Verify a user's credentials
      * 
@@ -62,11 +62,11 @@ class UserModel extends Model
     public function verifyCredentials($username, $password)
     {
         $user = $this->findUserByUsername($username);
-        
+
         if ($user && password_verify($password, $user['password'])) {
             return $user;
         }
-        
+
         return null;
     }
 }

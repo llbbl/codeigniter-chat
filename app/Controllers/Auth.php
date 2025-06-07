@@ -32,52 +32,26 @@ class Auth extends BaseController
      */
     public function processRegistration()
     {
-        // Validation rules
-        $rules = [
-            'username' => [
-                'rules' => 'required|min_length[3]|max_length[50]|alpha_numeric|is_unique[users.username]',
-                'errors' => [
-                    'required' => 'Username is required',
-                    'min_length' => 'Username must be at least 3 characters long',
-                    'max_length' => 'Username cannot exceed 50 characters',
-                    'alpha_numeric' => 'Username can only contain alphanumeric characters',
-                    'is_unique' => 'Username is already taken'
-                ]
-            ],
-            'email' => [
-                'rules' => 'required|valid_email|is_unique[users.email]',
-                'errors' => [
-                    'required' => 'Email is required',
-                    'valid_email' => 'Please enter a valid email address',
-                    'is_unique' => 'Email is already registered'
-                ]
-            ],
-            'password' => [
-                'rules' => 'required|min_length[8]',
-                'errors' => [
-                    'required' => 'Password is required',
-                    'min_length' => 'Password must be at least 8 characters long'
-                ]
-            ],
-            'password_confirm' => [
-                'rules' => 'required|matches[password]',
-                'errors' => [
-                    'required' => 'Password confirmation is required',
-                    'matches' => 'Passwords do not match'
-                ]
-            ]
+        // Get data for validation
+        $data = [
+            'username' => $this->request->getPost('username'),
+            'email' => $this->request->getPost('email'),
+            'password' => $this->request->getPost('password'),
+            'password_confirm' => $this->request->getPost('password_confirm')
         ];
 
-        // Run validation
-        if (!$this->validate($rules)) {
+        // Validate registration data using UserHelper
+        $validation = \App\Helpers\UserHelper::validateRegistration($data);
+
+        if ($validation !== true) {
             // Return to the registration form with errors
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+            return redirect()->back()->withInput()->with('errors', $validation);
         }
 
         // Get sanitized inputs
-        $username = esc($this->request->getPost('username'));
-        $email = esc($this->request->getPost('email'));
-        $password = $this->request->getPost('password');
+        $username = esc($data['username']);
+        $email = esc($data['email']);
+        $password = $data['password'];
 
         // Create the user
         $userId = $this->userModel->createUser($username, $email, $password);
@@ -103,31 +77,23 @@ class Auth extends BaseController
      */
     public function processLogin()
     {
-        // Validation rules
-        $rules = [
-            'username' => [
-                'rules' => 'required',
-                'errors' => [
-                    'required' => 'Username is required'
-                ]
-            ],
-            'password' => [
-                'rules' => 'required',
-                'errors' => [
-                    'required' => 'Password is required'
-                ]
-            ]
+        // Get data for validation
+        $data = [
+            'username' => $this->request->getPost('username'),
+            'password' => $this->request->getPost('password')
         ];
 
-        // Run validation
-        if (!$this->validate($rules)) {
+        // Validate login data using UserHelper
+        $validation = \App\Helpers\UserHelper::validateLogin($data);
+
+        if ($validation !== true) {
             // Return to the login form with errors
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+            return redirect()->back()->withInput()->with('errors', $validation);
         }
 
         // Get inputs
-        $username = $this->request->getPost('username');
-        $password = $this->request->getPost('password');
+        $username = $data['username'];
+        $password = $data['password'];
 
         // Verify credentials
         $user = $this->userModel->verifyCredentials($username, $password);
@@ -136,15 +102,8 @@ class Auth extends BaseController
             return redirect()->back()->withInput()->with('error', 'Invalid username or password');
         }
 
-        // Set user session
-        $userData = [
-            'user_id' => $user['id'],
-            'username' => $user['username'],
-            'email' => $user['email'],
-            'logged_in' => true
-        ];
-
-        session()->set($userData);
+        // Set user session using UserHelper
+        \App\Helpers\UserHelper::setUserSession($user);
 
         // Redirect to chat
         return redirect()->to('/chat');
@@ -155,8 +114,8 @@ class Auth extends BaseController
      */
     public function logout()
     {
-        // Clear user session
-        session()->remove(['user_id', 'username', 'email', 'logged_in']);
+        // Clear user session using UserHelper
+        \App\Helpers\UserHelper::clearUserSession();
 
         // Redirect to login page
         return redirect()->to('/auth/login')->with('success', 'You have been logged out successfully.');
