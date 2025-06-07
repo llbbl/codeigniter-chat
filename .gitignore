@@ -20,6 +20,8 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 #-------------------------
 /nbproject/
 .idea/*
+.junie
+.claude
 
 ## Sublime Text cache files
 *.tmlanguage.cache
