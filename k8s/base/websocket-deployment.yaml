@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket
+  namespace: codeigniter-chat
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: websocket
+  template:
+    metadata:
+      labels:
+        app: websocket
+    spec:
+      containers:
+      - name: websocket
+        image: codeigniter-chat-websocket:latest
+        env:
+        - name: CI_ENVIRONMENT
+          value: "production"
+        - name: database.default.hostname
+          value: "mysql"
+        - name: database.default.database
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: mysql-database
+        - name: database.default.username
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: mysql-user
+        - name: database.default.password
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: user-password
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: writable-storage
+          mountPath: /var/www/html/writable
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "125m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: writable-storage
+        emptyDir: {}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: websocket-hpa
+  namespace: codeigniter-chat
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: websocket
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
