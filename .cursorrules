@@ -1,0 +1,186 @@
+# CodeIgniter 4 Chat Application - Cursor Rules
+
+This is a CodeIgniter 4 chat application demonstrating multiple frontend implementations (XML, JSON, HTML, Vue.js) with a shared backend and real-time WebSocket functionality.
+
+## Project Structure
+
+### Backend (CodeIgniter 4)
+- **Controllers**: `app/Controllers/` - Main application logic
+  - `Chat.php` - Primary chat controller with methods for different frontend implementations
+- **Models**: `app/Models/` - Data layer
+  - `ChatModel.php` - Message CRUD with pagination via `getMsgPaginated()`
+  - `UserModel.php` - User authentication and management
+- **Libraries**: `app/Libraries/` - Custom libraries
+  - `ChatWebSocketServer.php` - WebSocket server using Ratchet
+  - `WebSocketClient.php` - WebSocket client for broadcasting
+- **Helpers**: `app/Helpers/` - Utility functions
+  - `ChatHelper.php` - Message validation and formatting
+  - `ViteHelper.php` - Asset loading integration
+- **Filters**: `app/Filters/` - Request filtering
+  - `AuthFilter.php` - Authentication protection
+  - `RateLimitFilter.php` - Spam/DoS prevention
+- **Views**: `app/Views/` - Templates for different implementations
+- **Database**: `app/Database/Migrations/` - Database schema
+  - Users table for authentication
+  - Messages table with user foreign keys and timestamps
+
+### Frontend Assets (`src/`)
+- **JavaScript**: `src/js/`
+  - `chat.js` - XML implementation with jQuery
+  - `chat-json.js` - JSON implementation with jQuery
+  - `chat-html.js` - Traditional form submission (no JS required)
+- **Vue.js**: `src/vue/` - Reactive component architecture
+- **CSS**: `src/css/` - Styling files
+- **Build**: Uses Vite for asset pipeline, outputs to `public/dist/`
+
+## Development Commands
+
+### Server Commands
+```bash
+# Start CodeIgniter development server
+php spark serve
+
+# Start Vite development server (watch mode)
+npm run dev
+
+# Build production assets
+npm run build
+
+# Start WebSocket server for real-time chat
+php spark websocket:start
+```
+
+### Testing Commands
+```bash
+# Run all tests
+composer test
+
+# Run specific test types
+composer test:unit
+composer test:feature
+composer test:database
+
+# Generate coverage report (outputs to build/logs/html/)
+composer test:coverage
+```
+
+## Architecture Patterns
+
+### Chat Controller Methods
+- `index()` - XML interface
+- `json()` - JSON interface  
+- `html()` - HTML interface
+- `vue()` - Vue.js interface
+- `backend()` - XML backend API
+- `jsonBackend()` - JSON backend API
+- `htmlBackend()` - HTML backend API
+- `vueApi()` - Vue.js backend API
+- `update()` - Message posting with WebSocket broadcasting
+
+### Frontend Implementations
+1. **XML** - jQuery + XML AJAX requests
+2. **JSON** - jQuery + JSON AJAX requests
+3. **HTML** - Traditional form submission, works without JavaScript
+4. **Vue.js** - Modern reactive UI with component architecture
+
+### Security & Validation
+- CSRF protection enabled for forms
+- Input sanitization and output escaping
+- `ChatHelper::validateMessage()` for input validation
+- Rate limiting to prevent spam/DoS
+- Authentication filters for protected routes
+
+## Coding Conventions
+
+### CodeIgniter 4 Standards
+- Follow CodeIgniter 4 MVC patterns
+- Use proper namespacing: `App\Controllers\`, `App\Models\`, etc.
+- Utilize CodeIgniter's built-in validation and security features
+- Use appropriate helper methods for common operations
+
+### Frontend Standards
+- ES6+ JavaScript features
+- Component-based architecture for Vue.js
+- SCSS for styling
+- Vite for modern build tooling
+
+### Database
+- Use migrations for schema changes
+- Follow foreign key relationships (messages belong to users)
+- Implement proper indexing for performance
+- Use model methods for data access
+
+## WebSocket Integration
+
+### Real-time Features
+- Messages broadcast to all connected clients
+- WebSocket server runs independently via `php spark websocket:start`
+- HTTP endpoints send messages to WebSocket clients via `WebSocketClient`
+- Ratchet library handles WebSocket connections
+
+### Message Flow
+1. User posts message via HTTP (any frontend implementation)
+2. `Chat::update()` saves to database
+3. Message broadcasted to WebSocket server
+4. All connected clients receive real-time update
+
+## Asset Pipeline
+
+### Vite Configuration
+- Source files in `src/` directory
+- Built assets output to `public/dist/`
+- HMR (Hot Module Replacement) for development
+- `ViteHelper` integrates manifest with CodeIgniter views
+
+### File Organization
+- Keep source assets in `src/`
+- Use proper imports/exports in JavaScript
+- Organize Vue components logically
+- SCSS files should be modular and maintainable
+
+## Development Guidelines
+
+### When Making Changes
+1. Follow existing MVC patterns
+2. Use appropriate helper methods for validation and formatting
+3. Maintain consistency across all frontend implementations
+4. Test changes across all chat interfaces (XML, JSON, HTML, Vue)
+5. Ensure WebSocket functionality remains intact
+6. Run tests before committing changes
+
+### Code Quality
+- Use proper error handling and validation
+- Follow security best practices
+- Write tests for new functionality
+- Maintain code documentation
+- Use meaningful variable and method names
+
+### Performance Considerations
+- Implement pagination for message loading
+- Optimize database queries
+- Use appropriate caching strategies
+- Minimize asset bundle sizes
+- Consider WebSocket connection limits
+
+## Common Tasks
+
+### Adding New Features
+1. Update appropriate controller methods
+2. Modify models if database changes needed
+3. Update all frontend implementations consistently
+4. Add appropriate tests
+5. Update documentation if needed
+
+### Debugging
+- Check CodeIgniter logs in `writable/logs/`
+- Use browser dev tools for frontend issues
+- Monitor WebSocket connections
+- Check database queries and performance
+- Use PHPUnit for test-driven debugging
+
+### Deployment
+1. Run `npm run build` for production assets
+2. Set appropriate environment variables
+3. Run database migrations
+4. Configure WebSocket server for production
+5. Set up proper web server configuration
