@@ -27,3 +27,15 @@ $routes->get('chat/vueApi', 'Chat::vueApi');
 
 // CSP report route
 $routes->post('csp-report', 'CspReport::index');
+
+// Health monitoring routes
+$routes->get('health', 'HealthController::index');
+$routes->get('health/database', 'HealthController::database');
+$routes->get('health/cache', 'HealthController::cache');
+$routes->get('health/db/stats', 'HealthController::dbStats');
+$routes->get('health/db/performance', 'HealthController::dbPerformance');
+$routes->get('health/db/pool', 'HealthController::connectionPool');
+
+// Kubernetes/Docker health probes
+$routes->get('ready', 'HealthController::ready');
+$routes->get('live', 'HealthController::live');
