@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Application - API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .doc-card {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .doc-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .doc-card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .doc-card p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        
+        .doc-card .features {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+        
+        .doc-card .features li {
+            padding: 0.25rem 0;
+            position: relative;
+            padding-left: 1.5rem;
+            color: #555;
+        }
+        
+        .doc-card .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn.secondary {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+        
+        .quick-start {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .code-tabs {
+            margin-top: 1rem;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tab-button {
+            padding: 0.5rem 1rem;
+            background: #ecf0f1;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .tab-button.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-content pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .resources {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .resources h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .resource-item {
+            padding: 1rem;
+            border: 1px solid #ecf0f1;
+            border-radius: 5px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .resource-item:hover {
+            border-color: #3498db;
+        }
+        
+        .resource-item h4 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resource-item p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .docs-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tab-buttons {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Chat Application</h1>
+            <p>Comprehensive API Documentation & Client Libraries</p>
+        </div>
+
+        <div class="docs-grid">
+            <div class="doc-card">
+                <div class="icon">📚</div>
+                <h3>Interactive API Documentation</h3>
+                <p>Explore the API with Swagger UI - test endpoints, view schemas, and see examples in real-time.</p>
+                <ul class="features">
+                    <li>Try endpoints directly in the browser</li>
+                    <li>View request/response schemas</li>
+                    <li>Authentication testing</li>
+                    <li>Real-time examples</li>
+                </ul>
+                <a href="./api-docs.html" class="btn">Open Swagger UI</a>
+                <a href="./api-docs-redoc.html" class="btn secondary">Open Redoc</a>
+            </div>
+
+            <div class="doc-card">
+                <div class="icon">📖</div>
+                <h3>OpenAPI Specification</h3>
+                <p>Download or view the complete OpenAPI 3.0 specification for the AI Chat Application API.</p>
+                <ul class="features">
+                    <li>Complete endpoint documentation</li>
+                    <li>Schema definitions</li>
+                    <li>Authentication details</li>
+                    <li>Error response formats</li>
+                </ul>
+                <a href="./openapi.yaml" class="btn">View YAML</a>
+                <a href="./openapi.json" class="btn secondary">View JSON</a>
+            </div>
+
+            <div class="doc-card">
+                <div class="icon">⚡</div>
+                <h3>Client Libraries</h3>
+                <p>Official client libraries for popular programming languages with full API support.</p>
+                <ul class="features">
+                    <li>JavaScript/TypeScript</li>
+                    <li>Python</li>
+                    <li>PHP</li>
+                    <li>WebSocket support</li>
+                </ul>
+                <a href="./api-clients/" class="btn">Browse Clients</a>
+                <a href="./api-clients/README.md" class="btn secondary">Documentation</a>
+            </div>
+
+            <div class="doc-card">
+                <div class="icon">🚀</div>
+                <h3>Getting Started Guide</h3>
+                <p>Step-by-step guide to get started with the AI Chat Application API.</p>
+                <ul class="features">
+                    <li>Authentication setup</li>
+                    <li>First API calls</li>
+                    <li>Common patterns</li>
+                    <li>Best practices</li>
+                </ul>
+                <a href="./setup-guide.md" class="btn">View Guide</a>
+                <a href="./user-guide.md" class="btn secondary">User Guide</a>
+            </div>
+        </div>
+
+        <div class="quick-start">
+            <h2>🚀 Quick Start</h2>
+            <p>Get started with the AI Chat API in just a few lines of code:</p>
+            
+            <div class="code-tabs">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="showTab('javascript')">JavaScript</button>
+                    <button class="tab-button" onclick="showTab('python')">Python</button>
+                    <button class="tab-button" onclick="showTab('php')">PHP</button>
+                    <button class="tab-button" onclick="showTab('curl')">cURL</button>
+                </div>
+                
+                <div id="javascript" class="tab-content active">
+                    <pre><code>// Initialize the client
+const client = new AiChatApiClient({
+    baseUrl: 'https://api.example.com'
+});
+
+// Login
+const loginResponse = await client.login(
+    'user@example.com', 
+    'password123'
+);
+
+// Create conversation
+const conversation = await client.createConversation({
+    title: 'My First Chat'
+});
+
+// Send message
+const messageResponse = await client.sendMessage(
+    conversation.conversation.id,
+    'Hello, how can you help me today?'
+);
+
+console.log('AI Response:', messageResponse.ai_response);</code></pre>
+                </div>
+                
+                <div id="python" class="tab-content">
+                    <pre><code># Initialize the client
+client = AiChatApiClient(
+    base_url="https://api.example.com"
+)
+
+# Login
+login_response = client.login(
+    "user@example.com", 
+    "password123"
+)
+
+# Create conversation
+conversation_response = client.create_conversation(
+    title="My First Chat"
+)
+
+# Send message
+message_response = client.send_message(
+    conversation_response.data['conversation']['id'],
+    "Hello, how can you help me today?"
+)
+
+print("AI Response:", message_response.data['ai_response'])</code></pre>
+                </div>
+                
+                <div id="php" class="tab-content">
+                    <pre><code>// Initialize the client
+$client = new AiChatApiClient('https://api.example.com');
+
+// Login
+$loginResponse = $client->login(
+    'user@example.com', 
+    'password123'
+);
+
+// Create conversation
+$conversationResponse = $client->createConversation('My First Chat');
+
+// Send message
+$messageResponse = $client->sendMessage(
+    $conversationResponse->data['conversation']['id'],
+    'Hello, how can you help me today?'
+);
+
+echo "AI Response: " . $messageResponse->data['ai_response']['content'];</code></pre>
+                </div>
+                
+                <div id="curl" class="tab-content">
+                    <pre><code># Login
+curl -X POST https://api.example.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+
+# Create conversation
+curl -X POST https://api.example.com/chat/conversations \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My First Chat"}'
+
+# Send message
+curl -X POST https://api.example.com/chat/conversations/1/messages \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Hello, how can you help me today?"}'</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="resources">
+            <h2>📋 Additional Resources</h2>
+            <div class="resources-grid">
+                <div class="resource-item">
+                    <h4>API Reference</h4>
+                    <p>Complete endpoint reference with examples and schemas.</p>
+                    <a href="./api.md">View Reference →</a>
+                </div>
+                
+                <div class="resource-item">
+                    <h4>Database Schema</h4>
+                    <p>Database structure and relationships documentation.</p>
+                    <a href="./database-schema.md">View Schema →</a>
+                </div>
+                
+                <div class="resource-item">
+                    <h4>Architecture Guide</h4>
+                    <p>System architecture and design patterns.</p>
+                    <a href="./architecture.md">View Architecture →</a>
+                </div>
+                
+                <div class="resource-item">
+                    <h4>Testing Guide</h4>
+                    <p>Testing procedures and integration tests.</p>
+                    <a href="./testing-procedures.md">View Testing →</a>
+                </div>
+                
+                <div class="resource-item">
+                    <h4>Contributing</h4>
+                    <p>Guidelines for contributing to the project.</p>
+                    <a href="./contributing.md">View Guidelines →</a>
+                </div>
+                
+                <div class="resource-item">
+                    <h4>Changelog</h4>
+                    <p>Version history and release notes.</p>
+                    <a href="./tasks.md">View Tasks →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
