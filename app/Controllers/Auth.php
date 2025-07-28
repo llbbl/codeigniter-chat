@@ -5,12 +5,14 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Helpers\UserHelper;
 use CodeIgniter\I18n\Time;
+use OpenApi\Attributes as OA;
 
 /**
  * Auth Controller
  * 
  * Handles user authentication including registration, login, and logout
  */
+#[OA\Tag(name: "Authentication", description: "User authentication and authorization")]
 class Auth extends BaseController
 {
     /**
@@ -29,7 +31,7 @@ class Auth extends BaseController
      * 
      * @return void
      */
-    public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger)
+    public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger): void
     {
         parent::initController($request, $response, $logger);
         $this->userModel = new UserModel();
@@ -187,6 +189,177 @@ class Auth extends BaseController
         } catch (\Throwable $e) {
             // Catch any unexpected exceptions
             return $this->handleException($e);
+        }
+    }
+
+    // API Methods
+
+    /**
+     * API Login endpoint
+     */
+    #[OA\Post(
+        path: "/auth/login",
+        summary: "User login",
+        description: "Authenticate a user and return a JWT token",
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["email", "password"],
+                properties: [
+                    new OA\Property(property: "email", type: "string", format: "email", example: "user@example.com"),
+                    new OA\Property(property: "password", type: "string", format: "password", example: "password123")
+                ]
+            )
+        ),
+        tags: ["Authentication"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Login successful",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(property: "token", type: "string", example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
+                        new OA\Property(property: "user", ref: "#/components/schemas/User")
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: "Unauthorized"),
+            new OA\Response(response: 422, description: "Validation Error")
+        ]
+    )]
+    public function apiLogin()
+    {
+        $json = $this->request->getJSON();
+        
+        if (!$json) {
+            return $this->failValidationErrors('Invalid JSON input');
+        }
+
+        $email = $json->email ?? '';
+        $password = $json->password ?? '';
+
+        if (empty($email) || empty($password)) {
+            return $this->failValidationErrors('Email and password are required');
+        }
+
+        try {
+            $user = $this->userModel->where('email', $email)->first();
+            
+            if (!$user || !password_verify($password, $user['password'])) {
+                return $this->failUnauthorized('Invalid credentials');
+            }
+
+            // Generate JWT token (simplified - in production use proper JWT library)
+            $payload = base64_encode(json_encode([
+                'user_id' => $user['id'],
+                'email' => $user['email'],
+                'exp' => time() + 86400 // 24 hours
+            ]));
+
+            return $this->respond([
+                'success' => true,
+                'token' => 'Bearer.' . $payload,
+                'user' => [
+                    'id' => $user['id'],
+                    'name' => $user['username'],
+                    'email' => $user['email']
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return $this->failServerError('Authentication failed');
+        }
+    }
+
+    /**
+     * API Register endpoint
+     */
+    #[OA\Post(
+        path: "/auth/register",
+        summary: "User registration",
+        description: "Register a new user account",
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["name", "email", "password"],
+                properties: [
+                    new OA\Property(property: "name", type: "string", example: "John Doe"),
+                    new OA\Property(property: "email", type: "string", format: "email", example: "user@example.com"),
+                    new OA\Property(property: "password", type: "string", format: "password", minLength: 8, example: "password123")
+                ]
+            )
+        ),
+        tags: ["Authentication"],
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Registration successful",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(property: "message", type: "string", example: "User registered successfully"),
+                        new OA\Property(property: "user", ref: "#/components/schemas/User")
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: "Validation Error")
+        ]
+    )]
+    public function apiRegister()
+    {
+        $json = $this->request->getJSON();
+        
+        if (!$json) {
+            return $this->failValidationErrors('Invalid JSON input');
+        }
+
+        $name = $json->name ?? '';
+        $email = $json->email ?? '';
+        $password = $json->password ?? '';
+
+        if (empty($name) || empty($email) || empty($password)) {
+            return $this->failValidationErrors('Name, email and password are required');
+        }
+
+        if (strlen($password) < 8) {
+            return $this->failValidationErrors('Password must be at least 8 characters');
+        }
+
+        try {
+            // Check if user already exists
+            $existingUser = $this->userModel->where('email', $email)->first();
+            if ($existingUser) {
+                return $this->failValidationErrors('Email already registered');
+            }
+
+            // Create new user
+            $userData = [
+                'username' => $name,
+                'email' => $email,
+                'password' => password_hash($password, PASSWORD_DEFAULT),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            $userId = $this->userModel->insert($userData);
+
+            if (!$userId) {
+                return $this->failServerError('Failed to create user');
+            }
+
+            $user = $this->userModel->find($userId);
+
+            return $this->respondCreated([
+                'success' => true,
+                'message' => 'User registered successfully',
+                'user' => [
+                    'id' => $user['id'],
+                    'name' => $user['username'],
+                    'email' => $user['email']
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return $this->failServerError('Registration failed');
         }
     }
 }
