@@ -71,22 +71,22 @@
         },
         {
             "name": "codeigniter4/framework",
-            "version": "v4.6.1",
+            "version": "v4.6.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/codeigniter4/framework.git",
-                "reference": "d021b04fdf23afc85d8a8b9b541be9a0a9ccdb5f"
+                "reference": "68d1a5896106f869452dd369a690dd5bc75160fb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/codeigniter4/framework/zipball/d021b04fdf23afc85d8a8b9b541be9a0a9ccdb5f",
-                "reference": "d021b04fdf23afc85d8a8b9b541be9a0a9ccdb5f",
+                "url": "https://api.github.com/repos/codeigniter4/framework/zipball/68d1a5896106f869452dd369a690dd5bc75160fb",
+                "reference": "68d1a5896106f869452dd369a690dd5bc75160fb",
                 "shasum": ""
             },
             "require": {
                 "ext-intl": "*",
                 "ext-mbstring": "*",
-                "laminas/laminas-escaper": "^2.14",
+                "laminas/laminas-escaper": "^2.17",
                 "php": "^8.1",
                 "psr/log": "^3.0"
             },
@@ -98,7 +98,7 @@
                 "mikey179/vfsstream": "^1.6.12",
                 "nexusphp/cs-config": "^3.6",
                 "phpunit/phpunit": "^10.5.16 || ^11.2",
-                "predis/predis": "^1.1 || ^2.3"
+                "predis/predis": "^3.0"
             },
             "suggest": {
                 "ext-curl": "If you use CURLRequest class",
@@ -141,7 +141,7 @@
                 "slack": "https://codeigniterchat.slack.com",
                 "source": "https://github.com/codeigniter4/CodeIgniter4"
             },
-            "time": "2025-05-02T16:00:55+00:00"
+            "time": "2025-08-02T13:36:13+00:00"
         },
         {
             "name": "evenement/evenement",
