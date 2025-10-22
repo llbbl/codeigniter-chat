@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: codeigniter-chat
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: codeigniter-chat-web:latest
+        env:
+        - name: CI_ENVIRONMENT
+          value: "production"
+        - name: database.default.hostname
+          value: "mysql"
+        - name: database.default.database
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: mysql-database
+        - name: database.default.username
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: mysql-user
+        - name: database.default.password
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: user-password
+        - name: session.driver
+          value: "RedisHandler"
+        - name: session.savePath
+          value: "tcp://redis:6379"
+        - name: encryption.key
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: encryption-key
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: writable-storage
+          mountPath: /var/www/html/writable
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: writable-storage
+        emptyDir: {}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+  namespace: codeigniter-chat
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
