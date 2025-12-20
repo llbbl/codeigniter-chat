@@ -4,6 +4,7 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 use Config\Services;
+use App\Helpers\CacheHelper;
 
 /**
  * Chat Model
@@ -35,6 +36,13 @@ class ChatModel extends Model
     protected int $cacheTTL = 300; // 5 minutes
 
     /**
+     * Whether to enable query performance monitoring
+     * 
+     * @var bool
+     */
+    protected bool $enableQueryMonitoring = true;
+
+    /**
      * Get messages from the database with caching and pagination
      * 
      * @param int $page Page number (1-based)
@@ -52,11 +60,8 @@ class ChatModel extends Model
         // Create a unique cache key based on the pagination parameters
         $cacheKey = $this->cacheKey . '_page_' . $page . '_' . $perPage;
 
-        // Get the cache service
-        $cache = Services::cache();
-
-        // Try to get data from cache first
-        $result = $cache->get($cacheKey);
+        // Try to get data from cache first using intelligent caching
+        $result = CacheHelper::get($cacheKey);
 
         // If not in cache or cache expired, get from database and store in cache
         if ($result === null) {
@@ -86,8 +91,8 @@ class ChatModel extends Model
                 ]
             ];
 
-            // Store in cache
-            $cache->save($cacheKey, $result, $this->cacheTTL);
+            // Store in cache with tags for intelligent invalidation
+            CacheHelper::remember($cacheKey, $result, $this->cacheTTL, ['messages', 'pagination']);
 
             // Log cache miss
             log_message('debug', 'Chat messages cache miss. Fetched from database with pagination.');
@@ -146,23 +151,21 @@ class ChatModel extends Model
     }
 
     /**
-     * Invalidate all message caches
+     * Invalidate all message caches using intelligent cache tags
      * 
-     * This method clears all cached chat messages by deleting cache entries
-     * that match the base cache key pattern. It's called after a new message
-     * is inserted to ensure that subsequent requests will fetch fresh data
-     * from the database instead of using outdated cached data.
+     * This method clears all cached chat messages by invalidating cache entries
+     * using tags. It's called after a new message is inserted to ensure that 
+     * subsequent requests will fetch fresh data from the database instead of 
+     * using outdated cached data.
      * 
      * @return void
      */
     protected function invalidateCache(): void
     {
-        $cache = Services::cache();
-
-        // Delete all cache keys that start with the base cache key
-        // This is a simple approach; for more complex scenarios, 
-        // you might want to track and delete specific keys
-        $cache->deleteMatching($this->cacheKey . '_*');
+        // Use intelligent cache invalidation with tags
+        $invalidated = CacheHelper::invalidateByTags(['messages', 'pagination', 'user_messages', 'time_range']);
+        
+        log_message('debug', "Chat cache invalidation completed. Invalidated {$invalidated} cache entries.");
     }
 
     /**
@@ -332,5 +335,78 @@ class ChatModel extends Model
 
         // Return just the messages for backward compatibility
         return $result['messages'];
+    }
+
+    /**
+     * Monitor query performance with EXPLAIN statement
+     * 
+     * @param string $query The SQL query to analyze
+     * @param array $binds Query bindings
+     * @return void
+     */
+    protected function monitorQueryPerformance(string $query, array $binds = []): void
+    {
+        if (!$this->enableQueryMonitoring || ENVIRONMENT !== 'development') {
+            return;
+        }
+
+        try {
+            // Execute EXPLAIN query
+            $explainQuery = "EXPLAIN " . $query;
+            $result = $this->db->query($explainQuery, $binds);
+            
+            if ($result) {
+                $explainData = $result->getResultArray();
+                
+                // Log the performance data
+                log_message('debug', 'Query Performance Analysis:', [
+                    'query' => $query,
+                    'explain' => $explainData,
+                    'timestamp' => time()
+                ]);
+
+                // Check for potential performance issues
+                foreach ($explainData as $row) {
+                    // Alert if no index is being used
+                    if (isset($row['key']) && $row['key'] === null) {
+                        log_message('warning', 'Query not using index: ' . $query);
+                    }
+                    
+                    // Alert if too many rows are being examined
+                    if (isset($row['rows']) && $row['rows'] > 1000) {
+                        log_message('warning', 'Query examining many rows (' . $row['rows'] . '): ' . $query);
+                    }
+                    
+                    // Alert if using filesort
+                    if (isset($row['Extra']) && strpos($row['Extra'], 'Using filesort') !== false) {
+                        log_message('info', 'Query using filesort: ' . $query);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Failed to analyze query performance: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get performance optimized messages with monitoring
+     * 
+     * @param int $page Page number (1-based)
+     * @param int $perPage Number of messages per page
+     * @return array
+     */
+    public function getMsgPaginatedOptimized(int $page = 1, int $perPage = 10): array
+    {
+        // Monitor the query performance using query builder directly
+        $builder = $this->db->table($this->table);
+        $query = $builder->select('*')
+                         ->orderBy('time', 'DESC')
+                         ->limit($perPage, ($page - 1) * $perPage)
+                         ->getCompiledSelect();
+        
+        $this->monitorQueryPerformance($query);
+
+        // Use the regular method for actual data retrieval
+        return $this->getMsgPaginated($page, $perPage);
     }
 }
