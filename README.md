@@ -113,6 +113,12 @@ Start your web server and navigate to:
 - JSON Chat: `http://your-domain.com/chat/json`
 - HTML Chat: `http://your-domain.com/chat/html`
 
+## Public API documentation
+
+See:
+
+- `docs/public-api.md` (HTTP + WebSocket + frontend entrypoints + reusable PHP APIs)
+
 ## Troubleshooting
 
 If you encounter any issues:
