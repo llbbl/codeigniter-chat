@@ -98,12 +98,6 @@ public array $default = [
 php spark migrate
 ```
 
-Alternatively, you can manually run the `create.sql` script in your database:
-
-```bash
-mysql -u chat_user -p codeigniter_chat < create.sql
-```
-
 ### 6. Environment Configuration
 
 1. Copy the `env` file to `.env` and configure it for your environment:

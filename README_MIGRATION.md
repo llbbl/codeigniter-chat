@@ -32,7 +32,13 @@ The original CodeIgniter Chat application has been migrated to CodeIgniter 4. Th
 
 2. **Database Tables**
 
-   Run the `create.sql` script from the original project to create the necessary tables in your database.
+   Create the necessary tables by running the CodeIgniter 4 migrations:
+
+   ```bash
+   php spark migrate
+   ```
+
+   Note: `create.sql` is a legacy artifact from the original (pre-CI4) project and does not reflect the current schema.
 
 3. **Environment Configuration**
 

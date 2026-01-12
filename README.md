@@ -53,7 +53,10 @@ PHP version 8.1 or higher is required, with the following extensions installed:
          // Other settings can remain as default
      ];
      ```
-   - Run the `create.sql` script to create the necessary tables in your database
+   - Run database migrations to create the necessary tables:
+     ```bash
+     php spark migrate
+     ```
 
 3. Environment Configuration:
    - Copy the `env` file to `.env` and configure it for your environment:
