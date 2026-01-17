@@ -63,6 +63,9 @@ writable/uploads/*
 writable/debugbar/*
 !writable/debugbar/.gitkeep
 
+writable/database/*
+!writable/database/.gitkeep
+
 php_errors.log
 
 # Legacy CI3 paths
@@ -143,3 +146,9 @@ _modules/*
 
 /results/
 /phpunit*.xml
+
+#-------------------------
+# Static Analysis Cache
+#-------------------------
+.php-cs-fixer.cache
+.phpunit.result.cache

@@ -3,18 +3,19 @@
   "version": "1.0.0",
   "description": "CodeIgniter Chat Application",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
-    "jquery": "^3.7.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "vite": "^6.4.1",
     "sass": "^1.72.0",
     "vue": "^3.4.21",
-    "@vitejs/plugin-vue": "^5.0.4"
+    "@vitejs/plugin-vue": "^5.0.4",
+    "svelte": "^5.0.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0"
   }
 }

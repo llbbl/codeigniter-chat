@@ -69,7 +69,7 @@ class WebSocketClient
             }
             
             // Prepare the HTTP headers for the WebSocket handshake
-            $key = base64_encode(openssl_random_pseudo_bytes(16));
+            $key = base64_encode(random_bytes(16));
             $headers = "GET / HTTP/1.1\r\n";
             $headers .= "Host: {$this->host}:{$this->port}\r\n";
             $headers .= "Upgrade: websocket\r\n";

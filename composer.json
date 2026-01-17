@@ -17,7 +17,9 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.9",
+        "friendsofphp/php-cs-fixer": "^3.65",
         "mikey179/vfsstream": "^1.6",
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.3.6"
     },
     "autoload": {
@@ -46,6 +48,9 @@
         "test:database": "phpunit tests/database",
         "test:feature": "phpunit tests/feature",
         "test:coverage": "phpunit --colors --coverage-html build/logs/html",
-        "test:coverage:text": "phpunit --colors --coverage-text"
+        "test:coverage:text": "phpunit --colors --coverage-text",
+        "analyse": "phpstan analyse --memory-limit=256M",
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix"
     }
 }

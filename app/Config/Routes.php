@@ -24,6 +24,8 @@ $routes->get('chat/html', 'Chat::html');
 $routes->get('chat/htmlBackend', 'Chat::htmlBackend');
 $routes->get('chat/vue', 'Chat::vue');
 $routes->get('chat/vueApi', 'Chat::vueApi');
+$routes->get('chat/svelte', 'Chat::svelte');
+$routes->get('chat/svelteApi', 'Chat::svelteApi');
 
 // CSP report route
 $routes->post('csp-report', 'CspReport::index');

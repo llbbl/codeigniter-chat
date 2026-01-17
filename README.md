@@ -1,5 +1,7 @@
 # CodeIgniter Chat
 
+[![CI](https://github.com/llbbl/codeigniter-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/llbbl/codeigniter-chat/actions/workflows/ci.yml)
+
 This is a basic shoutboard built using CodeIgniter. Originally only used XML for the backend, 
 but was rewritten to illustrate different types of web services. The application has been migrated from 
 CodeIgniter 3.1.0 to CodeIgniter 4.
@@ -11,12 +13,13 @@ More information can be found at the [official site](https://codeigniter.com).
 
 ## Server Requirements
 
-PHP version 8.1 or higher is required, with the following extensions installed:
+PHP version 8.4 or higher is required, with the following extensions installed:
 
 - [intl](http://php.net/manual/en/intl.requirements.php)
 - [mbstring](http://php.net/manual/en/mbstring.installation.php)
 - [json](http://php.net/manual/en/json.installation.php) (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) for MySQL database
+- [sqlite3](http://php.net/manual/en/sqlite3.installation.php) for SQLite database (recommended for beginners)
+- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) for MySQL database (production)
 - [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
 
 ## Installation
@@ -42,28 +45,66 @@ PHP version 8.1 or higher is required, with the following extensions installed:
    ```
 
 5. Database Configuration:
-   - Edit `app/Config/Database.php` to include your MySQL connection details:
-     ```php
-     public array $default = [
-         'hostname' => 'localhost',
-         'username' => 'your_mysql_username',
-         'password' => 'your_mysql_password',
-         'database' => 'your_database_name',
-         'DBDriver' => 'MySQLi',
-         // Other settings can remain as default
-     ];
-     ```
-   - Run database migrations to create the necessary tables:
-     ```bash
-     php spark migrate
-     ```
 
-3. Environment Configuration:
-   - Copy the `env` file to `.env` and configure it for your environment:
-     ```bash
-     cp env .env
-     ```
-   - Edit the `.env` file to set the appropriate values:
+   This application supports both **SQLite** and **MySQL** databases.
+
+   ### Option A: SQLite (Recommended for Beginners)
+
+   SQLite requires no database server setup - perfect for learning and local development.
+
+   1. Copy the environment file and enable SQLite:
+      ```bash
+      cp .env.example .env
+      ```
+
+   2. Edit `.env` and set:
+      ```
+      DB_DRIVER=SQLite3
+      ```
+
+   3. Run migrations to create the database:
+      ```bash
+      php spark migrate
+      ```
+
+   The SQLite database file will be automatically created at `writable/database/chat.db`.
+
+   ### Option B: MySQL (Recommended for Production)
+
+   1. Create a MySQL database and user for the application.
+
+   2. Copy the environment file:
+      ```bash
+      cp .env.example .env
+      ```
+
+   3. Edit `.env` with your MySQL credentials:
+      ```
+      DB_DRIVER=MySQLi
+      DB_DATABASE=ci4_chat
+      DB_USERNAME=your_mysql_username
+      DB_PASSWORD=your_mysql_password
+      ```
+
+   4. Alternatively, edit `app/Config/Database.php` directly:
+      ```php
+      public array $default = [
+          'hostname' => 'localhost',
+          'username' => 'your_mysql_username',
+          'password' => 'your_mysql_password',
+          'database' => 'your_database_name',
+          'DBDriver' => 'MySQLi',
+          // Other settings can remain as default
+      ];
+      ```
+
+   5. Run database migrations:
+      ```bash
+      php spark migrate
+      ```
+
+6. Additional Environment Configuration (optional):
+   - Edit the `.env` file to set additional values as needed:
      ```
      CI_ENVIRONMENT = development
      app.baseURL = 'http://your-domain.com/'
