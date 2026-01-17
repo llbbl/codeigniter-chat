@@ -35,8 +35,11 @@ class CreateMessagesTable extends Migration
         $this->forge->createTable('messages');
 
         // Set character set to latin1 for user and msg columns to match original table
-        $this->db->query('ALTER TABLE messages MODIFY user VARCHAR(255) CHARACTER SET latin1 NOT NULL');
-        $this->db->query('ALTER TABLE messages MODIFY msg TEXT CHARACTER SET latin1 NOT NULL');
+        // This is MySQL-specific - SQLite doesn't support character sets at column level
+        if ($this->db->DBDriver === 'MySQLi') {
+            $this->db->query('ALTER TABLE messages MODIFY user VARCHAR(255) CHARACTER SET latin1 NOT NULL');
+            $this->db->query('ALTER TABLE messages MODIFY msg TEXT CHARACTER SET latin1 NOT NULL');
+        }
     }
 
     public function down()

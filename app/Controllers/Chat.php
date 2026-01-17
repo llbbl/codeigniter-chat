@@ -9,35 +9,93 @@ use CodeIgniter\I18n\Time;
 
 /**
  * Chat Controller
- * 
+ *
  * Handles all chat-related functionality including displaying and updating messages
- * in various formats (XML, JSON, HTML)
+ * in various formats (XML, JSON, HTML).
+ *
+ * ============================================================================
+ * DEPENDENCY INJECTION IN THIS CONTROLLER (for beginners)
+ * ============================================================================
+ *
+ * This controller demonstrates the Dependency Injection (DI) pattern.
+ * Instead of creating its own ChatModel instance with `new ChatModel()`,
+ * it receives the model through its constructor.
+ *
+ * BEFORE (tight coupling - harder to test):
+ *   public function initController(...) {
+ *       $this->chatModel = new ChatModel();  // Controller creates its own dependency
+ *   }
+ *
+ * AFTER (loose coupling - easy to test):
+ *   public function __construct(?ChatModel $chatModel = null) {
+ *       $this->chatModel = $chatModel ?? service('chatModel');
+ *   }
+ *
+ * Benefits:
+ * ---------
+ * 1. TESTABILITY: In unit tests, you can pass a mock ChatModel to test
+ *    controller logic without hitting the database.
+ *
+ * 2. FLEXIBILITY: You can easily swap implementations. For example,
+ *    inject a CachedChatModel instead of ChatModel without changing
+ *    the controller code.
+ *
+ * 3. EXPLICIT DEPENDENCIES: The constructor clearly shows what this
+ *    controller needs to function.
+ *
+ * 4. SEPARATION OF CONCERNS: The controller focuses on handling HTTP
+ *    requests, not on managing how models are created.
+ *
+ * How the DI works here:
+ * ----------------------
+ * - The constructor accepts an optional ChatModel parameter
+ * - If no model is passed (normal HTTP requests), it uses service('chatModel')
+ *   to get one from the Services container
+ * - In tests, you can pass a mock: new Chat($mockChatModel)
+ *
+ * ============================================================================
  */
 class Chat extends BaseController
 {
     /**
-     * Chat model instance
-     * 
+     * Chat model instance for database operations.
+     *
+     * This property holds the ChatModel that handles all chat message
+     * database operations. It's injected via the constructor, allowing
+     * for easy testing and flexible configuration.
+     *
      * @var ChatModel
      */
     protected ChatModel $chatModel;
 
     /**
-     * Constructor - initializes the controller and loads the model
-     * 
-     * This method is called by the framework when the controller is instantiated.
-     * It initializes the parent controller and creates a new instance of the ChatModel.
-     * 
-     * @param \CodeIgniter\HTTP\RequestInterface  $request  The HTTP request object
-     * @param \CodeIgniter\HTTP\ResponseInterface $response The HTTP response object
-     * @param \Psr\Log\LoggerInterface            $logger   The logger object
-     * 
-     * @return void
+     * Constructor - receives dependencies via injection.
+     *
+     * This constructor implements the Dependency Injection pattern. Instead of
+     * creating its own ChatModel internally, it receives one as a parameter.
+     * This makes the controller more testable and follows the SOLID principles
+     * (specifically, Dependency Inversion Principle).
+     *
+     * The parameter is nullable with a default of null, which allows:
+     * 1. Normal usage: CodeIgniter instantiates the controller without arguments,
+     *    and we fetch the model from the Services container.
+     * 2. Testing: Test code can pass a mock model directly.
+     *
+     * Example usage in tests:
+     *   $mockModel = $this->createMock(ChatModel::class);
+     *   $mockModel->method('getMsgPaginated')->willReturn(['messages' => [], 'pagination' => []]);
+     *   $controller = new Chat($mockModel);
+     *
+     * @param ChatModel|null $chatModel The chat model instance. If null, the service
+     *                                  container will provide one. Pass a mock here for testing.
      */
-    public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger)
+    public function __construct(?ChatModel $chatModel = null)
     {
-        parent::initController($request, $response, $logger);
-        $this->chatModel = new ChatModel();
+        // If no model was injected (normal HTTP request), get one from the service container.
+        // The service() helper retrieves a shared instance from Config\Services.
+        // This is the "poor man's DI" approach - it provides DI benefits while
+        // remaining compatible with CodeIgniter's controller instantiation.
+        $this->chatModel = $chatModel ?? service('chatModel');
     }
 
     /**
@@ -145,14 +203,14 @@ class Chat extends BaseController
 
     /**
      * XML Backend - returns chat messages in XML format
-     * 
+     *
      * This method retrieves chat messages from the database with pagination
      * and formats them as XML. It's used by the XML-based chat interface
      * to fetch messages via AJAX.
-     * 
-     * @return string XML-formatted chat messages with pagination information
+     *
+     * @return \CodeIgniter\HTTP\ResponseInterface XML-formatted chat messages with pagination information
      */
-    public function backend(): string
+    public function backend(): \CodeIgniter\HTTP\ResponseInterface
     {
         // Get page from request or default to 1
         $page = $this->request->getGet('page') ?? 1;
@@ -278,14 +336,67 @@ class Chat extends BaseController
 
     /**
      * API endpoint for the Vue.js version
-     * 
+     *
      * This method serves as the API endpoint for the Vue.js chat interface.
      * It reuses the existing jsonBackend method to retrieve and format chat messages.
      * This endpoint is called by the Vue.js frontend to fetch messages via AJAX.
-     * 
+     *
      * @return \CodeIgniter\HTTP\ResponseInterface JSON response containing chat messages and pagination information
      */
     public function vueApi(): \CodeIgniter\HTTP\ResponseInterface
+    {
+        return $this->jsonBackend();
+    }
+
+    /**
+     * Loads the Svelte version of the chat
+     *
+     * This method renders the chat view that uses Svelte for a reactive UI.
+     * It's the entry point for the Svelte-based chat interface.
+     *
+     * SVELTE vs VUE COMPARISON:
+     * -------------------------
+     * Both Svelte and Vue are component-based frameworks, but they differ in approach:
+     *
+     * - Vue uses a virtual DOM and runs in the browser
+     * - Svelte compiles components at build time, resulting in smaller bundles
+     * - Svelte 5 uses "runes" ($state, $derived, $effect) for reactivity
+     * - Vue 3 uses ref(), reactive(), computed(), and watch()
+     *
+     * This method is structurally identical to vue() - the differences are all
+     * in the frontend implementation (src/svelte/ vs src/vue/).
+     *
+     * This method requires authentication and will redirect to the login page
+     * if the user is not logged in.
+     *
+     * @return string|RedirectResponse The rendered view with the Svelte-based chat interface
+     *                                 or a redirect response to the login page if not authenticated
+     */
+    public function svelte(): string|\CodeIgniter\HTTP\RedirectResponse
+    {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            return redirect()->to('auth/login');
+        }
+
+        return $this->respondWithView('chat/svelteView');
+    }
+
+    /**
+     * API endpoint for the Svelte version
+     *
+     * This method serves as the API endpoint for the Svelte chat interface.
+     * It reuses the existing jsonBackend method to retrieve and format chat messages.
+     * This endpoint is called by the Svelte frontend to fetch messages via AJAX.
+     *
+     * Note: This is functionally identical to vueApi() - both frontends use
+     * the same JSON format for chat messages. We create a separate endpoint
+     * to maintain consistency with the route naming pattern (chat/svelteApi)
+     * and to allow for future customization if needed.
+     *
+     * @return \CodeIgniter\HTTP\ResponseInterface JSON response containing chat messages and pagination information
+     */
+    public function svelteApi(): \CodeIgniter\HTTP\ResponseInterface
     {
         return $this->jsonBackend();
     }

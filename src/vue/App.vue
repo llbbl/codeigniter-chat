@@ -92,20 +92,35 @@
 export default {
   data() {
     return {
+      // User information (from global properties set in main.js)
       username: this.$username,
+      userId: this.$userId,
+
+      // WebSocket authentication token (generated on login, validated by server)
+      wsToken: this.$wsToken,
+
+      // Chat messages
       messages: [],
       message: '',
       error: '',
+
+      // Loading states
       loading: true,
       sending: false,
       loadingMore: false,
+
+      // Pagination
       currentPage: 1,
       hasMoreMessages: false,
+
+      // WebSocket connection state
       webSocket: null,
       webSocketConnected: false,
       reconnectAttempts: 0,
       reconnectInterval: null,
       lastMessageTime: null,
+
+      // Form helpers
       selectionStart: 0,
       selectionEnd: 0
     };
@@ -123,16 +138,46 @@ export default {
   },
   methods: {
     connectWebSocket() {
+      /**
+       * ====================================================================
+       * WEBSOCKET CONNECTION WITH TOKEN AUTHENTICATION
+       * ====================================================================
+       *
+       * The WebSocket server requires authentication via URL query parameters.
+       * This is because WebSocket connections cannot use cookies or HTTP headers
+       * in the same way as regular HTTP requests.
+       *
+       * Authentication Flow:
+       * 1. User logs in via HTTP (Auth::processLogin)
+       * 2. Server generates a token and stores it in the session
+       * 3. Token is passed to Vue via window.WEBSOCKET_TOKEN
+       * 4. We include the token in the WebSocket URL as a query parameter
+       * 5. WebSocket server validates the token before accepting the connection
+       *
+       * Security Notes:
+       * - Always use WSS (WebSocket Secure) in production over HTTPS
+       * - Tokens expire after 24 hours (configurable in WebSocketTokenHelper)
+       * - Tokens are revoked when users log out
+       *
+       * ====================================================================
+       */
+
       // Close existing connection if any
       if (this.webSocket) {
         this.webSocket.close();
       }
 
-      // Create WebSocket connection
+      // Build the WebSocket URL with authentication parameters
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname;
       const port = 8080; // This should match the port in your WebSocket server
-      this.webSocket = new WebSocket(`${protocol}//${host}:${port}`);
+
+      // Include token and user_id as query parameters for authentication
+      // The server will validate these before accepting the connection
+      const wsUrl = `${protocol}//${host}:${port}?token=${encodeURIComponent(this.wsToken)}&user_id=${this.userId}`;
+
+      console.log('Connecting to WebSocket with authentication...');
+      this.webSocket = new WebSocket(wsUrl);
 
       // Connection opened
       this.webSocket.addEventListener('open', (event) => {
@@ -149,27 +194,59 @@ export default {
         this.loadMessages();
       });
 
-      // Listen for messages
+      // Listen for messages from the WebSocket server
       this.webSocket.addEventListener('message', (event) => {
         const data = JSON.parse(event.data);
 
-        if (data.action === 'messages') {
-          // Handle messages list
-          this.messages = data.data.messages || [];
-          this.hasMoreMessages = data.data.pagination?.hasNext || false;
-          this.loading = false;
+        // Handle different message types (actions) from the server
+        switch (data.action) {
+          case 'messages':
+            // Handle messages list response
+            this.messages = data.data.messages || [];
+            this.hasMoreMessages = data.data.pagination?.hasNext || false;
+            this.loading = false;
 
-          // Store timestamp of the newest message for refresh comparison
-          if (this.messages.length > 0 && this.messages[0].timestamp) {
-            this.lastMessageTime = this.messages[0].timestamp;
-          }
-        } else if (data.action === 'newMessage') {
-          // Handle new message
-          if (!this.lastMessageTime || data.data.timestamp > this.lastMessageTime) {
-            // Add new message to the beginning of our list
-            this.messages.unshift(data.data);
-            this.lastMessageTime = data.data.timestamp;
-          }
+            // Store timestamp of the newest message for refresh comparison
+            if (this.messages.length > 0 && this.messages[0].timestamp) {
+              this.lastMessageTime = this.messages[0].timestamp;
+            }
+            break;
+
+          case 'newMessage':
+            // Handle new message broadcast from another user
+            if (!this.lastMessageTime || data.data.timestamp > this.lastMessageTime) {
+              // Add new message to the beginning of our list
+              this.messages.unshift(data.data);
+              this.lastMessageTime = data.data.timestamp;
+            }
+            break;
+
+          case 'error':
+            // Handle authentication or other errors from the server
+            // The server sends this when token validation fails
+            console.error('WebSocket server error:', data.data.message);
+
+            if (data.data.code === 'AUTH_FAILED') {
+              // Authentication failed - likely token expired or invalid
+              // Redirect to login page to get a new token
+              this.error = 'Session expired. Please log in again.';
+              console.log('Authentication failed, redirecting to login...');
+
+              // Stop reconnection attempts since we need a new token
+              if (this.reconnectInterval) {
+                clearInterval(this.reconnectInterval);
+                this.reconnectInterval = null;
+              }
+              this.reconnectAttempts = 5; // Prevent further reconnection attempts
+
+              // Redirect to login after a short delay so user sees the message
+              setTimeout(() => {
+                window.location.href = '/auth/login';
+              }, 2000);
+            } else {
+              this.error = data.data.message || 'An error occurred';
+            }
+            break;
         }
       });
 

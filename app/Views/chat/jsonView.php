@@ -15,7 +15,7 @@
         };
         const CSRF_TOKEN_NAME = "<?= csrf_token() ?>";
     </script>
-    <!-- Load assets built with Vite (jQuery is imported in the JS file) -->
+    <!-- Load assets built with Vite (uses native Fetch API, no jQuery) -->
     <?= vite_tags('src/js/chat-json.js') ?>
 </head>
 <body>

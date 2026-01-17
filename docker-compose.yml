@@ -1,0 +1,188 @@
+# =============================================================================
+# CodeIgniter 4 Chat Application - Docker Compose Configuration
+# =============================================================================
+# This file defines all the services needed to run the chat application:
+#   - web: The main PHP/Apache web server
+#   - db: MySQL database server
+#   - websocket: The Ratchet WebSocket server for real-time chat
+#
+# Quick Start:
+#   1. Copy .env.example to .env and configure your settings
+#   2. Run: docker compose up -d
+#   3. Visit: http://localhost:8000
+#
+# Useful Commands:
+#   - Start all services:     docker compose up -d
+#   - Stop all services:      docker compose down
+#   - View logs:              docker compose logs -f
+#   - Run migrations:         docker compose exec web php spark migrate
+#   - Enter web container:    docker compose exec web bash
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Web Server (PHP + Apache)
+  # ---------------------------------------------------------------------------
+  # This is the main application server running CodeIgniter 4.
+  # It serves the web interface and handles HTTP API requests.
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: ci4-chat-web
+    restart: unless-stopped
+    ports:
+      # Map container port 80 to host port 8000
+      # Access the application at http://localhost:8000
+      - "${APP_PORT:-8000}:80"
+    environment:
+      # CodeIgniter environment (development, testing, or production)
+      CI_ENVIRONMENT: ${CI_ENVIRONMENT:-development}
+
+      # Application settings
+      app.baseURL: ${APP_URL:-http://localhost:8000}
+
+      # Database connection settings
+      # These override the values in app/Config/Database.php
+      database.default.hostname: db
+      database.default.database: ${DB_DATABASE:-ci4_chat}
+      database.default.username: ${DB_USERNAME:-ci4_user}
+      database.default.password: ${DB_PASSWORD:-ci4_password}
+      database.default.DBDriver: MySQLi
+      database.default.port: 3306
+
+      # WebSocket server URL (for the web app to connect to)
+      WEBSOCKET_URL: ${WEBSOCKET_URL:-ws://localhost:8080}
+    volumes:
+      # Mount the writable directory for logs, cache, and sessions
+      # This persists data between container restarts
+      - ./writable:/var/www/html/writable
+
+      # For development: Mount the entire app directory for live code changes
+      # Uncomment the line below for development (slower but enables hot reload)
+      # - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ci4-chat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # MySQL Database Server
+  # ---------------------------------------------------------------------------
+  # Stores all chat messages and user data.
+  db:
+    image: mysql:8.0.40
+    container_name: ci4-chat-db
+    restart: unless-stopped
+    ports:
+      # Map container port 3306 to host port 3307 (to avoid conflicts)
+      # You can connect with a database client at localhost:3307
+      - "${DB_PORT:-3307}:3306"
+    environment:
+      # MySQL root password (for administrative tasks)
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+
+      # Application database and user
+      MYSQL_DATABASE: ${DB_DATABASE:-ci4_chat}
+      MYSQL_USER: ${DB_USERNAME:-ci4_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ci4_password}
+    volumes:
+      # Persist database data between container restarts
+      - mysql-data:/var/lib/mysql
+
+      # Custom MySQL configuration (optional)
+      # Uncomment to use a custom my.cnf file
+      # - ./docker/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      - ci4-chat-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # WebSocket Server
+  # ---------------------------------------------------------------------------
+  # Handles real-time communication for the chat application.
+  # Runs the Ratchet WebSocket server via CodeIgniter's spark command.
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: ci4-chat-websocket
+    restart: unless-stopped
+    ports:
+      # WebSocket server port
+      # Clients connect to ws://localhost:8080
+      - "${WEBSOCKET_PORT:-8080}:8080"
+    environment:
+      # CodeIgniter environment
+      CI_ENVIRONMENT: ${CI_ENVIRONMENT:-development}
+
+      # Database connection settings (same as web service)
+      database.default.hostname: db
+      database.default.database: ${DB_DATABASE:-ci4_chat}
+      database.default.username: ${DB_USERNAME:-ci4_user}
+      database.default.password: ${DB_PASSWORD:-ci4_password}
+      database.default.DBDriver: MySQLi
+      database.default.port: 3306
+    # Override the default command to run the WebSocket server
+    command: ["php", "spark", "chat:websocket", "--port=8080"]
+    # Run as the websocket user created in the Dockerfile
+    user: websocket
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ci4-chat-network
+
+  # ---------------------------------------------------------------------------
+  # Node.js Development Server (Optional - for frontend development)
+  # ---------------------------------------------------------------------------
+  # Uncomment this service if you want to develop frontend assets with hot reload.
+  # This runs the Vite development server.
+  #
+  # node:
+  #   image: node:22-alpine
+  #   container_name: ci4-chat-node
+  #   working_dir: /app
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - .:/app
+  #     - node_modules:/app/node_modules
+  #   command: sh -c "corepack enable && pnpm install && pnpm dev --host"
+  #   networks:
+  #     - ci4-chat-network
+
+# -----------------------------------------------------------------------------
+# Named Volumes
+# -----------------------------------------------------------------------------
+# Named volumes persist data between container restarts and rebuilds.
+volumes:
+  mysql-data:
+    driver: local
+    name: ci4-chat-mysql-data
+  # Uncomment if using the node service
+  # node_modules:
+  #   driver: local
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
+# All services communicate over this private network.
+networks:
+  ci4-chat-network:
+    driver: bridge
+    name: ci4-chat-network
