@@ -8,11 +8,13 @@ class CreateUsersTable extends Migration
 {
     public function up()
     {
+        // Note: 'unsigned' is MySQL-specific and ignored by SQLite
+        // CodeIgniter's Forge handles this gracefully for cross-database compatibility
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',
                 'constraint'     => 11,
-                'unsigned'       => true,
+                'unsigned'       => true, // Ignored by SQLite, works on MySQL
                 'auto_increment' => true,
             ],
             'username' => [

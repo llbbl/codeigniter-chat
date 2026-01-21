@@ -16,7 +16,7 @@
         const CSRF_TOKEN_NAME = "<?= csrf_token() ?>";
         const CURRENT_USERNAME = "<?= esc(session()->get('username')) ?>";
     </script>
-    <!-- Load assets built with Vite (jQuery is imported in the JS file) -->
+    <!-- Load assets built with Vite (uses native Fetch API, no jQuery) -->
     <?= vite_tags('src/js/chat.js') ?>
 </head>
 <body>

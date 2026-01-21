@@ -2,17 +2,28 @@
 
 This guide provides detailed instructions for setting up a development environment for the CodeIgniter Chat application.
 
+## Quick Start Options
+
+There are multiple ways to set up this project:
+
+1. **Docker (Recommended for beginners)** - No need to install PHP, MySQL, or Node.js locally. See [DOCKER.md](../DOCKER.md) for complete instructions.
+
+2. **SQLite (Simplest local setup)** - Use SQLite instead of MySQL for zero-config database setup. Just set `DB_DRIVER=SQLite3` in your `.env` file.
+
+3. **Full Local Setup** - Install all dependencies locally (instructions below).
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system:
 
-- **PHP 8.1 or higher**
+- **PHP 8.4 or higher**
   - Required extensions: `intl`, `mbstring`, `json`, `mysqlnd`, `xml`, `curl`
   - Verify your PHP version: `php -v`
   - Check installed extensions: `php -m`
 
-- **MySQL 5.7 or higher** (or MariaDB 10.3 or higher)
+- **MySQL 5.7 or higher** (or MariaDB 10.3 or higher) - *Optional if using SQLite*
   - Verify your MySQL version: `mysql --version`
+  - **Alternative**: Use SQLite for simpler setup (no database server required)
 
 - **Web Server**
   - Apache 2.4+ with `mod_rewrite` enabled
@@ -70,6 +81,28 @@ npm run dev
 
 ### 5. Database Configuration
 
+You have two options for the database: **SQLite** (simpler) or **MySQL** (production-ready).
+
+#### Option A: SQLite (Recommended for Development)
+
+SQLite requires no database server installation. Just configure and run migrations:
+
+1. Edit your `.env` file and set:
+
+```
+DB_DRIVER=SQLite3
+```
+
+2. Run the database migration:
+
+```bash
+php spark migrate
+```
+
+The database file will be automatically created at `writable/database/chat.db`.
+
+#### Option B: MySQL (Recommended for Production)
+
 1. Create a new MySQL database for the application:
 
 ```sql
@@ -79,17 +112,14 @@ GRANT ALL PRIVILEGES ON codeigniter_chat.* TO 'chat_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-2. Edit `app/Config/Database.php` to include your MySQL connection details:
+2. Edit your `.env` file with your MySQL connection details:
 
-```php
-public array $default = [
-    'hostname' => 'localhost',
-    'username' => 'chat_user',
-    'password' => 'your_password',
-    'database' => 'codeigniter_chat',
-    'DBDriver' => 'MySQLi',
-    // Other settings can remain as default
-];
+```
+DB_DRIVER=MySQLi
+database.default.hostname=localhost
+database.default.database=codeigniter_chat
+database.default.username=chat_user
+database.default.password=your_password
 ```
 
 3. Run the database migration script to create the necessary tables:
@@ -196,7 +226,7 @@ server {
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock; # Adjust this path as needed
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock; # Adjust this path as needed
         fastcgi_read_timeout 150;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -240,6 +270,7 @@ Start your web server and navigate to:
 - JSON Chat: `http://codeigniter-chat.local/chat/json`
 - HTML Chat: `http://codeigniter-chat.local/chat/html`
 - Vue.js Chat: `http://codeigniter-chat.local/chat/vue`
+- Svelte Chat: `http://codeigniter-chat.local/chat/svelte`
 
 ## Troubleshooting
 
@@ -308,8 +339,19 @@ Start your web server and navigate to:
    npm run build
    ```
 
+## Alternative: Docker Setup
+
+If you prefer not to install PHP, MySQL, and Node.js locally, you can use Docker instead. See [DOCKER.md](../DOCKER.md) for complete Docker setup instructions.
+
+Docker provides:
+- Consistent development environment across different machines
+- No need to install PHP, MySQL, or Node.js locally
+- Easy setup with a single `docker compose up` command
+
 ## Additional Resources
 
 - [CodeIgniter 4 Documentation](https://codeigniter.com/user_guide/index.html)
 - [Vue.js Documentation](https://vuejs.org/guide/introduction.html)
+- [Svelte Documentation](https://svelte.dev/docs)
 - [Vite Documentation](https://vitejs.dev/guide/)
+- [Docker Documentation](https://docs.docker.com/)

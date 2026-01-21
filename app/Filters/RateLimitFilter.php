@@ -30,7 +30,7 @@ class RateLimitFilter implements FilterInterface
      * @param array|null $arguments
      * @return mixed
      */
-    public function before(RequestInterface $request, ?array $arguments = null): mixed
+    public function before(RequestInterface $request, $arguments = null)
     {
         // Get the user's identifier (IP address for guests, user_id for logged in users)
         $identifier = session()->get('user_id') ?? $request->getIPAddress();
@@ -67,9 +67,9 @@ class RateLimitFilter implements FilterInterface
      * @param RequestInterface $request
      * @param ResponseInterface $response
      * @param array|null $arguments
-     * @return mixed
+     * @return void
      */
-    public function after(RequestInterface $request, ResponseInterface $response, ?array $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Do nothing
     }

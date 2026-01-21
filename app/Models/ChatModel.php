@@ -55,10 +55,10 @@ class ChatModel extends Model
         // Get the cache service
         $cache = Services::cache();
 
-        // Try to get data from cache first
+        // Try to get data from the cache first
         $result = $cache->get($cacheKey);
 
-        // If not in cache or cache expired, get from database and store in cache
+        // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
             $totalCount = $this->countAllResults();
@@ -86,14 +86,14 @@ class ChatModel extends Model
                 ]
             ];
 
-            // Store in cache
+            // Store in the cache
             $cache->save($cacheKey, $result, $this->cacheTTL);
 
             // Log cache miss
-            log_message('debug', 'Chat messages cache miss. Fetched from database with pagination.');
+            log_message('debug', 'Chat messages cache miss. Fetched from the database with pagination.');
         } else {
             // Log cache hit
-            log_message('debug', 'Chat messages with pagination retrieved from cache.');
+            log_message('debug', 'Chat messages with pagination retrieved from the cache.');
         }
 
         return $result;
@@ -115,16 +115,16 @@ class ChatModel extends Model
     }
 
     /**
-     * Insert a new message into the database and invalidate cache
+     * Insert a new message into the database and invalidate the cache
      * 
      * This method inserts a new chat message into the database with the given
-     * user name, message text, and timestamp. If the insertion is successful,
-     * it invalidates all related cache entries to ensure that subsequent requests
+     * username, message text, and timestamp. If the insertion is successful,
+     * it invalidates all related cache entries to ensure that later requests
      * will receive the updated data.
      * 
-     * @param string $name     User name of the message author
-     * @param string $message  Message text content
-     * @param int    $current  Unix timestamp when the message was created
+     * @param string $name     The username of the message author
+     * @param string $message  The message text content
+     * @param int    $current  The Unix timestamp when the message was created
      * 
      * @return int|bool The insert ID if the insert was successful, or false on failure
      */
@@ -150,7 +150,7 @@ class ChatModel extends Model
      * 
      * This method clears all cached chat messages by deleting cache entries
      * that match the base cache key pattern. It's called after a new message
-     * is inserted to ensure that subsequent requests will fetch fresh data
+     * is inserted to ensure that later requests will fetch fresh data
      * from the database instead of using outdated cached data.
      * 
      * @return void
@@ -187,10 +187,10 @@ class ChatModel extends Model
         // Get the cache service
         $cache = Services::cache();
 
-        // Try to get data from cache first
+        // Try to get data from the cache first
         $result = $cache->get($cacheKey);
 
-        // If not in cache or cache expired, get from database and store in cache
+        // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
             $totalCount = $this->where('user', $username)->countAllResults();
@@ -218,14 +218,14 @@ class ChatModel extends Model
                 ]
             ];
 
-            // Store in cache
+            // Store in the cache
             $cache->save($cacheKey, $result, $this->cacheTTL);
 
             // Log cache miss
-            log_message('debug', 'User chat messages cache miss. Fetched from database with pagination.');
+            log_message('debug', 'User chat messages cache miss. Fetched from the database with pagination.');
         } else {
             // Log cache hit
-            log_message('debug', 'User chat messages with pagination retrieved from cache.');
+            log_message('debug', 'User chat messages with pagination retrieved from the cache.');
         }
 
         return $result;
@@ -270,10 +270,10 @@ class ChatModel extends Model
         // Get the cache service
         $cache = Services::cache();
 
-        // Try to get data from cache first
+        // Try to get data from the cache first
         $result = $cache->get($cacheKey);
 
-        // If not in cache or cache expired, get from database and store in cache
+        // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
             $totalCount = $this->where('time >=', $startTime)
@@ -304,14 +304,14 @@ class ChatModel extends Model
                 ]
             ];
 
-            // Store in cache
+            // Store in the cache
             $cache->save($cacheKey, $result, $this->cacheTTL);
 
             // Log cache miss
-            log_message('debug', 'Time range chat messages cache miss. Fetched from database with pagination.');
+            log_message('debug', 'Time range chat messages cache miss. Fetched from the database with pagination.');
         } else {
             // Log cache hit
-            log_message('debug', 'Time range chat messages with pagination retrieved from cache.');
+            log_message('debug', 'Time range chat messages with pagination retrieved from the cache.');
         }
 
         return $result;
