@@ -1,0 +1,63 @@
+services:
+  # Development overrides for web service
+  web:
+    environment:
+      - CI_ENVIRONMENT=development
+    volumes:
+      - .:/var/www/html
+    ports:
+      - "80:80"
+
+  # Development overrides for websocket service
+  websocket:
+    environment:
+      - CI_ENVIRONMENT=development
+    volumes:
+      - .:/var/www/html
+
+  # Frontend development server
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: build
+    container_name: codeigniter-chat-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src
+      - ./vite.config.js:/app/vite.config.js
+      - ./package.json:/app/package.json
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - chat-network
+
+  # Database management tool
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: codeigniter-chat-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=ci4user
+      - PMA_PASSWORD=ci4password
+    depends_on:
+      - mysql
+    networks:
+      - chat-network
+
+  # Redis management tool
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: codeigniter-chat-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - chat-network
