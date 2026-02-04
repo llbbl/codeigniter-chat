@@ -21,7 +21,7 @@ class Session extends BaseConfig
      *
      * @var class-string<BaseHandler>
      */
-    public string $driver = FileHandler::class;
+    public string $driver = \CodeIgniter\Session\Handlers\RedisHandler::class;
 
     /**
      * --------------------------------------------------------------------------
@@ -124,4 +124,21 @@ class Session extends BaseConfig
      * seconds.
      */
     public int $lockMaxRetries = 300;
+
+    /**
+     * --------------------------------------------------------------------------
+     * Redis Handler Configuration
+     * --------------------------------------------------------------------------
+     *
+     * Configuration for Redis session handler
+     *
+     * @var array<string, int|string|null>
+     */
+    public array $redis = [
+        'host'     => '127.0.0.1',
+        'password' => null,
+        'port'     => 6379,
+        'timeout'  => 0,
+        'database' => 0, // Use database 0 for sessions (1 for cache)
+    ];
 }
