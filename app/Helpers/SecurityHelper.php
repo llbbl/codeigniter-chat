@@ -68,15 +68,34 @@ class SecurityHelper
     
     /**
      * Generate a random string
-     * 
+     *
      * @param int $length The length of the string
      * @param string $type The type of string (alpha, alnum, numeric, nozero, md5, sha1)
      * @return string The random string
      */
     public static function randomString(int $length = 16, string $type = 'alnum'): string
     {
-        $security = Services::security();
-        return $security->getRandomName($length, $type);
+        $pool = match ($type) {
+            'alpha' => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'numeric' => '0123456789',
+            'nozero' => '123456789',
+            'md5' => md5(random_bytes(16)),
+            'sha1' => sha1(random_bytes(20)),
+            default => '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', // alnum
+        };
+
+        if ($type === 'md5' || $type === 'sha1') {
+            return substr($pool, 0, $length);
+        }
+
+        $poolLength = strlen($pool);
+        $result = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $result .= $pool[random_int(0, $poolLength - 1)];
+        }
+
+        return $result;
     }
     
     /**
