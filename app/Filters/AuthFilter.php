@@ -15,7 +15,7 @@ class AuthFilter implements FilterInterface
      * @param array|null $arguments
      * @return mixed
      */
-    public function before(RequestInterface $request, ?array $arguments = null): mixed
+    public function before(RequestInterface $request, $arguments = null)
     {
         // If user is not logged in, redirect to login page
         if (!session()->get('logged_in')) {
@@ -29,9 +29,9 @@ class AuthFilter implements FilterInterface
      * @param RequestInterface $request
      * @param ResponseInterface $response
      * @param array|null $arguments
-     * @return mixed
+     * @return void
      */
-    public function after(RequestInterface $request, ResponseInterface $response, ?array $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Do nothing
     }

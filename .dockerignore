@@ -1,0 +1,131 @@
+# =============================================================================
+# Docker Ignore File
+# =============================================================================
+# This file tells Docker which files and directories to exclude when building
+# the image. Excluding unnecessary files makes the build faster and the image
+# smaller.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Git and Version Control
+# -----------------------------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+
+# -----------------------------------------------------------------------------
+# Docker Files (not needed inside the container)
+# -----------------------------------------------------------------------------
+Dockerfile
+docker-compose.yml
+docker-compose*.yml
+.dockerignore
+docker/
+
+# -----------------------------------------------------------------------------
+# Dependencies (will be installed during build)
+# -----------------------------------------------------------------------------
+# PHP dependencies - installed via Composer in the build
+vendor/
+
+# Node.js dependencies - installed via pnpm in the build
+node_modules/
+
+# Built assets - will be built during the Docker build
+public/dist/
+
+# -----------------------------------------------------------------------------
+# Development and IDE Files
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.iml
+.sublime-project
+.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Claude Code configuration
+.claude/
+.junie/
+
+# -----------------------------------------------------------------------------
+# Environment and Configuration
+# -----------------------------------------------------------------------------
+# Environment files may contain secrets - NEVER include in image
+.env
+.env.local
+.env.*.local
+
+# Vagrant
+.vagrant/
+Vagrantfile
+
+# -----------------------------------------------------------------------------
+# Build and Test Artifacts
+# -----------------------------------------------------------------------------
+build/
+tests/coverage*
+phpunit.xml
+phpunit*.xml
+.phpunit.result.cache
+
+# Log files (writable directory is mounted as volume)
+writable/logs/*
+writable/cache/*
+writable/session/*
+writable/uploads/*
+writable/debugbar/*
+php_errors.log
+
+# Keep the directory structure but not the contents
+!writable/logs/.gitkeep
+!writable/cache/.gitkeep
+!writable/session/.gitkeep
+!writable/uploads/.gitkeep
+!writable/debugbar/.gitkeep
+
+# -----------------------------------------------------------------------------
+# Operating System Files
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# -----------------------------------------------------------------------------
+# Documentation (optional - uncomment to exclude)
+# -----------------------------------------------------------------------------
+# README.md
+# CLAUDE.md
+# DOCKER.md
+# docs/
+# *.md
+
+# -----------------------------------------------------------------------------
+# Miscellaneous
+# -----------------------------------------------------------------------------
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+*.tmp
+*.temp
+
+# Results and output
+results/

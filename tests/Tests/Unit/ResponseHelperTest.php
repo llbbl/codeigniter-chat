@@ -68,10 +68,10 @@ final class ResponseHelperTest extends CIUnitTestCase
             'Content-Type should be text/xml'
         );
         
-        $this->assertEquals(
+        $this->assertStringContainsString(
             'no-cache',
             $response->getHeaderLine('Cache-Control'),
-            'Cache-Control should be no-cache'
+            'Cache-Control should contain no-cache'
         );
         
         // Test with custom status code

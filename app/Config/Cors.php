@@ -33,8 +33,20 @@ class Cors extends BaseConfig
          * E.g.:
          *   - ['http://localhost:8080']
          *   - ['https://www.example.com']
+         *
+         * Note: When supportsCredentials is true, you cannot use '*' wildcard.
+         * Specify allowed origins explicitly instead.
          */
-        'allowedOrigins' => ['*'], // Allow all origins in development; restrict to specific domains in production
+        'allowedOrigins' => [
+            'http://localhost',
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://localhost:8080',
+            'http://127.0.0.1',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:8080',
+        ],
 
         /**
          * Origin regex patterns for the `Access-Control-Allow-Origin` header.

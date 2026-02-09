@@ -34,7 +34,7 @@ CodeIgniter Chat follows the Model-View-Controller (MVC) architectural pattern, 
     |
 +----------------------------------+
 |          Database Layer          |
-|            (MySQL)               |
+|       (MySQL or SQLite)          |
 +----------------------------------+
 ```
 
@@ -64,6 +64,12 @@ The application offers multiple client-side implementations:
 - Component-based architecture
 - Communicates with the server using AJAX with JSON format
 - Located in `src/vue/App.vue` and related components
+
+#### Svelte Implementation
+- Uses Svelte 5 with the new "runes" syntax for reactivity
+- Compiles to vanilla JavaScript at build time (smaller bundles)
+- Uses `$state()`, `$derived()`, and `$effect()` for reactive state management
+- Located in `src/svelte/App.svelte` and related components
 
 ### 2. Server-Side Components
 
@@ -145,7 +151,7 @@ Filters process HTTP requests and responses:
 ```
 +-------------+     +-------------+     +-------------+     +-------------+
 | Client-side |     |  Controller |     |    Model    |     |  Database   |
-|    Form     | --> |   (Chat)    | --> | (ChatModel) | --> |  (MySQL)    |
+|    Form     | --> |   (Chat)    | --> | (ChatModel) | --> |  (MySQL or SQLite)    |
 +-------------+     +-------------+     +-------------+     +-------------+
       |                    |                  |                   |
       |                    |                  |                   |
@@ -169,7 +175,7 @@ Filters process HTTP requests and responses:
 ```
 +-------------+     +-------------+     +-------------+     +-------------+
 | Login Form  |     |  Controller |     |    Model    |     |  Database   |
-|             | --> |   (Auth)    | --> | (UserModel) | --> |  (MySQL)    |
+|             | --> |   (Auth)    | --> | (UserModel) | --> |  (MySQL or SQLite)    |
 +-------------+     +-------------+     +-------------+     +-------------+
       |                    |                  |                   |
       |                    |                  |                   |
@@ -304,6 +310,23 @@ For a detailed description of the database schema, see [database-schema.md](data
 +-------+ +----------+
 ```
 
+### Svelte Component Structure
+
+```
++-------------------+
+|   App.svelte      |
++-------------------+
+| - $state() for    |
+|   reactive data   |
+| - $effect() for   |
+|   side effects    |
+| - $derived() for  |
+|   computed values |
++-------------------+
+```
+
+Svelte differs from Vue by compiling components at build time rather than using a virtual DOM at runtime. This results in smaller bundle sizes and faster performance.
+
 ### Asset Build Pipeline
 
 ```
@@ -425,4 +448,4 @@ The architecture is designed to be extensible for future enhancements:
 
 The CodeIgniter Chat application follows a well-structured MVC architecture that leverages the strengths of the CodeIgniter 4 framework. The separation of concerns, use of design patterns, and implementation of security measures create a robust and maintainable application.
 
-The multiple client-side implementations (XML, JSON, HTML, Vue) demonstrate different approaches to building interactive web applications, while the server-side components provide a solid foundation for handling data and business logic.
+The multiple client-side implementations (XML, JSON, HTML, Vue, Svelte) demonstrate different approaches to building interactive web applications, while the server-side components provide a solid foundation for handling data and business logic.

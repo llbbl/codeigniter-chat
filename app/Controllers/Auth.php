@@ -4,35 +4,64 @@ namespace App\Controllers;
 
 use App\Models\UserModel;
 use App\Helpers\UserHelper;
+use App\Helpers\WebSocketTokenHelper;
 use CodeIgniter\I18n\Time;
 
 /**
  * Auth Controller
- * 
- * Handles user authentication including registration, login, and logout
+ *
+ * Handles user authentication including registration, login, and logout.
+ *
+ * ============================================================================
+ * DEPENDENCY INJECTION PATTERN (for beginners)
+ * ============================================================================
+ *
+ * This controller uses Dependency Injection (DI) to receive its UserModel.
+ * See the Chat controller for a detailed explanation of the DI pattern.
+ *
+ * Key points:
+ * - The UserModel is passed via the constructor, not created internally
+ * - This makes the controller easier to test with mock objects
+ * - The service container provides instances during normal HTTP requests
+ * - Tests can inject mock UserModels to avoid database calls
+ *
+ * ============================================================================
  */
 class Auth extends BaseController
 {
     /**
-     * User model instance
-     * 
+     * User model instance for authentication operations.
+     *
+     * This property holds the UserModel that handles user data and
+     * authentication. It's injected via the constructor for testability.
+     *
      * @var UserModel
      */
     protected UserModel $userModel;
 
     /**
-     * Constructor - loads the model
-     * 
-     * @param RequestInterface  $request
-     * @param ResponseInterface $response
-     * @param LoggerInterface   $logger
-     * 
-     * @return void
+     * Constructor - receives dependencies via injection.
+     *
+     * Implements the Dependency Injection pattern for better testability
+     * and loose coupling. The UserModel is received as a parameter rather
+     * than being created internally with `new UserModel()`.
+     *
+     * During normal HTTP requests, if no model is provided, the controller
+     * automatically fetches one from the service container via service('userModel').
+     *
+     * Example usage in tests:
+     *   $mockUserModel = $this->createMock(UserModel::class);
+     *   $mockUserModel->method('verifyCredentials')->willReturn(['id' => 1, 'username' => 'test']);
+     *   $controller = new Auth($mockUserModel);
+     *
+     * @param UserModel|null $userModel The user model instance. If null, the service
+     *                                  container will provide one. Pass a mock here for testing.
      */
-    public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger)
+    public function __construct(?UserModel $userModel = null)
     {
-        parent::initController($request, $response, $logger);
-        $this->userModel = new UserModel();
+        // Fetch from service container if not injected (normal HTTP requests)
+        // See Config\Services::userModel() for the service definition
+        $this->userModel = $userModel ?? service('userModel');
     }
 
     /**
@@ -155,6 +184,20 @@ class Auth extends BaseController
             // Set user session using UserHelper
             UserHelper::setUserSession($user);
 
+            // ================================================================
+            // WEBSOCKET TOKEN GENERATION
+            // ================================================================
+            // Generate a WebSocket authentication token for this user.
+            // This token will be used by the Vue.js frontend to authenticate
+            // WebSocket connections. The WebSocket server cannot access PHP
+            // sessions, so we use this token-based approach instead.
+            //
+            // The token is stored in the session and passed to JavaScript,
+            // which includes it in the WebSocket connection URL.
+            // ================================================================
+            $websocketToken = WebSocketTokenHelper::generateToken($user['id']);
+            session()->set('websocket_token', $websocketToken);
+
             $this->logMessage('info', 'User logged in: ' . $username);
 
             // Redirect to chat
@@ -174,6 +217,22 @@ class Auth extends BaseController
     {
         try {
             $username = $this->getCurrentUsername();
+
+            // ================================================================
+            // WEBSOCKET TOKEN REVOCATION
+            // ================================================================
+            // Before clearing the session, revoke the WebSocket token.
+            // This ensures that any existing WebSocket connections using this
+            // token will fail to reconnect, and the token cannot be reused.
+            //
+            // Security Note: Revoking tokens on logout is important to prevent
+            // session hijacking attacks where someone might capture the token
+            // and try to use it after the user has logged out.
+            // ================================================================
+            $websocketToken = session()->get('websocket_token');
+            if ($websocketToken) {
+                WebSocketTokenHelper::revokeToken($websocketToken);
+            }
 
             // Clear user session using UserHelper
             UserHelper::clearUserSession();
