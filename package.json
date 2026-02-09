@@ -15,7 +15,7 @@
     "sass": "^1.72.0",
     "vue": "^3.4.21",
     "@vitejs/plugin-vue": "^5.0.4",
-    "svelte": "^5.0.0",
+    "svelte": "^5.50.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0"
   }
 }
