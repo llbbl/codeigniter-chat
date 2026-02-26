@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@vitejs/plugin-vue": "^5.2.4",
     "sass": "^1.97.3",
     "svelte": "^5.53.5",
