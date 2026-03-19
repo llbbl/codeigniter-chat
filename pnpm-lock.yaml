@@ -10,7 +10,7 @@ importers:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.1.1
-        version: 5.1.1(svelte@5.53.10)(vite@6.4.1(sass@1.98.0))
+        version: 5.1.1(svelte@5.54.0)(vite@6.4.1(sass@1.98.0))
       '@vitejs/plugin-vue':
         specifier: ^5.2.4
         version: 5.2.4(vite@6.4.1(sass@1.98.0))(vue@3.5.30)
@@ -18,8 +18,8 @@ importers:
         specifier: ^1.98.0
         version: 1.98.0
       svelte:
-        specifier: ^5.53.10
-        version: 5.53.10
+        specifier: ^5.54.0
+        version: 5.54.0
       vite:
         specifier: ^6.4.1
         version: 6.4.1(sass@1.98.0)
@@ -451,6 +451,10 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
+  '@typescript-eslint/types@8.57.1':
+    resolution: {integrity: sha512-S29BOBPJSFUiblEl6RzPPjJt6w25A6XsBqRVDt53tA/tlL8q7ceQNZHTjPeONt/3S7KRI4quk+yP9jK2WjBiPQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
   '@vitejs/plugin-vue@5.2.4':
     resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -543,8 +547,8 @@ packages:
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
-  esrap@2.2.3:
-    resolution: {integrity: sha512-8fOS+GIGCQZl/ZIlhl59htOlms6U8NvX6ZYgYHpRU/b6tVSh3uHkOHZikl3D4cMbYM0JlpBe+p/BkZEi8J9XIQ==}
+  esrap@2.2.4:
+    resolution: {integrity: sha512-suICpxAmZ9A8bzJjEl/+rLJiDKC0X4gYWUxT6URAWBLvlXmtbZd5ySMu/N2ZGEtMCAmflUDPSehrP9BQcsGcSg==}
 
   estree-walker@2.0.2:
     resolution: {integrity: sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==}
@@ -631,8 +635,8 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  svelte@5.53.10:
-    resolution: {integrity: sha512-UcNfWzbrjvYXYSk+U2hME25kpb87oq6/WVLeBF4khyQrb3Ob/URVlN23khal+RbdCUTMfg4qWjI9KZjCNFtYMQ==}
+  svelte@5.54.0:
+    resolution: {integrity: sha512-TTDxwYnHkova6Wsyj1PGt9TByuWqvMoeY1bQiuAf2DM/JeDSMw7FjRKzk8K/5mJ99vGOKhbCqTDpyAKwjp4igg==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
@@ -950,23 +954,23 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.10)(vite@6.4.1(sass@1.98.0)))(svelte@5.53.10)(vite@6.4.1(sass@1.98.0))':
+  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.54.0)(vite@6.4.1(sass@1.98.0)))(svelte@5.54.0)(vite@6.4.1(sass@1.98.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.53.10)(vite@6.4.1(sass@1.98.0))
+      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.54.0)(vite@6.4.1(sass@1.98.0))
       debug: 4.4.3
-      svelte: 5.53.10
+      svelte: 5.54.0
       vite: 6.4.1(sass@1.98.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.10)(vite@6.4.1(sass@1.98.0))':
+  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.54.0)(vite@6.4.1(sass@1.98.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.10)(vite@6.4.1(sass@1.98.0)))(svelte@5.53.10)(vite@6.4.1(sass@1.98.0))
+      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.54.0)(vite@6.4.1(sass@1.98.0)))(svelte@5.54.0)(vite@6.4.1(sass@1.98.0))
       debug: 4.4.3
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.21
-      svelte: 5.53.10
+      svelte: 5.54.0
       vite: 6.4.1(sass@1.98.0)
       vitefu: 1.1.1(vite@6.4.1(sass@1.98.0))
     transitivePeerDependencies:
@@ -975,6 +979,8 @@ snapshots:
   '@types/estree@1.0.8': {}
 
   '@types/trusted-types@2.0.7': {}
+
+  '@typescript-eslint/types@8.57.1': {}
 
   '@vitejs/plugin-vue@5.2.4(vite@6.4.1(sass@1.98.0))(vue@3.5.30)':
     dependencies:
@@ -1093,9 +1099,10 @@ snapshots:
 
   esm-env@1.2.2: {}
 
-  esrap@2.2.3:
+  esrap@2.2.4:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+      '@typescript-eslint/types': 8.57.1
 
   estree-walker@2.0.2: {}
 
@@ -1194,7 +1201,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  svelte@5.53.10:
+  svelte@5.54.0:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -1207,7 +1214,7 @@ snapshots:
       clsx: 2.1.1
       devalue: 5.6.4
       esm-env: 1.2.2
-      esrap: 2.2.3
+      esrap: 2.2.4
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
