@@ -10,7 +10,7 @@ importers:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.1.1
-        version: 5.1.1(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
+        version: 5.1.1(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
       '@vitejs/plugin-vue':
         specifier: ^5.2.4
         version: 5.2.4(vite@6.4.1(sass@1.99.0))(vue@3.5.33)
@@ -18,8 +18,8 @@ importers:
         specifier: ^1.99.0
         version: 1.99.0
       svelte:
-        specifier: ^5.55.4
-        version: 5.55.4(@typescript-eslint/types@8.58.1)
+        specifier: ^5.55.5
+        version: 5.55.5(@typescript-eslint/types@8.58.1)
       vite:
         specifier: ^6.4.1
         version: 6.4.1(sass@1.99.0)
@@ -644,8 +644,8 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  svelte@5.55.4:
-    resolution: {integrity: sha512-q8DFohk6vUswSng95IZb9nzWJnbINZsK7OiM1snAa3qCjJBL0ZQpvMyAaVXjUukdM75J/m8UE8xwqat8Ors/zQ==}
+  svelte@5.55.5:
+    resolution: {integrity: sha512-2uCs/LZ9us+AktdzYJM8OcxQ8qnPS1kpaO7syGT/MgO+6Qr1Ybl+TqPq+97u7PHqmmMlye5ZkoyXONy5mjjAbw==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
@@ -963,23 +963,23 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0)))(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))':
+  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0)))(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
+      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
       debug: 4.4.3
-      svelte: 5.55.4(@typescript-eslint/types@8.58.1)
+      svelte: 5.55.5(@typescript-eslint/types@8.58.1)
       vite: 6.4.1(sass@1.99.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))':
+  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0)))(svelte@5.55.4(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
+      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0)))(svelte@5.55.5(@typescript-eslint/types@8.58.1))(vite@6.4.1(sass@1.99.0))
       debug: 4.4.3
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.21
-      svelte: 5.55.4(@typescript-eslint/types@8.58.1)
+      svelte: 5.55.5(@typescript-eslint/types@8.58.1)
       vite: 6.4.1(sass@1.99.0)
       vitefu: 1.1.1(vite@6.4.1(sass@1.99.0))
     transitivePeerDependencies:
@@ -1215,7 +1215,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  svelte@5.55.4(@typescript-eslint/types@8.58.1):
+  svelte@5.55.5(@typescript-eslint/types@8.58.1):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
