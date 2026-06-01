@@ -143,6 +143,7 @@ _modules/*
 # Custom project files
 .junie
 .claude
+CLAUDE.md
 
 /results/
 /phpunit*.xml
