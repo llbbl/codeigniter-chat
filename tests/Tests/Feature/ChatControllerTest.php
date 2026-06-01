@@ -12,6 +12,7 @@ use CodeIgniter\HTTP\UserAgent;
 use CodeIgniter\Test\CIUnitTestCase;
 use Config\App;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -45,7 +46,7 @@ final class ChatControllerTest extends CIUnitTestCase
     /**
      * Mock of the ChatModel
      */
-    private MockObject $mockChatModel;
+    private Stub $mockChatModel;
 
     /**
      * The Chat controller instance being tested
@@ -95,7 +96,7 @@ final class ChatControllerTest extends CIUnitTestCase
         ];
 
         // Create mock ChatModel
-        $this->mockChatModel = $this->createMock(ChatModel::class);
+        $this->mockChatModel = $this->createStub(ChatModel::class);
         $this->mockChatModel->method('getMsgPaginated')
             ->willReturn([
                 'messages' => $this->sampleMessages,
@@ -155,8 +156,8 @@ final class ChatControllerTest extends CIUnitTestCase
      */
     public function testControllerAcceptsDependencyInjection(): void
     {
-        // Arrange: Create a mock
-        $mockModel = $this->createMock(ChatModel::class);
+        // Arrange: Create a stub (no behavior needed, just used for DI verification)
+        $mockModel = $this->createStub(ChatModel::class);
 
         // Act: Create controller with injected mock
         $controller = new Chat($mockModel);
@@ -277,7 +278,7 @@ final class ChatControllerTest extends CIUnitTestCase
     public function testBackendHandlesEmptyMessages(): void
     {
         // Arrange: Mock returns empty messages
-        $emptyMock = $this->createMock(ChatModel::class);
+        $emptyMock = $this->createStub(ChatModel::class);
         $emptyMock->method('getMsgPaginated')
             ->willReturn([
                 'messages' => [],

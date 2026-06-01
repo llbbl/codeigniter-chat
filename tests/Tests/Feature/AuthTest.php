@@ -6,7 +6,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
 use App\Models\UserModel;
 use Config\Services;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 
 /**
  * Auth Controller Feature Tests
@@ -17,7 +17,7 @@ final class AuthTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
 
-    private MockObject $mockUserModel;
+    private Stub $mockUserModel;
     private array $sampleUser;
 
     protected function setUp(): void
@@ -25,7 +25,7 @@ final class AuthTest extends CIUnitTestCase
         parent::setUp();
 
         // Create a mock for the UserModel
-        $this->mockUserModel = $this->createMock(UserModel::class);
+        $this->mockUserModel = $this->createStub(UserModel::class);
 
         // Sample user data for testing
         $this->sampleUser = [

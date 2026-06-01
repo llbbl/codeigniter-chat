@@ -6,7 +6,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
 use App\Models\ChatModel;
 use Config\Services;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 
 /**
  * Chat Controller Feature Tests
@@ -20,7 +20,7 @@ final class ChatTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
 
-    private MockObject $mockChatModel;
+    private Stub $mockChatModel;
     private array $sampleMessages;
     private array $samplePagination;
 
@@ -29,7 +29,7 @@ final class ChatTest extends CIUnitTestCase
         parent::setUp();
 
         // Create a mock for the ChatModel
-        $this->mockChatModel = $this->createMock(ChatModel::class);
+        $this->mockChatModel = $this->createStub(ChatModel::class);
 
         // Sample data for testing
         $this->sampleMessages = [

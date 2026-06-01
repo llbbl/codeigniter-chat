@@ -6,7 +6,7 @@ use App\Models\ChatModel;
 use CodeIgniter\Cache\CacheInterface;
 use CodeIgniter\Config\Services;
 use CodeIgniter\Test\CIUnitTestCase;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 
 /**
  * ChatModel Pagination Tests
@@ -32,7 +32,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
     /**
      * Mock for the cache service
      */
-    protected MockObject $cacheMock;
+    protected Stub $cacheMock;
 
     /**
      * Set up test fixtures before each test
@@ -42,7 +42,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
         parent::setUp();
 
         // Create a mock for the cache service
-        $this->cacheMock = $this->createMock(CacheInterface::class);
+        $this->cacheMock = $this->createStub(CacheInterface::class);
         Services::injectMock('cache', $this->cacheMock);
     }
 
