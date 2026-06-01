@@ -55,8 +55,6 @@ export default defineConfig({
 
   // Configure the development server
   server: {
-    // Serve from the project root
-    root: '.',
     // Open the browser on server start
     open: false,
     // Configure CORS

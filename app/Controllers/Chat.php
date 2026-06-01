@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\ChatModel;
 use App\Helpers\ChatHelper;
 use App\Libraries\WebSocketClient;
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
 
 /**
@@ -324,7 +325,7 @@ class Chat extends BaseController
      * @return string|RedirectResponse The rendered view with the Vue.js-based chat interface
      *                                 or a redirect response to the login page if not authenticated
      */
-    public function vue(): string|\CodeIgniter\HTTP\RedirectResponse
+    public function vue(): string|RedirectResponse
     {
         // Check if user is logged in
         if (!session()->get('logged_in')) {
@@ -372,7 +373,7 @@ class Chat extends BaseController
      * @return string|RedirectResponse The rendered view with the Svelte-based chat interface
      *                                 or a redirect response to the login page if not authenticated
      */
-    public function svelte(): string|\CodeIgniter\HTTP\RedirectResponse
+    public function svelte(): string|RedirectResponse
     {
         // Check if user is logged in
         if (!session()->get('logged_in')) {
