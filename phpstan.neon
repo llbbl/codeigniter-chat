@@ -90,9 +90,6 @@ parameters:
     # Report unmatched ignored errors (helps clean up over time)
     reportUnmatchedIgnoredErrors: false
 
-    # Treat PHPDoc types as uncertain to reduce false positives
-    treatPhpDocTypesAsCertain: false
-
 # Include CodeIgniter-specific extension if available
 # (You can install phpstan/extension-installer for auto-loading)
 includes: []

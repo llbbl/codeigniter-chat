@@ -11,7 +11,7 @@ class OptimizeMessagesTable extends Migration
         // Add indexes for better query performance
         // Using raw SQL for cross-database compatibility with IF NOT EXISTS logic
 
-        if ($this->db->DBDriver === 'MySQLi') {
+        if ($this->db->getPlatform() === 'MySQLi') {
             // MySQL: Add indexes and update character set
             $this->db->query('CREATE INDEX IF NOT EXISTS time ON messages(time)');
             $this->db->query('CREATE INDEX IF NOT EXISTS user ON messages(user)');
@@ -31,7 +31,7 @@ class OptimizeMessagesTable extends Migration
 
     public function down()
     {
-        if ($this->db->DBDriver === 'MySQLi') {
+        if ($this->db->getPlatform() === 'MySQLi') {
             // MySQL: Remove the indexes using MySQL syntax
             $this->db->query('DROP INDEX idx_messages_time_user ON messages');
             $this->db->query('DROP INDEX user ON messages');

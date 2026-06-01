@@ -543,6 +543,8 @@ export default {
 </script>
 
 <style lang="scss">
+@use "sass:color";
+
 // Variables
 $primary-color: #4a6fa5;
 $secondary-color: #6c757d;
@@ -584,7 +586,7 @@ $transition-speed: 0.2s;
   background-color: $primary-color;
   color: white;
   padding: 15px;
-  border-bottom: 1px solid darken($primary-color, 10%);
+  border-bottom: 1px solid color.adjust($primary-color, $lightness: -10%);
 }
 
 .user-info {
@@ -870,7 +872,7 @@ $transition-speed: 0.2s;
     flex: 1;
 
     &:hover:not(:disabled) {
-      background-color: darken($primary-color, 10%);
+      background-color: color.adjust($primary-color, $lightness: -10%);
     }
   }
 
@@ -880,7 +882,7 @@ $transition-speed: 0.2s;
     border: none;
 
     &:hover:not(:disabled) {
-      background-color: darken($secondary-color, 10%);
+      background-color: color.adjust($secondary-color, $lightness: -10%);
     }
   }
 }

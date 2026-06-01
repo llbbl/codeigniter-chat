@@ -757,6 +757,8 @@
 -->
 
 <style lang="scss">
+  @use "sass:color";
+
   /* Variables for consistent theming */
   $primary-color: #4a6fa5;
   $secondary-color: #6c757d;
@@ -798,7 +800,7 @@
     background-color: $primary-color;
     color: white;
     padding: 15px;
-    border-bottom: 1px solid darken($primary-color, 10%);
+    border-bottom: 1px solid color.adjust($primary-color, $lightness: -10%);
   }
 
   .user-info {
@@ -1089,7 +1091,7 @@
       flex: 1;
 
       &:hover:not(:disabled) {
-        background-color: darken($primary-color, 10%);
+        background-color: color.adjust($primary-color, $lightness: -10%);
       }
     }
 
@@ -1099,7 +1101,7 @@
       border: none;
 
       &:hover:not(:disabled) {
-        background-color: darken($secondary-color, 10%);
+        background-color: color.adjust($secondary-color, $lightness: -10%);
       }
     }
   }

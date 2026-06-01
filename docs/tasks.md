@@ -257,6 +257,38 @@ This document contains actionable improvement tasks for the CodeIgniter Chat app
     - Add coverage reporting to CI/CD pipeline
     - Create coverage improvement tracking and goals
 
+## Dependency Upgrade Follow-ups
+
+Deferred from the `chore/upkeep-deps` branch. These do not block the upgrade but should land in follow-up branches.
+
+48. [ ] Migrate PHPUnit `createMock()` calls without expectations to `createStub()`
+    - PHPUnit 13 raises 46 deprecation notices for this pattern; PHPUnit 14 will turn them into errors
+    - Affected files: `tests/Tests/Feature/AuthTest.php` (8), `tests/Tests/Feature/ChatControllerTest.php` (16), `tests/Tests/Feature/ChatTest.php` (9), `tests/Tests/Unit/ChatModelPaginationTest.php` (13)
+    - Replace `$this->createMock(X::class)` with `$this->createStub(X::class)` where no `->expects()` / `->method()` follows
+
+49. [ ] Bump phpunit.xml.dist schema reference from 12.5 to 13.1
+    - `phpunit.xml.dist:3` — `xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/13.1/phpunit.xsd"`
+
+50. [ ] Apply `composer cs-fix` reformatting pass
+    - php-cs-fixer 3.95 has updated `phpdoc_align` and `no_extra_blank_lines` defaults
+    - ~96KB of whitespace/PHPDoc diffs across the codebase, all safe
+    - Best done as a standalone "format-only" commit so the diff is easy to skim
+
+51. [ ] Set explicit `build.target` in `vite.config.js`
+    - Vite 7+ default jumped from "modules" (2020 baseline) to "baseline-widely-available" (mid-2023)
+    - If we support older browsers, set `build: { target: 'es2020' }` explicitly
+
+52. [ ] Bump Node engine requirement to 20.19+ / 22.12+
+    - Required by Vite 7+
+    - Add `"engines": { "node": ">=20.19" }` to `package.json` and update CI matrix
+
+53. [ ] Remove empty Vue directories
+    - `src/vue/components/` and `src/vue/composables/` exist but are empty
+
+54. [ ] Verify `pnpm dev` (Vite dev server) works post-upgrade
+    - `pnpm build` was verified on `chore/upkeep-deps` but the dev server was not exercised
+    - HMR overlay behavior changed in Vite 7
+
 48. [ ] Add comprehensive logging and debugging tools
     - Implement structured logging with context
     - Add debug toolbar for development environment

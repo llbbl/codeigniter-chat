@@ -61,4 +61,9 @@ class Format extends BaseConfig
         'application/xml'  => 0,
         'text/xml'         => 0,
     ];
+
+    /**
+     * Max recursion depth for json_encode in JSONFormatter (CI 4.7+).
+     */
+    public int $jsonEncodeDepth = 512;
 }
