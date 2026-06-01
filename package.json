@@ -4,6 +4,9 @@
   "description": "CodeIgniter Chat Application",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

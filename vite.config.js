@@ -22,6 +22,11 @@ export default defineConfig({
     // Output directory for the built files
     outDir: 'public/dist',
 
+    // Target ES2020 to retain support for browsers older than Vite 7's default
+    // "baseline-widely-available" (mid-2023). Adjust upward if older support is
+    // no longer needed.
+    target: 'es2020',
+
     // Generate manifest.json in the output directory
     manifest: true,
 
