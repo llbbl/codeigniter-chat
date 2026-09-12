@@ -450,8 +450,8 @@
 
       const data = await response.json();
 
-      if (data && data.success === false) {
-        error = data.errors?.message || 'Failed to send message';
+      if (data && data.error) {
+        error = data.error.details?.message || data.error.message || 'Failed to send message';
       } else {
         // Add message to the beginning of the list
         messages = [{

@@ -46,12 +46,11 @@ final class ValidateInputFilterTest extends CIUnitTestCase
         $this->assertInstanceOf(ResponseInterface::class, $response);
         $this->assertSame(400, $response->getStatusCode());
         $this->assertSame('application/json; charset=UTF-8', $response->getHeaderLine('Content-Type'));
-        $this->assertSame([
-            'success' => false,
-            'type' => 'validation',
-            'message' => 'Message validation failed',
-            'errors' => ['message' => 'Message is required'],
-        ], json_decode($response->getBody(), true));
+        $payload = json_decode($response->getBody(), true);
+        $this->assertSame('validation', $payload['error']['type']);
+        $this->assertSame('Message validation failed', $payload['error']['message']);
+        $this->assertSame(['message' => 'Message is required'], $payload['error']['details']);
+        $this->assertSame($response->getHeaderLine('X-Correlation-ID'), $payload['error']['correlation_id']);
     }
 
     public function testInvalidInputReturnsXmlValidationError(): void
@@ -64,10 +63,11 @@ final class ValidateInputFilterTest extends CIUnitTestCase
         $this->assertInstanceOf(ResponseInterface::class, $response);
         $this->assertSame(400, $response->getStatusCode());
         $this->assertSame('application/xml; charset=UTF-8', $response->getHeaderLine('Content-Type'));
-        $this->assertSame(
-            '<?xml version="1.0" encoding="UTF-8"?><response><success>false</success><type>validation</type><message>Message validation failed</message><errors><message>Message is required</message></errors></response>',
+        $this->assertStringContainsString(
+            '<?xml version="1.0" encoding="UTF-8"?><response><success>false</success><type>validation</type><message>Message validation failed</message><errors><message>Message is required</message></errors><correlation_id>',
             $response->getBody(),
         );
+        $this->assertStringContainsString($response->getHeaderLine('X-Correlation-ID'), $response->getBody());
     }
 
     public function testBrowserAcceptHeaderReturnsToTheFormWithValidationErrors(): void

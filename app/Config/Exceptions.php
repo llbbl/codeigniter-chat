@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Libraries\AppExceptionHandler;
 use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\Debug\ExceptionHandler;
 use CodeIgniter\Debug\ExceptionHandlerInterface;
@@ -22,7 +23,8 @@ class Exceptions extends BaseConfig
      *
      * Default: true
      */
-    public bool $log = true;
+    // AppExceptionHandler logs uncaught exceptions with the response correlation ID.
+    public bool $log = false;
 
     /**
      * --------------------------------------------------------------------------
@@ -101,6 +103,10 @@ class Exceptions extends BaseConfig
      */
     public function handler(int $statusCode, Throwable $exception): ExceptionHandlerInterface
     {
+        if (! is_cli()) {
+            return new AppExceptionHandler(service('errorHandler'));
+        }
+
         return new ExceptionHandler($this);
     }
 }

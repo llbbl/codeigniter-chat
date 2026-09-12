@@ -112,7 +112,9 @@ final class RateLimitFilterTest extends CIUnitTestCase
         $response = $this->filter->before($request, ['auth']);
 
         $this->assertSame('application/json; charset=UTF-8', $response->getHeaderLine('Content-Type'));
-        $this->assertSame('rate_limit', json_decode($response->getBody(), true)['type']);
+        $payload = json_decode($response->getBody(), true);
+        $this->assertSame('rate_limit', $payload['error']['type']);
+        $this->assertSame($response->getHeaderLine('X-Correlation-ID'), $payload['error']['correlation_id']);
     }
 
     public function testXmlResponseMatchesRequestedFormat(): void

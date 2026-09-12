@@ -427,8 +427,8 @@ export default {
 
         const data = await response.json();
 
-        if (data && data.success === false) {
-          this.error = data.errors?.message || 'Failed to send message';
+        if (data && data.error) {
+          this.error = data.error.details?.message || data.error.message || 'Failed to send message';
         } else {
           // Add message to the beginning of the list
           this.messages.unshift({

@@ -39,6 +39,7 @@ class Filters extends BaseFilters
         'rateLimit'     => \App\Filters\RateLimitFilter::class,
         'securityHeaders' => \App\Filters\SecurityHeadersFilter::class,
         'validate'      => \App\Filters\ValidateInputFilter::class,
+        'requestId'     => \App\Filters\RequestIdFilter::class,
     ];
 
     /**
@@ -75,6 +76,7 @@ class Filters extends BaseFilters
      */
     public array $globals = [
         'before' => [
+            'requestId',
             // 'honeypot',
             'csrf' => ['except' => ['csp-report']],
             'rate',
