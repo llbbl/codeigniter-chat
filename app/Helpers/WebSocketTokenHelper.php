@@ -73,6 +73,7 @@ class WebSocketTokenHelper
      * associates it with the user, and stores it for later validation.
      *
      * @param int $userId The ID of the user to generate a token for
+     *
      * @return string The generated token
      *
      * @example
@@ -102,7 +103,7 @@ class WebSocketTokenHelper
         $tokens[$token] = [
             'user_id'    => $userId,           // Which user owns this token
             'created_at' => time(),            // When the token was created (Unix timestamp)
-            'expires_at' => time() + self::$tokenExpiry  // When the token expires
+            'expires_at' => time() + self::$tokenExpiry,  // When the token expires
         ];
 
         // Save tokens back to storage
@@ -120,8 +121,9 @@ class WebSocketTokenHelper
      * 2. It belongs to the claimed user
      * 3. It hasn't expired
      *
-     * @param string $token The token to validate
-     * @param int $userId The user ID claiming to own this token
+     * @param string $token  The token to validate
+     * @param int    $userId The user ID claiming to own this token
+     *
      * @return bool True if the token is valid, false otherwise
      *
      * @example
@@ -172,6 +174,7 @@ class WebSocketTokenHelper
      * Call this when a user logs out to invalidate their WebSocket token.
      *
      * @param string $token The token to revoke
+     *
      * @return void
      *
      * @example
@@ -198,6 +201,7 @@ class WebSocketTokenHelper
      * or when changing passwords/security settings.
      *
      * @param int $userId The user ID whose tokens should be revoked
+     *
      * @return void
      */
     public static function revokeUserTokens(int $userId): void
@@ -249,6 +253,7 @@ class WebSocketTokenHelper
      * before doing full validation.
      *
      * @param string $token The token to look up
+     *
      * @return int|null The user ID, or null if token doesn't exist
      */
     public static function getUserIdFromToken(string $token): ?int
@@ -286,6 +291,7 @@ class WebSocketTokenHelper
      * Save tokens to the storage file
      *
      * @param array $tokens The tokens array to save
+     *
      * @return void
      */
     private static function saveTokens(array $tokens): void
@@ -293,7 +299,7 @@ class WebSocketTokenHelper
         // Ensure the writable directory exists
         $directory = dirname(self::$tokenFile);
         if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+            mkdir($directory, 0o755, true);
         }
 
         // Save as formatted JSON for easier debugging

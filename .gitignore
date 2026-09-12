@@ -141,6 +141,7 @@ _modules/*
 .vscode/
 
 # Custom project files
+_/
 .junie
 .claude
 CLAUDE.md

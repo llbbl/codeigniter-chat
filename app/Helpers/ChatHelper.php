@@ -6,15 +6,16 @@ use Config\Services;
 
 /**
  * Chat Helper
- * 
+ *
  * Contains utility functions for chat operations
  */
 class ChatHelper
 {
     /**
      * Validate message data
-     * 
+     *
      * @param array $data Data to validate
+     *
      * @return array|bool Validation errors or true if valid
      */
     public static function validateMessage(array $data): array|bool
@@ -25,9 +26,9 @@ class ChatHelper
                 'errors' => [
                     'required' => 'Message is required',
                     'min_length' => 'Message must be at least 1 character long',
-                    'max_length' => 'Message cannot exceed 500 characters'
-                ]
-            ]
+                    'max_length' => 'Message cannot exceed 500 characters',
+                ],
+            ],
         ];
 
         $validation = Services::validation();
@@ -42,9 +43,10 @@ class ChatHelper
 
     /**
      * Format messages as XML
-     * 
-     * @param array $messages Array of message data
+     *
+     * @param array      $messages   Array of message data
      * @param array|null $pagination Pagination data
+     *
      * @return string XML formatted string
      */
     public static function formatAsXml(array $messages, ?array $pagination = null): string
@@ -84,16 +86,17 @@ class ChatHelper
             }
             $output .= "\t</messages>\n";
         }
-        $output .= "</response>";
+        $output .= '</response>';
 
         return $output;
     }
 
     /**
      * Format messages as JSON
-     * 
-     * @param array $messages Array of message data
+     *
+     * @param array      $messages   Array of message data
      * @param array|null $pagination Pagination data
+     *
      * @return array JSON-ready array
      */
     public static function formatAsJson(array $messages, ?array $pagination = null): array
@@ -102,7 +105,7 @@ class ChatHelper
         $result = [
             'messages' => $messages,
             'status' => (count($messages) == 0) ? 2 : 1,
-            'time' => time()
+            'time' => time(),
         ];
 
         // Add pagination data if available

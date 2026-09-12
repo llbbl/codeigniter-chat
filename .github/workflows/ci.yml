@@ -42,6 +42,9 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Check PHP coding style
+        run: composer cs-check
+
       - name: Run PHPUnit tests
         run: composer test
 

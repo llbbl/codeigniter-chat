@@ -7,11 +7,11 @@ use Config\Services;
 
 /**
  * Chat Model
- * 
+ *
  * This model handles all database operations related to chat messages.
  * It provides methods for retrieving, inserting, and filtering messages,
  * with support for caching and pagination to improve performance.
- * 
+ *
  * @package App\Models
  */
 class ChatModel extends Model
@@ -22,23 +22,24 @@ class ChatModel extends Model
 
     /**
      * Cache key for messages
-     * 
+     *
      * @var string
      */
     protected string $cacheKey = 'chat_messages';
 
     /**
      * Cache TTL in seconds
-     * 
+     *
      * @var int
      */
     protected int $cacheTTL = 300; // 5 minutes
 
     /**
      * Get messages from the database with caching and pagination
-     * 
-     * @param int $page Page number (1-based)
+     *
+     * @param int $page    Page number (1-based)
      * @param int $perPage Number of messages per page
+     *
      * @return array
      */
     public function getMsgPaginated(int $page = 1, int $perPage = 10): array
@@ -82,8 +83,8 @@ class ChatModel extends Model
                     'totalItems' => $totalCount,
                     'totalPages' => $totalPages,
                     'hasNext' => $page < $totalPages,
-                    'hasPrev' => $page > 1
-                ]
+                    'hasPrev' => $page > 1,
+                ],
             ];
 
             // Store in the cache
@@ -101,8 +102,9 @@ class ChatModel extends Model
 
     /**
      * Get messages from the database with caching
-     * 
+     *
      * @param int $limit Number of messages to retrieve
+     *
      * @return array
      */
     public function getMsg(int $limit = 10): array
@@ -116,16 +118,16 @@ class ChatModel extends Model
 
     /**
      * Insert a new message into the database and invalidate the cache
-     * 
+     *
      * This method inserts a new chat message into the database with the given
      * username, message text, and timestamp. If the insertion is successful,
      * it invalidates all related cache entries to ensure that later requests
      * will receive the updated data.
-     * 
-     * @param string $name     The username of the message author
-     * @param string $message  The message text content
-     * @param int    $current  The Unix timestamp when the message was created
-     * 
+     *
+     * @param string $name    The username of the message author
+     * @param string $message The message text content
+     * @param int    $current The Unix timestamp when the message was created
+     *
      * @return int|bool The insert ID if the insert was successful, or false on failure
      */
     public function insertMsg(string $name, string $message, int $current): int|bool
@@ -133,7 +135,7 @@ class ChatModel extends Model
         $result = $this->insert([
             'user' => $name,
             'msg' => $message,
-            'time' => $current
+            'time' => $current,
         ]);
 
         // If insert was successful, invalidate the cache
@@ -146,31 +148,12 @@ class ChatModel extends Model
     }
 
     /**
-     * Invalidate all message caches
-     * 
-     * This method clears all cached chat messages by deleting cache entries
-     * that match the base cache key pattern. It's called after a new message
-     * is inserted to ensure that later requests will fetch fresh data
-     * from the database instead of using outdated cached data.
-     * 
-     * @return void
-     */
-    protected function invalidateCache(): void
-    {
-        $cache = Services::cache();
-
-        // Delete all cache keys that start with the base cache key
-        // This is a simple approach; for more complex scenarios, 
-        // you might want to track and delete specific keys
-        $cache->deleteMatching($this->cacheKey . '_*');
-    }
-
-    /**
      * Get messages by user with caching and pagination
-     * 
+     *
      * @param string $username Username to filter by
-     * @param int $page Page number (1-based)
-     * @param int $perPage Number of messages per page
+     * @param int    $page     Page number (1-based)
+     * @param int    $perPage  Number of messages per page
+     *
      * @return array
      */
     public function getMsgByUserPaginated(string $username, int $page = 1, int $perPage = 10): array
@@ -214,8 +197,8 @@ class ChatModel extends Model
                     'totalItems' => $totalCount,
                     'totalPages' => $totalPages,
                     'hasNext' => $page < $totalPages,
-                    'hasPrev' => $page > 1
-                ]
+                    'hasPrev' => $page > 1,
+                ],
             ];
 
             // Store in the cache
@@ -233,9 +216,10 @@ class ChatModel extends Model
 
     /**
      * Get messages by user with caching
-     * 
+     *
      * @param string $username Username to filter by
-     * @param int $limit Number of messages to retrieve
+     * @param int    $limit    Number of messages to retrieve
+     *
      * @return array
      */
     public function getMsgByUser(string $username, int $limit = 10): array
@@ -249,11 +233,12 @@ class ChatModel extends Model
 
     /**
      * Get messages by time range with caching and pagination
-     * 
+     *
      * @param int $startTime Start timestamp
-     * @param int $endTime End timestamp
-     * @param int $page Page number (1-based)
-     * @param int $perPage Number of messages per page
+     * @param int $endTime   End timestamp
+     * @param int $page      Page number (1-based)
+     * @param int $perPage   Number of messages per page
+     *
      * @return array
      */
     public function getMsgByTimeRangePaginated(int $startTime, int $endTime, int $page = 1, int $perPage = 10): array
@@ -300,8 +285,8 @@ class ChatModel extends Model
                     'totalItems' => $totalCount,
                     'totalPages' => $totalPages,
                     'hasNext' => $page < $totalPages,
-                    'hasPrev' => $page > 1
-                ]
+                    'hasPrev' => $page > 1,
+                ],
             ];
 
             // Store in the cache
@@ -319,10 +304,11 @@ class ChatModel extends Model
 
     /**
      * Get messages by time range with caching
-     * 
+     *
      * @param int $startTime Start timestamp
-     * @param int $endTime End timestamp
-     * @param int $limit Number of messages to retrieve
+     * @param int $endTime   End timestamp
+     * @param int $limit     Number of messages to retrieve
+     *
      * @return array
      */
     public function getMsgByTimeRange(int $startTime, int $endTime, int $limit = 10): array
@@ -332,5 +318,25 @@ class ChatModel extends Model
 
         // Return just the messages for backward compatibility
         return $result['messages'];
+    }
+
+    /**
+     * Invalidate all message caches
+     *
+     * This method clears all cached chat messages by deleting cache entries
+     * that match the base cache key pattern. It's called after a new message
+     * is inserted to ensure that later requests will fetch fresh data
+     * from the database instead of using outdated cached data.
+     *
+     * @return void
+     */
+    protected function invalidateCache(): void
+    {
+        $cache = Services::cache();
+
+        // Delete all cache keys that start with the base cache key
+        // This is a simple approach; for more complex scenarios,
+        // you might want to track and delete specific keys
+        $cache->deleteMatching($this->cacheKey . '_*');
     }
 }

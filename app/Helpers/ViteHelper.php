@@ -4,35 +4,35 @@ namespace App\Helpers;
 
 /**
  * ViteHelper
- * 
+ *
  * Helper class for loading assets built with Vite
  */
 class ViteHelper
 {
     /**
      * The Vite manifest file path
-     * 
+     *
      * @var string
      */
     private static string $manifestPath = ROOTPATH . 'public/dist/manifest.json';
 
     /**
      * The Vite manifest data
-     * 
+     *
      * @var array|null
      */
     private static ?array $manifest = null;
 
     /**
      * The Vite development server URL
-     * 
+     *
      * @var string
      */
     private static string $devServerUrl = 'http://localhost:5173';
 
     /**
      * Check if we're in development mode
-     * 
+     *
      * @return bool
      */
     public static function isDev(): bool
@@ -42,7 +42,7 @@ class ViteHelper
 
     /**
      * Get the Vite manifest
-     * 
+     *
      * @return array
      */
     public static function getManifest(): array
@@ -60,8 +60,9 @@ class ViteHelper
 
     /**
      * Get the asset URL
-     * 
+     *
      * @param string $path The asset path
+     *
      * @return string The asset URL
      */
     public static function asset(string $path): string
@@ -73,7 +74,7 @@ class ViteHelper
 
         // In production mode, use the manifest to get the correct file
         $manifest = self::getManifest();
-        
+
         if (isset($manifest[$path])) {
             return base_url('dist/' . $manifest[$path]['file']);
         }
@@ -84,8 +85,9 @@ class ViteHelper
 
     /**
      * Get the CSS tags for a JavaScript entry
-     * 
+     *
      * @param string $entry The JavaScript entry path
+     *
      * @return string The CSS tags
      */
     public static function cssTag(string $entry): string
@@ -96,13 +98,13 @@ class ViteHelper
         }
 
         $manifest = self::getManifest();
-        
+
         if (!isset($manifest[$entry])) {
             return '';
         }
 
         $tags = '';
-        
+
         // Check if the entry has CSS imports
         if (isset($manifest[$entry]['css']) && is_array($manifest[$entry]['css'])) {
             foreach ($manifest[$entry]['css'] as $css) {
@@ -115,21 +117,23 @@ class ViteHelper
 
     /**
      * Get the JavaScript tag for an entry
-     * 
+     *
      * @param string $entry The JavaScript entry path
+     *
      * @return string The JavaScript tag
      */
     public static function jsTag(string $entry): string
     {
         $url = self::asset($entry);
-        
+
         return '<script type="module" src="' . $url . '"></script>';
     }
 
     /**
      * Get both CSS and JavaScript tags for an entry
-     * 
+     *
      * @param string $entry The JavaScript entry path
+     *
      * @return string The tags
      */
     public static function tags(string $entry): string
