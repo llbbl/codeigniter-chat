@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\ChatRepository;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use App\Models\ChatModel;
 use Config\Services;
 use PHPUnit\Framework\MockObject\Stub;
+use Tests\Support\UsesApplication;
 
 /**
  * Chat Controller Feature Tests
@@ -19,6 +20,7 @@ use PHPUnit\Framework\MockObject\Stub;
 final class ChatTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
+    use UsesApplication;
 
     private Stub $mockChatModel;
     private array $sampleMessages;
@@ -30,7 +32,7 @@ final class ChatTest extends CIUnitTestCase
         Services::resetSingle('response');
 
         // Create a mock for the ChatModel
-        $this->mockChatModel = $this->createStub(ChatModel::class);
+        $this->mockChatModel = $this->createStub(ChatRepository::class);
 
         // Sample data for testing
         $this->sampleMessages = [
@@ -65,7 +67,7 @@ final class ChatTest extends CIUnitTestCase
             ]);
 
         // Replace the service with our mock
-        Services::injectMock('chatModel', $this->mockChatModel);
+        Services::injectMock('chatRepository', $this->mockChatModel);
     }
 
     public function testIndexReturnsView(): void
@@ -262,7 +264,7 @@ final class ChatTest extends CIUnitTestCase
 
     protected function tearDown(): void
     {
-        Services::resetSingle('chatModel');
+        Services::resetSingle('chatRepository');
         Services::resetSingle('response');
         Services::resetSingle('security');
         parent::tearDown();

@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\ChatModel;
 use CodeIgniter\Cache\CacheInterface;
-use CodeIgniter\Config\Services;
 use CodeIgniter\Test\CIUnitTestCase;
 use PHPUnit\Framework\MockObject\Stub;
 
@@ -43,16 +42,6 @@ final class ChatModelPaginationTest extends CIUnitTestCase
 
         // Create a mock for the cache service
         $this->cacheMock = $this->createStub(CacheInterface::class);
-        Services::injectMock('cache', $this->cacheMock);
-    }
-
-    /**
-     * Clean up after each test
-     */
-    protected function tearDown(): void
-    {
-        Services::resetSingle('cache');
-        parent::tearDown();
     }
 
     // =========================================================================
@@ -86,7 +75,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ];
             });
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Request page 2
         $chatModel->getMsgPaginated(2, 10);
@@ -124,7 +113,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ];
             });
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Request with 25 items per page
         $chatModel->getMsgPaginated(1, 25);
@@ -162,7 +151,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ];
             });
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Request multiple pages
         $chatModel->getMsgPaginated(1, 10);
@@ -203,7 +192,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ];
             });
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Request same page twice
         $chatModel->getMsgPaginated(1, 10);
@@ -246,7 +235,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
         $this->cacheMock->method('get')
             ->willReturn($cachedData);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Get paginated messages
         $result = $chatModel->getMsgPaginated(1, 10);
@@ -279,7 +268,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Get paginated messages
         $result = $chatModel->getMsgPaginated(1, 10);
@@ -324,7 +313,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(1, 10);
@@ -361,7 +350,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(3, 10);
@@ -398,7 +387,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(2, 10);
@@ -429,7 +418,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(1, 10);
@@ -465,7 +454,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(1, 10);
@@ -498,7 +487,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act
         $result = $chatModel->getMsgPaginated(1, 100);
@@ -539,7 +528,7 @@ final class ChatModelPaginationTest extends CIUnitTestCase
                 ]
             ]);
 
-        $chatModel = new ChatModel();
+        $chatModel = new ChatModel(cache: $this->cacheMock);
 
         // Act: Call getMsg (backward compatibility method)
         $result = $chatModel->getMsg(10);

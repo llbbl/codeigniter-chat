@@ -2,67 +2,131 @@
 
 namespace Config;
 
+use App\Contracts\AuditLogger as AuditLoggerContract;
+use App\Contracts\AuditLogRepository;
+use App\Contracts\ChatFormatter as ChatFormatterContract;
+use App\Contracts\ChatRepository;
+use App\Contracts\CspReportRepository;
+use App\Contracts\UserRepository;
+use App\Controllers\AuditLog;
+use App\Controllers\Auth;
+use App\Controllers\Chat;
+use App\Controllers\CspReport;
+use App\Controllers\Home;
+use App\Core\Application;
 use App\Libraries\ErrorHandler;
 use App\Models\AuditLogModel;
 use App\Models\ChatModel;
+use App\Models\CspReportModel;
 use App\Models\UserModel;
 use App\Services\AuditLogger;
+use App\Services\ChatFormatter;
 use App\Services\CorrelationId;
+use App\Services\NullAuditLogger;
+use CodeIgniter\CodeIgniter;
 use CodeIgniter\Config\BaseService;
+use CodeIgniter\Controller;
 
 /**
- * Services Configuration file.
+ * Application composition root.
  *
- * Services are simply other classes/libraries that the system uses
- * to do its job. This is used by CodeIgniter to allow the core of the
- * framework to be swapped out easily without affecting the usage within
- * the rest of your application.
+ * Dependency injection keeps construction here and behavior in consumers:
  *
- * This file holds any application-specific services, or service overrides
- * that you might need. An example has been included with the general
- * method format you should use for your service methods. For more examples,
- * see the core Services file at system/Config/Services.php.
+ * 1. Consumers require contracts in their constructors.
+ * 2. Service methods bind those contracts to concrete implementations.
+ * 3. Application::createController() asks this class to assemble controllers.
+ * 4. Tests pass interface stubs directly or inject a repository service when
+ *    exercising the complete HTTP pipeline.
  *
- * ============================================================================
- * DEPENDENCY INJECTION PATTERN EXPLANATION (for beginners)
- * ============================================================================
- *
- * What is Dependency Injection (DI)?
- * ----------------------------------
- * Dependency Injection is a design pattern where objects receive their
- * dependencies from external sources rather than creating them internally.
- *
- * Why use DI?
- * -----------
- * 1. TESTABILITY: You can easily swap real dependencies with mock objects
- *    during testing. For example, inject a mock ChatModel that doesn't
- *    actually hit the database.
- *
- * 2. LOOSE COUPLING: Controllers don't need to know HOW to create a model,
- *    they just receive one. This makes code more modular and flexible.
- *
- * 3. SINGLE RESPONSIBILITY: The controller's job is to handle requests,
- *    not to manage model creation.
- *
- * 4. CENTRALIZED CONFIGURATION: All dependency creation happens here in
- *    Services.php, making it easy to change implementations application-wide.
- *
- * How it works in CodeIgniter 4:
- * ------------------------------
- * 1. Define a service method here (e.g., chatModel())
- * 2. Use service('chatModel') anywhere in your app to get an instance
- * 3. The $getShared parameter controls singleton behavior:
- *    - true (default): Returns the same instance each time (singleton pattern)
- *    - false: Creates a new instance each time
- *
- * Example usage in a controller:
- *   // In constructor or initController
- *   $this->chatModel = service('chatModel');
- *
- * ============================================================================
+ * `$getShared` controls lifetime. Shared repositories are reused during one
+ * request; passing false creates a fresh implementation. Environment-specific
+ * bindings belong here too: tests receive NullAuditLogger, while other
+ * environments receive the database-backed AuditLogger.
  */
 class Services extends BaseService
 {
+    public static function codeigniter(?App $config = null, bool $getShared = true): CodeIgniter
+    {
+        if ($getShared) {
+            return static::getSharedInstance('codeigniter', $config);
+        }
+
+        return new Application($config ?? config(App::class));
+    }
+
+    /** @param class-string<Controller> $controllerClass */
+    public static function controller(string $controllerClass): Controller
+    {
+        $controllerClass = ltrim($controllerClass, '\\');
+
+        return match ($controllerClass) {
+            Home::class => new Home(),
+            Chat::class => new Chat(static::chatRepository(), static::chatFormatter()),
+            Auth::class => new Auth(static::userRepository(), static::auditLogger()),
+            CspReport::class => new CspReport(static::cspReportRepository()),
+            AuditLog::class => new AuditLog(static::auditLogRepository()),
+            default => throw new \InvalidArgumentException('Controller is not registered: ' . $controllerClass),
+        };
+    }
+
+    public static function chatRepository(bool $getShared = true): ChatRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('chatRepository');
+        }
+
+        return new ChatModel();
+    }
+
+    public static function userRepository(bool $getShared = true): UserRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('userRepository');
+        }
+
+        return new UserModel();
+    }
+
+    public static function chatFormatter(bool $getShared = true): ChatFormatterContract
+    {
+        if ($getShared) {
+            return static::getSharedInstance('chatFormatter');
+        }
+
+        return new ChatFormatter();
+    }
+
+    public static function cspReportRepository(bool $getShared = true): CspReportRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('cspReportRepository');
+        }
+
+        return new CspReportModel();
+    }
+
+    public static function auditLogRepository(bool $getShared = true): AuditLogRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('auditLogRepository');
+        }
+
+        return new AuditLogModel();
+    }
+
+    public static function auditLogger(bool $getShared = true): AuditLoggerContract
+    {
+        if ($getShared) {
+            return static::getSharedInstance('auditLogger');
+        }
+
+        if (ENVIRONMENT === 'testing') {
+            return new NullAuditLogger();
+        }
+
+        return new AuditLogger(new AuditLogModel(), service('request'));
+    }
+
     public static function correlationId(bool $getShared = true): CorrelationId
     {
         if ($getShared) {
@@ -79,74 +143,5 @@ class Services extends BaseService
         }
 
         return new ErrorHandler(service('request'), service('response'), service('correlationId'));
-    }
-
-    public static function auditLogger(bool $getShared = true): AuditLogger
-    {
-        if ($getShared) {
-            return static::getSharedInstance('auditLogger');
-        }
-        return new AuditLogger(new AuditLogModel(), service('request'));
-    }
-
-    /**
-     * Returns the ChatModel service.
-     *
-     * This service provides access to the ChatModel for handling chat messages.
-     * By default, it returns a shared (singleton) instance, which is efficient
-     * because the same model instance can be reused across multiple requests
-     * within the same process.
-     *
-     * Usage:
-     *   $chatModel = service('chatModel');
-     *   // or
-     *   $chatModel = \Config\Services::chatModel();
-     *
-     * Why use this instead of `new ChatModel()`?
-     * - Consistent instance management across your application
-     * - Easy to swap with a mock during testing
-     * - Centralized configuration for the model
-     *
-     * @param bool $getShared Whether to return a shared instance (singleton).
-     *                        Set to false if you need a fresh instance.
-     *
-     * @return ChatModel The ChatModel instance
-     */
-    public static function chatModel(bool $getShared = true): ChatModel
-    {
-        // If requesting a shared instance, check if one already exists and return it
-        // This implements the singleton pattern - only one instance is created
-        if ($getShared) {
-            return static::getSharedInstance('chatModel');
-        }
-
-        // Create and return a new instance
-        // This is called when $getShared is false, or when creating the first shared instance
-        return new ChatModel();
-    }
-
-    /**
-     * Returns the UserModel service.
-     *
-     * This service provides access to the UserModel for handling user data
-     * and authentication. By default, it returns a shared (singleton) instance.
-     *
-     * Usage:
-     *   $userModel = service('userModel');
-     *   // or
-     *   $userModel = \Config\Services::userModel();
-     *
-     * @param bool $getShared Whether to return a shared instance (singleton).
-     *                        Set to false if you need a fresh instance.
-     *
-     * @return UserModel The UserModel instance
-     */
-    public static function userModel(bool $getShared = true): UserModel
-    {
-        if ($getShared) {
-            return static::getSharedInstance('userModel');
-        }
-
-        return new UserModel();
     }
 }

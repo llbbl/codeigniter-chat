@@ -2,7 +2,11 @@
 
 namespace App\Models;
 
+use App\Contracts\ChatRepository;
+use CodeIgniter\Cache\CacheInterface;
+use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Model;
+use CodeIgniter\Validation\ValidationInterface;
 use Config\Services;
 
 /**
@@ -14,7 +18,7 @@ use Config\Services;
  *
  * @package App\Models
  */
-class ChatModel extends Model
+class ChatModel extends Model implements ChatRepository
 {
     protected $table = 'messages';
     protected $primaryKey = 'id';
@@ -33,6 +37,17 @@ class ChatModel extends Model
      * @var int
      */
     protected int $cacheTTL = 300; // 5 minutes
+
+    private readonly CacheInterface $cache;
+
+    public function __construct(
+        ?ConnectionInterface $db = null,
+        ?ValidationInterface $validation = null,
+        ?CacheInterface $cache = null,
+    ) {
+        parent::__construct($db, $validation);
+        $this->cache = $cache ?? Services::cache();
+    }
 
     /**
      * Get messages from the database with caching and pagination
@@ -54,7 +69,7 @@ class ChatModel extends Model
         $cacheKey = $this->cacheKey . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
-        $cache = Services::cache();
+        $cache = $this->cache;
 
         // Try to get data from the cache first
         $result = $cache->get($cacheKey);
@@ -168,7 +183,7 @@ class ChatModel extends Model
         $cacheKey = $this->cacheKey . '_user_' . md5($username) . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
-        $cache = Services::cache();
+        $cache = $this->cache;
 
         // Try to get data from the cache first
         $result = $cache->get($cacheKey);
@@ -253,7 +268,7 @@ class ChatModel extends Model
         $cacheKey = $this->cacheKey . '_time_' . $startTime . '_' . $endTime . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
-        $cache = Services::cache();
+        $cache = $this->cache;
 
         // Try to get data from the cache first
         $result = $cache->get($cacheKey);
@@ -332,7 +347,7 @@ class ChatModel extends Model
      */
     protected function invalidateCache(): void
     {
-        $cache = Services::cache();
+        $cache = $this->cache;
 
         // Delete all cache keys that start with the base cache key
         // This is a simple approach; for more complex scenarios,

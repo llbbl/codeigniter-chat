@@ -2,9 +2,9 @@
 
 namespace App\Controllers;
 
-use App\Helpers\ChatHelper;
+use App\Contracts\ChatFormatter;
+use App\Contracts\ChatRepository;
 use App\Libraries\WebSocketClient;
-use App\Models\ChatModel;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
 
@@ -18,85 +18,33 @@ use CodeIgniter\I18n\Time;
  * DEPENDENCY INJECTION IN THIS CONTROLLER (for beginners)
  * ============================================================================
  *
- * This controller demonstrates the Dependency Injection (DI) pattern.
- * Instead of creating its own ChatModel instance with `new ChatModel()`,
- * it receives the model through its constructor.
- *
- * BEFORE (tight coupling - harder to test):
- *   public function initController(...) {
- *       $this->chatModel = new ChatModel();  // Controller creates its own dependency
- *   }
- *
- * AFTER (loose coupling - easy to test):
- *   public function __construct(?ChatModel $chatModel = null) {
- *       $this->chatModel = $chatModel ?? service('chatModel');
- *   }
- *
- * Benefits:
- * ---------
- * 1. TESTABILITY: In unit tests, you can pass a mock ChatModel to test
- *    controller logic without hitting the database.
- *
- * 2. FLEXIBILITY: You can easily swap implementations. For example,
- *    inject a CachedChatModel instead of ChatModel without changing
- *    the controller code.
- *
- * 3. EXPLICIT DEPENDENCIES: The constructor clearly shows what this
- *    controller needs to function.
- *
- * 4. SEPARATION OF CONCERNS: The controller focuses on handling HTTP
- *    requests, not on managing how models are created.
- *
- * How the DI works here:
- * ----------------------
- * - The constructor accepts an optional ChatModel parameter
- * - If no model is passed (normal HTTP requests), it uses service('chatModel')
- *   to get one from the Services container
- * - In tests, you can pass a mock: new Chat($mockChatModel)
+ * This controller depends on the ChatRepository contract rather than a concrete
+ * model. Config\Services constructs it for HTTP requests, while tests can pass a
+ * small interface stub directly.
  *
  * ============================================================================
  */
 class Chat extends BaseController
 {
     /**
-     * Chat model instance for database operations.
+     * Chat repository for message persistence and retrieval.
      *
-     * This property holds the ChatModel that handles all chat message
-     * database operations. It's injected via the constructor, allowing
-     * for easy testing and flexible configuration.
+     * The controller only knows this contract; Config\Services selects the
+     * concrete model used by the application.
      *
-     * @var ChatModel
+     * @var ChatRepository
      */
-    protected ChatModel $chatModel;
+    protected ChatRepository $chatRepository;
 
     /**
      * Constructor - receives dependencies via injection.
      *
-     * This constructor implements the Dependency Injection pattern. Instead of
-     * creating its own ChatModel internally, it receives one as a parameter.
-     * This makes the controller more testable and follows the SOLID principles
-     * (specifically, Dependency Inversion Principle).
-     *
-     * The parameter is nullable with a default of null, which allows:
-     * 1. Normal usage: CodeIgniter instantiates the controller without arguments,
-     *    and we fetch the model from the Services container.
-     * 2. Testing: Test code can pass a mock model directly.
-     *
-     * Example usage in tests:
-     *   $mockModel = $this->createMock(ChatModel::class);
-     *   $mockModel->method('getMsgPaginated')->willReturn(['messages' => [], 'pagination' => []]);
-     *   $controller = new Chat($mockModel);
-     *
-     * @param ChatModel|null $chatModel The chat model instance. If null, the service
-     *                                  container will provide one. Pass a mock here for testing.
+     * Config\Services is the composition root, so the controller never reaches
+     * back into the service locator to obtain its own repository.
      */
-    public function __construct(?ChatModel $chatModel = null)
+    public function __construct(ChatRepository $chatRepository, private readonly ChatFormatter $chatFormatter)
     {
-        // If no model was injected (normal HTTP request), get one from the service container.
-        // The service() helper retrieves a shared instance from Config\Services.
-        // This is the "poor man's DI" approach - it provides DI benefits while
-        // remaining compatible with CodeIgniter's controller instantiation.
-        $this->chatModel = $chatModel ?? service('chatModel');
+        $this->chatRepository = $chatRepository;
     }
 
     /**
@@ -150,7 +98,7 @@ class Chat extends BaseController
 
             // Insert message and handle potential database errors
             try {
-                $messageId = $this->chatModel->insertMsg($name, $message, $current->getTimestamp());
+                $messageId = $this->chatRepository->insertMsg($name, $message, $current->getTimestamp());
             } catch (\Exception $e) {
                 return $this->handleDatabaseError('Failed to save message', [
                     'error' => $e->getMessage(),
@@ -212,10 +160,10 @@ class Chat extends BaseController
         $perPage = $this->request->getGet('per_page') ?? 10;
 
         // Get the data with pagination
-        $result = $this->chatModel->getMsgPaginated($page, $perPage);
+        $result = $this->chatRepository->getMsgPaginated($page, $perPage);
 
         // Format messages as XML using ChatHelper
-        $output = ChatHelper::formatAsXml($result['messages'], $result['pagination']);
+        $output = $this->chatFormatter->asXml($result['messages'], $result['pagination']);
 
         return $this->respondWithXml($output);
     }
@@ -251,10 +199,10 @@ class Chat extends BaseController
         $perPage = $this->request->getGet('per_page') ?? 10;
 
         // Get the data with pagination
-        $result = $this->chatModel->getMsgPaginated($page, $perPage);
+        $result = $this->chatRepository->getMsgPaginated($page, $perPage);
 
         // Format messages as JSON using ChatHelper
-        $data = ChatHelper::formatAsJson($result['messages'], $result['pagination']);
+        $data = $this->chatFormatter->asJson($result['messages'], $result['pagination']);
 
         // Return JSON response
         return $this->respondWithJson($data);
@@ -296,7 +244,7 @@ class Chat extends BaseController
         $perPage = $this->request->getGet('per_page') ?? 10;
 
         // Get the data with pagination
-        $result = $this->chatModel->getMsgPaginated($page, $perPage);
+        $result = $this->chatRepository->getMsgPaginated($page, $perPage);
 
         $data = [
             'query' => $result['messages'],

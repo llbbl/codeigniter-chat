@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Models\CspReportModel;
+use App\Contracts\CspReportRepository;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -10,7 +10,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  */
 class CspReport extends BaseController
 {
-    public function __construct(private readonly CspReportModel $reports = new CspReportModel())
+    public function __construct(private readonly CspReportRepository $reports)
     {
     }
     /**
@@ -27,7 +27,7 @@ class CspReport extends BaseController
         }
 
         foreach ($reports as $report) {
-            $this->reports->insert($report);
+            $this->reports->saveReport($report);
             $this->logMessage('warning', 'CSP Violation: ' . json_encode($report));
         }
         $this->reports->pruneOlderThan(date('Y-m-d H:i:s', strtotime('-30 days')));
@@ -39,7 +39,7 @@ class CspReport extends BaseController
     public function admin(): string
     {
         return $this->respondWithView('admin/cspReports', [
-            'total' => $this->reports->countAllResults(),
+            'total' => $this->reports->countReports(),
             'breakdown' => $this->reports->directiveBreakdown(),
             'reports' => $this->reports->recent(),
         ]);
