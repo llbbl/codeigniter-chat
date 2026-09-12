@@ -57,5 +57,9 @@ class SecurityHeaders extends BaseConfig
      *
      * @var array{group: string, max_age: int, endpoints: list<array{url: string}>}|null
      */
-    public ?array $reportTo = null;
+    public ?array $reportTo = [
+        'group' => 'csp-endpoint',
+        'max_age' => 86400,
+        'endpoints' => [['url' => '/csp-report']],
+    ];
 }

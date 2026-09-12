@@ -30,6 +30,8 @@ class ContentSecurityPolicy extends BaseConfig
      */
     public ?string $reportURI = '/csp-report';
 
+    public ?string $reportTo = 'csp-endpoint';
+
     /**
      * Instructs user agents to rewrite URL schemes, changing
      * HTTP to HTTPS. This directive is for websites with
