@@ -81,21 +81,13 @@ class Auth extends BaseController
     public function processRegistration(): \CodeIgniter\HTTP\RedirectResponse
     {
         try {
-            // Get data for validation
+            // The route's validate:registration filter has already validated this input.
             $data = [
                 'username' => $this->request->getPost('username'),
                 'email' => $this->request->getPost('email'),
                 'password' => $this->request->getPost('password'),
                 'password_confirm' => $this->request->getPost('password_confirm'),
             ];
-
-            // Validate registration data using UserHelper
-            $validation = UserHelper::validateRegistration($data);
-
-            if ($validation !== true) {
-                // Use the error handler for validation errors
-                return $this->handleValidationError($validation, 'Registration validation failed');
-            }
 
             // Get sanitized inputs
             $sanitized = $this->sanitizeInput($data);
@@ -147,19 +139,11 @@ class Auth extends BaseController
     public function processLogin(): \CodeIgniter\HTTP\RedirectResponse
     {
         try {
-            // Get data for validation
+            // The route's validate:login filter has already validated this input.
             $data = [
                 'username' => $this->request->getPost('username'),
                 'password' => $this->request->getPost('password'),
             ];
-
-            // Validate login data using UserHelper
-            $validation = UserHelper::validateLogin($data);
-
-            if ($validation !== true) {
-                // Use the error handler for validation errors
-                return $this->handleValidationError($validation, 'Login validation failed');
-            }
 
             // Get inputs - username should be sanitized but password should not
             $username = $this->sanitizeInput(['username' => $data['username']])['username'];

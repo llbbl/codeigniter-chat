@@ -2,8 +2,6 @@
 
 namespace App\Helpers;
 
-use Config\Services;
-
 /**
  * Chat Helper
  *
@@ -11,36 +9,6 @@ use Config\Services;
  */
 class ChatHelper
 {
-    /**
-     * Validate message data
-     *
-     * @param array $data Data to validate
-     *
-     * @return array|bool Validation errors or true if valid
-     */
-    public static function validateMessage(array $data): array|bool
-    {
-        $rules = [
-            'message' => [
-                'rules' => 'required|min_length[1]|max_length[500]',
-                'errors' => [
-                    'required' => 'Message is required',
-                    'min_length' => 'Message must be at least 1 character long',
-                    'max_length' => 'Message cannot exceed 500 characters',
-                ],
-            ],
-        ];
-
-        $validation = Services::validation();
-        $validation->setRules($rules);
-
-        if (!$validation->run($data)) {
-            return $validation->getErrors();
-        }
-
-        return true;
-    }
-
     /**
      * Format messages as XML
      *
@@ -76,12 +44,12 @@ class ChatHelper
         if (count($messages) > 0) {
             $output .= "\t<messages>\n";
             foreach ($messages as $row) {
-                // Sanitize so XML is valid
-                $escmsg = htmlspecialchars(stripslashes($row['msg']));
+                $author = self::escapeForXml($row['user']);
+                $message = self::escapeForXml($row['msg']);
                 $output .= "\t\t<message>\n";
                 $output .= "\t\t\t<id>{$row['id']}</id>\n";
-                $output .= "\t\t\t<author>{$row['user']}</author>\n";
-                $output .= "\t\t\t<text>$escmsg</text>\n";
+                $output .= "\t\t\t<author>$author</author>\n";
+                $output .= "\t\t\t<text>$message</text>\n";
                 $output .= "\t\t</message>\n";
             }
             $output .= "\t</messages>\n";
@@ -103,7 +71,17 @@ class ChatHelper
     {
         // For JSON, we can structure the data with messages and pagination
         $result = [
-            'messages' => $messages,
+            'messages' => array_map(static function (array $message): array {
+                if (array_key_exists('user', $message)) {
+                    $message['user'] = self::escapeForJson($message['user']);
+                }
+
+                if (array_key_exists('msg', $message)) {
+                    $message['msg'] = self::escapeForJson($message['msg']);
+                }
+
+                return $message;
+            }, $messages),
             'status' => (count($messages) == 0) ? 2 : 1,
             'time' => time(),
         ];
@@ -115,5 +93,21 @@ class ChatHelper
 
         // CodeIgniter's response class will handle the conversion to JSON
         return $result;
+    }
+
+    /**
+     * Escape a user-controlled value before it is encoded in a JSON API response.
+     */
+    public static function escapeForJson(mixed $value): string
+    {
+        return esc((string) $value);
+    }
+
+    /**
+     * Escape a user-controlled value before it is inserted into XML.
+     */
+    public static function escapeForXml(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1, 'UTF-8');
     }
 }

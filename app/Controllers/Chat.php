@@ -130,18 +130,10 @@ class Chat extends BaseController
     public function update(): \CodeIgniter\HTTP\ResponseInterface
     {
         try {
-            // Get data for validation
+            // The route's validate:message filter has already validated this input.
             $data = [
                 'message' => $this->request->getPost('message'),
             ];
-
-            // Validate message using ChatHelper
-            $validation = ChatHelper::validateMessage($data);
-
-            if ($validation !== true) {
-                // Use the error handler for validation errors
-                return $this->handleValidationError($validation, 'Message validation failed');
-            }
 
             // Get username from session
             $name = $this->getCurrentUsername();

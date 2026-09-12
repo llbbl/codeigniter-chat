@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
 use App\Models\UserModel;
 use Config\Services;
@@ -15,7 +16,11 @@ use PHPUnit\Framework\MockObject\Stub;
  */
 final class AuthTest extends CIUnitTestCase
 {
+    use DatabaseTestTrait;
     use FeatureTestTrait;
+
+    /** @var string */
+    protected $namespace = 'App';
 
     private Stub $mockUserModel;
     private array $sampleUser;
