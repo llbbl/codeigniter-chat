@@ -89,7 +89,7 @@ abstract class BaseController extends Controller
         $this->session = service('session');
 
         // Initialize error handler
-        $this->errorHandler = new ErrorHandler();
+        $this->errorHandler = service('errorHandler');
 
         // Load helpers
         helper($this->helpers);

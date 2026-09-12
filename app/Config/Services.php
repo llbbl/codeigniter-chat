@@ -2,10 +2,12 @@
 
 namespace Config;
 
+use App\Libraries\ErrorHandler;
 use App\Models\AuditLogModel;
 use App\Models\ChatModel;
 use App\Models\UserModel;
 use App\Services\AuditLogger;
+use App\Services\CorrelationId;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -61,6 +63,24 @@ use CodeIgniter\Config\BaseService;
  */
 class Services extends BaseService
 {
+    public static function correlationId(bool $getShared = true): CorrelationId
+    {
+        if ($getShared) {
+            return static::getSharedInstance('correlationId');
+        }
+
+        return new CorrelationId(service('request'));
+    }
+
+    public static function errorHandler(bool $getShared = true): ErrorHandler
+    {
+        if ($getShared) {
+            return static::getSharedInstance('errorHandler');
+        }
+
+        return new ErrorHandler(service('request'), service('response'), service('correlationId'));
+    }
+
     public static function auditLogger(bool $getShared = true): AuditLogger
     {
         if ($getShared) {
@@ -68,6 +88,7 @@ class Services extends BaseService
         }
         return new AuditLogger(new AuditLogModel(), service('request'));
     }
+
     /**
      * Returns the ChatModel service.
      *

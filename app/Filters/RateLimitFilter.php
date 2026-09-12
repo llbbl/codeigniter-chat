@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Services\CorrelationId;
 use CodeIgniter\Cache\CacheInterface;
 use CodeIgniter\Config\Services;
 use CodeIgniter\Filters\FilterInterface;
@@ -114,18 +115,25 @@ class RateLimitFilter implements FilterInterface
         $format = $this->preferredFormat($request);
 
         if ($format === 'json') {
+            $correlationId = $this->correlationId($request);
+
             return $response->setJSON([
-                'success' => false,
-                'type' => 'rate_limit',
-                'message' => 'Too many requests. Please try again later.',
-                'retry_after' => $retryAfter,
-            ]);
+                'error' => [
+                    'type' => 'rate_limit',
+                    'message' => 'Too many requests. Please try again later.',
+                    'details' => ['retry_after' => $retryAfter],
+                    'correlation_id' => $correlationId,
+                ],
+            ])->setHeader(CorrelationId::HEADER_NAME, $correlationId);
         }
 
         if ($format === 'xml') {
+            $correlationId = $this->correlationId($request);
+
             return $response
+                ->setHeader(CorrelationId::HEADER_NAME, $correlationId)
                 ->setHeader('Content-Type', 'application/xml; charset=UTF-8')
-                ->setBody('<?xml version="1.0" encoding="UTF-8"?><response><success>false</success><type>rate_limit</type><message>Too many requests. Please try again later.</message><retry_after>' . $retryAfter . '</retry_after></response>');
+                ->setBody('<?xml version="1.0" encoding="UTF-8"?><response><success>false</success><type>rate_limit</type><message>Too many requests. Please try again later.</message><retry_after>' . $retryAfter . '</retry_after><correlation_id>' . $correlationId . '</correlation_id></response>');
         }
 
         return $response->setBody('Too many requests. Please try again later.');
@@ -151,5 +159,18 @@ class RateLimitFilter implements FilterInterface
             'application/xml', 'text/xml' => 'xml',
             default => 'text',
         };
+    }
+
+    private function correlationId(RequestInterface $request): string
+    {
+        $correlationId = $request->getHeaderLine(CorrelationId::HEADER_NAME);
+        if ($correlationId !== '') {
+            return $correlationId;
+        }
+
+        $correlationId = bin2hex(random_bytes(16));
+        $request->setHeader(CorrelationId::HEADER_NAME, $correlationId);
+
+        return $correlationId;
     }
 }

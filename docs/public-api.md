@@ -330,18 +330,35 @@ curl -sS -b cookies.txt -c cookies.txt \
 
 Most controllers use `App\Libraries\ErrorHandler` via `BaseController`.
 
-For AJAX requests or clients sending `Accept: application/json`, errors are returned as:
+Successful responses use the endpoint's documented payload. Helpers that return a
+standard success envelope use this shape:
 
 ```json
 {
-  "success": false,
-  "type": "validation|database|authentication|authorization|not_found|server",
-  "message": "Human-readable message",
-  "errors": { "field": "details" }
+  "status": 200,
+  "success": true,
+  "message": "Success",
+  "data": {}
 }
 ```
 
-For normal HTML form submissions, the app redirects back and sets flashdata instead.
+For AJAX requests or clients sending `Accept: application/json`, controller,
+filter, and uncaught-exception errors use one nested envelope:
+
+```json
+{
+  "error": {
+    "type": "validation|database|authentication|authorization|not_found|rate_limit|server",
+    "message": "Human-readable message",
+    "details": { "field": "details" },
+    "correlation_id": "8fbc0e2d79d745569abeb2f5335c1712"
+  }
+}
+```
+
+The same correlation ID is returned in the `X-Correlation-ID` header and included
+in the corresponding application log line. For normal HTML form submissions, the
+app redirects back and sets the message and correlation ID as flashdata instead.
 
 ---
 
@@ -549,4 +566,3 @@ Ratchet message component implementing:
 - `App\Helpers\UserHelper` (auth validation + session helpers)
 - `App\Helpers\ValidationHelper` (common validation rules)
 - `vite_*()` helper functions in `app/Helpers/vite_helper.php`
-

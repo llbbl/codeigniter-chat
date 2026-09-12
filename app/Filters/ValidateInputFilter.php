@@ -3,6 +3,8 @@
 namespace App\Filters;
 
 use App\Helpers\ChatHelper;
+use App\Libraries\ErrorHandler;
+use App\Services\CorrelationId;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
@@ -37,26 +39,34 @@ class ValidateInputFilter implements FilterInterface
         $errors = $validation->getErrors();
         $message = $this->validationMessage($ruleGroup);
 
-        log_message('warning', $message, ['errors' => $errors]);
-
         $format = $this->preferredFormat($request);
+        $correlationId = $this->correlationId($request);
+
+        log_message('warning', '[correlation_id: {correlation_id}] ' . $message, [
+            'correlation_id' => $correlationId,
+            'errors' => $errors,
+        ]);
 
         if ($format === 'json') {
             return service('response')
                 ->setStatusCode(400)
+                ->setHeader(CorrelationId::HEADER_NAME, $correlationId)
                 ->setJSON([
-                    'success' => false,
-                    'type' => 'validation',
-                    'message' => $message,
-                    'errors' => $errors,
+                    'error' => [
+                        'type' => ErrorHandler::ERROR_TYPE_VALIDATION,
+                        'message' => $message,
+                        'details' => $errors,
+                        'correlation_id' => $correlationId,
+                    ],
                 ]);
         }
 
         if ($format === 'xml') {
             return service('response')
                 ->setStatusCode(400)
+                ->setHeader(CorrelationId::HEADER_NAME, $correlationId)
                 ->setHeader('Content-Type', 'application/xml; charset=UTF-8')
-                ->setBody($this->xmlErrorResponse($message, $errors));
+                ->setBody($this->xmlErrorResponse($message, $errors, $correlationId));
         }
 
         session()->setFlashdata('error', $message);
@@ -105,10 +115,23 @@ class ValidateInputFilter implements FilterInterface
         };
     }
 
+    private function correlationId(RequestInterface $request): string
+    {
+        $correlationId = $request->getHeaderLine(CorrelationId::HEADER_NAME);
+        if ($correlationId !== '') {
+            return $correlationId;
+        }
+
+        $correlationId = bin2hex(random_bytes(16));
+        $request->setHeader(CorrelationId::HEADER_NAME, $correlationId);
+
+        return $correlationId;
+    }
+
     /**
      * @param array<string, string> $errors
      */
-    private function xmlErrorResponse(string $message, array $errors): string
+    private function xmlErrorResponse(string $message, array $errors, string $correlationId): string
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<response><success>false</success><type>validation</type>';
@@ -118,6 +141,6 @@ class ValidateInputFilter implements FilterInterface
             $xml .= '<' . ChatHelper::escapeForXml($field) . '>' . ChatHelper::escapeForXml($error) . '</' . ChatHelper::escapeForXml($field) . '>';
         }
 
-        return $xml . '</errors></response>';
+        return $xml . '</errors><correlation_id>' . $correlationId . '</correlation_id></response>';
     }
 }

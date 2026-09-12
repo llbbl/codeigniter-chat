@@ -331,27 +331,31 @@ function postMessage(name, message) {
         method: 'POST',
         headers: {
             // This header tells the server we're sending form data
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
         },
         body: formData.toString()
     })
-    .then(response => {
-        if (!response.ok) {
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok && !data.error) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        // The server returns JSON for the response
-        return response.json();
+        return data;
     })
     .then(data => {
         hideLoading();
 
-        if (data && data.success === false) {
+        if (data && data.error) {
             // Display server-side validation errors
-            if (data.errors && data.errors.name) {
-                showError('#name-error', data.errors.name, '#name');
+            if (data.error.details && data.error.details.name) {
+                showError('#name-error', data.error.details.name, '#name');
             }
-            if (data.errors && data.errors.message) {
-                showError('#content-error', data.errors.message, '#content');
+            if (data.error.details && data.error.details.message) {
+                showError('#content-error', data.error.details.message, '#content');
+            }
+            if (!data.error.details?.name && !data.error.details?.message) {
+                alert(`${data.error.message} (reference: ${data.error.correlation_id})`);
             }
         } else {
             // Success! Add the message to the chat window
