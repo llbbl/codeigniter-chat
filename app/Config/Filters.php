@@ -37,6 +37,7 @@ class Filters extends BaseFilters
         'auth'          => \App\Filters\AuthFilter::class,
         'rateLimit'     => \App\Filters\RateLimitFilter::class,
         'securityHeaders' => \App\Filters\SecurityHeadersFilter::class,
+        'validate'      => \App\Filters\ValidateInputFilter::class,
     ];
 
     /**
