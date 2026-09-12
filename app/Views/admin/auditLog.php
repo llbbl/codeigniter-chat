@@ -1,0 +1,1 @@
+<h1>Audit log</h1><table><thead><tr><th>When</th><th>Event</th><th>IP</th><th>User</th></tr></thead><tbody><?php foreach ($logs as $log): ?><tr><td><?= esc($log['created_at']) ?></td><td><?= esc($log['event_type']) ?></td><td><?= esc($log['ip_address']) ?></td><td><?= esc($log['username_attempted']) ?></td></tr><?php endforeach ?></tbody></table>

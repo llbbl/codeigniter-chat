@@ -111,6 +111,7 @@ class Auth extends BaseController
                 ]);
             }
 
+            service('auditLogger')->record('auth.register', (int) $userId, ['username_attempted' => $username]);
             $this->logMessage('info', 'New user registered: ' . $username);
 
             // Set success message and redirect to login
@@ -154,6 +155,7 @@ class Auth extends BaseController
                 $user = $this->userModel->verifyCredentials($username, $password);
 
                 if (!$user) {
+                    service('auditLogger')->record('auth.login.failure', null, ['username_attempted' => $username, 'reason' => 'invalid_credentials']);
                     $this->logMessage('warning', 'Failed login attempt for username: ' . $username);
                     return $this->handleAuthenticationError('Invalid username or password');
                 }
@@ -181,6 +183,7 @@ class Auth extends BaseController
             $websocketToken = WebSocketTokenHelper::generateToken($user['id']);
             session()->set('websocket_token', $websocketToken);
 
+            service('auditLogger')->record('auth.login.success', (int) $user['id'], ['username_attempted' => $username]);
             $this->logMessage('info', 'User logged in: ' . $username);
 
             // Redirect to chat
@@ -200,6 +203,7 @@ class Auth extends BaseController
     {
         try {
             $username = $this->getCurrentUsername();
+            $userId = $this->getCurrentUserId();
 
             // ================================================================
             // WEBSOCKET TOKEN REVOCATION
@@ -217,12 +221,13 @@ class Auth extends BaseController
                 WebSocketTokenHelper::revokeToken($websocketToken);
             }
 
-            // Clear user session using UserHelper
-            UserHelper::clearUserSession();
-
             if ($username) {
+                service('auditLogger')->record('auth.logout', $userId, ['username_attempted' => $username]);
                 $this->logMessage('info', 'User logged out: ' . $username);
             }
+
+            // Clear user session using UserHelper
+            UserHelper::clearUserSession();
 
             // Redirect to login page
             return redirect()->to('/auth/login')->with('success', 'You have been logged out successfully.');
