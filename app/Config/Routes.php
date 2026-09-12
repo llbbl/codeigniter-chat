@@ -9,14 +9,14 @@ $routes->get('/', 'Home::index');
 
 // Auth routes
 $routes->get('auth/register', 'Auth::register');
-$routes->post('auth/processRegistration', 'Auth::processRegistration', ['filter' => 'validate:registration']);
+$routes->post('auth/processRegistration', 'Auth::processRegistration', ['filter' => ['rate:auth', 'validate:registration']]);
 $routes->get('auth/login', 'Auth::login');
-$routes->post('auth/processLogin', 'Auth::processLogin', ['filter' => 'validate:login']);
+$routes->post('auth/processLogin', 'Auth::processLogin', ['filter' => ['rate:auth', 'validate:login']]);
 $routes->get('auth/logout', 'Auth::logout');
 
 // Chat routes
 $routes->get('chat', 'Chat::index');
-$routes->post('chat/update', 'Chat::update', ['filter' => 'validate:message']);
+$routes->post('chat/update', 'Chat::update', ['filter' => ['rate:write', 'validate:message']]);
 $routes->get('chat/backend', 'Chat::backend');
 $routes->get('chat/json', 'Chat::json');
 $routes->get('chat/jsonBackend', 'Chat::jsonBackend');
