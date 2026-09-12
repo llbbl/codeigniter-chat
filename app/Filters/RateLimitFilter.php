@@ -2,64 +2,41 @@
 
 namespace App\Filters;
 
+use CodeIgniter\Cache\CacheInterface;
+use CodeIgniter\Config\Services;
 use CodeIgniter\Filters\FilterInterface;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\I18n\Time;
+use Config\RateLimit;
+use InvalidArgumentException;
 
 class RateLimitFilter implements FilterInterface
 {
-    /**
-     * Maximum number of requests allowed within the time window
-     *
-     * @var int
-     */
-    protected int $maxRequests = 10;
+    private readonly RateLimit $config;
 
-    /**
-     * Time window in seconds
-     *
-     * @var int
-     */
-    protected int $timeWindow = 60;
+    private readonly CacheInterface $cache;
 
-    /**
-     * Check if the request exceeds the rate limit
-     *
-     * @param RequestInterface $request
-     * @param array|null       $arguments
-     *
-     * @return mixed
-     */
+    public function __construct(?RateLimit $config = null, ?CacheInterface $cache = null)
+    {
+        $this->config = $config ?? config(RateLimit::class);
+        $this->cache = $cache ?? Services::cache();
+    }
+
     public function before(RequestInterface $request, $arguments = null)
     {
-        // Get the user's identifier (IP address for guests, user_id for logged in users)
-        $identifier = session()->get('user_id') ?? $request->getIPAddress();
+        $profile = $arguments[0] ?? 'default';
+        [$maxRequests, $timeWindow] = $this->profile($profile, $this->isAuthenticated());
+        $key = $this->cacheKey($profile, $this->identifier($request));
+        $now = time();
+        $history = $this->history($this->cache->get($key), $now, $timeWindow);
 
-        // Get the current timestamp
-        $now = Time::now()->getTimestamp();
-
-        // Initialize or get the user's request history from the session
-        $history = session()->get('rate_limit_' . $identifier) ?? [];
-
-        // Remove requests that are outside the time window
-        $history = array_filter($history, function ($timestamp) use ($now) {
-            return $timestamp > ($now - $this->timeWindow);
-        });
-
-        // Check if the user has exceeded the rate limit
-        if (count($history) >= $this->maxRequests) {
-            // Return 429 Too Many Requests
-            return service('response')
-                ->setStatusCode(429)
-                ->setBody('Too many requests. Please try again later.');
+        if (count($history) >= $maxRequests) {
+            return $this->tooManyRequests($request, max(1, $timeWindow - ($now - $history[0])));
         }
 
-        // Add the current request to the history
         $history[] = $now;
-
-        // Save the updated history to the session
-        session()->set('rate_limit_' . $identifier, $history);
+        $this->cache->save($key, $history, $timeWindow);
     }
 
     /**
@@ -71,8 +48,108 @@ class RateLimitFilter implements FilterInterface
      *
      * @return void
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): ?ResponseInterface
     {
-        // Do nothing
+        return null;
+    }
+
+    /**
+     * @return array{int, int}
+     */
+    private function profile(string $profile, bool $authenticated): array
+    {
+        if (! isset($this->config->profiles[$profile])) {
+            throw new InvalidArgumentException("Unknown rate-limit profile: {$profile}");
+        }
+
+        return $this->config->profiles[$profile][$authenticated ? 'authenticated' : 'anonymous'];
+    }
+
+    private function isAuthenticated(): bool
+    {
+        return session()->get('user_id') !== null;
+    }
+
+    private function identifier(RequestInterface $request): string
+    {
+        $userId = session()->get('user_id');
+        if ($userId !== null) {
+            return 'user-' . $userId;
+        }
+
+        $ipAddress = $request->getIPAddress();
+        if ($ipAddress !== '' && $ipAddress !== '0.0.0.0') {
+            return 'ip-' . $ipAddress;
+        }
+
+        return 'client-' . hash('sha256', $ipAddress . '|' . $request->getHeaderLine('User-Agent'));
+    }
+
+    private function cacheKey(string $profile, string $identifier): string
+    {
+        // Cache keys cannot contain ':' under Config\Cache::$reservedCharacters.
+        return 'ratelimit_' . $profile . '_' . hash('sha256', $identifier);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function history(mixed $value, int $now, int $timeWindow): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $value,
+            static fn (mixed $timestamp): bool => is_int($timestamp) && $timestamp > ($now - $timeWindow),
+        ));
+    }
+
+    private function tooManyRequests(RequestInterface $request, int $retryAfter): ResponseInterface
+    {
+        $response = service('response')
+            ->setStatusCode(429)
+            ->setHeader('Retry-After', (string) $retryAfter);
+        $format = $this->preferredFormat($request);
+
+        if ($format === 'json') {
+            return $response->setJSON([
+                'success' => false,
+                'type' => 'rate_limit',
+                'message' => 'Too many requests. Please try again later.',
+                'retry_after' => $retryAfter,
+            ]);
+        }
+
+        if ($format === 'xml') {
+            return $response
+                ->setHeader('Content-Type', 'application/xml; charset=UTF-8')
+                ->setBody('<?xml version="1.0" encoding="UTF-8"?><response><success>false</success><type>rate_limit</type><message>Too many requests. Please try again later.</message><retry_after>' . $retryAfter . '</retry_after></response>');
+        }
+
+        return $response->setBody('Too many requests. Please try again later.');
+    }
+
+    private function preferredFormat(RequestInterface $request): string
+    {
+        if ($request->isAJAX()) {
+            return 'json';
+        }
+
+        if (! $request instanceof IncomingRequest) {
+            return 'text';
+        }
+
+        return match ($request->negotiate('media', [
+            'text/plain',
+            'application/json',
+            'application/xml',
+            'text/xml',
+        ])) {
+            'application/json' => 'json',
+            'application/xml', 'text/xml' => 'xml',
+            default => 'text',
+        };
     }
 }

@@ -35,6 +35,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'rate'          => \App\Filters\RateLimitFilter::class,
         'rateLimit'     => \App\Filters\RateLimitFilter::class,
         'securityHeaders' => \App\Filters\SecurityHeadersFilter::class,
         'validate'      => \App\Filters\ValidateInputFilter::class,
@@ -76,6 +77,7 @@ class Filters extends BaseFilters
         'before' => [
             // 'honeypot',
             'csrf',
+            'rate',
             // 'invalidchars',
         ],
         'after' => [
@@ -114,14 +116,6 @@ class Filters extends BaseFilters
             'before' => [
                 'chat',
                 'chat/*',
-            ],
-        ],
-        'rateLimit' => [
-            'before' => [
-                'chat/update',
-                'chat/backend',
-                'chat/jsonBackend',
-                'chat/htmlBackend',
             ],
         ],
     ];
