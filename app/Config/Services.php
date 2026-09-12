@@ -2,8 +2,10 @@
 
 namespace Config;
 
+use App\Models\AuditLogModel;
 use App\Models\ChatModel;
 use App\Models\UserModel;
+use App\Services\AuditLogger;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -59,6 +61,13 @@ use CodeIgniter\Config\BaseService;
  */
 class Services extends BaseService
 {
+    public static function auditLogger(bool $getShared = true): AuditLogger
+    {
+        if ($getShared) {
+            return static::getSharedInstance('auditLogger');
+        }
+        return new AuditLogger(new AuditLogModel(), service('request'));
+    }
     /**
      * Returns the ChatModel service.
      *
