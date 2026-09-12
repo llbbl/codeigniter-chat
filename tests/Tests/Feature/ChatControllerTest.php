@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\ChatRepository;
 use App\Controllers\Chat;
-use App\Models\ChatModel;
+use App\Services\ChatFormatter;
 use CodeIgniter\Config\Services;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Response;
@@ -35,7 +36,7 @@ use Psr\Log\LoggerInterface;
  *
  * Key concepts demonstrated:
  * - Dependency Injection in testing
- * - Mocking the ChatModel to control data
+ * - Mocking the ChatRepository contract to control data
  * - Testing controller methods directly
  * - Verifying response types and content
  *
@@ -44,7 +45,7 @@ use Psr\Log\LoggerInterface;
 final class ChatControllerTest extends CIUnitTestCase
 {
     /**
-     * Mock of the ChatModel
+     * Stub of the ChatRepository contract
      */
     private Stub $mockChatModel;
 
@@ -96,18 +97,15 @@ final class ChatControllerTest extends CIUnitTestCase
         ];
 
         // Create mock ChatModel
-        $this->mockChatModel = $this->createStub(ChatModel::class);
+        $this->mockChatModel = $this->createStub(ChatRepository::class);
         $this->mockChatModel->method('getMsgPaginated')
             ->willReturn([
                 'messages' => $this->sampleMessages,
                 'pagination' => $this->samplePagination
             ]);
 
-        // Inject mock into services
-        Services::injectMock('chatModel', $this->mockChatModel);
-
         // Create the controller with the mock
-        $this->controller = new Chat($this->mockChatModel);
+        $this->controller = new Chat($this->mockChatModel, new ChatFormatter());
 
         // Initialize the controller with request/response/logger
         $this->initializeController();
@@ -139,7 +137,7 @@ final class ChatControllerTest extends CIUnitTestCase
      */
     protected function tearDown(): void
     {
-        Services::resetSingle('chatModel');
+        Services::resetSingle('chatRepository');
         $_SESSION = [];
         parent::tearDown();
     }
@@ -157,27 +155,20 @@ final class ChatControllerTest extends CIUnitTestCase
     public function testControllerAcceptsDependencyInjection(): void
     {
         // Arrange: Create a stub (no behavior needed, just used for DI verification)
-        $mockModel = $this->createStub(ChatModel::class);
+        $mockModel = $this->createStub(ChatRepository::class);
 
         // Act: Create controller with injected mock
-        $controller = new Chat($mockModel);
+        $controller = new Chat($mockModel, new ChatFormatter());
 
         // Assert: Controller should be created successfully
         $this->assertInstanceOf(Chat::class, $controller);
     }
 
-    /**
-     * Test: Controller can be instantiated without explicit injection
-     *
-     * When no ChatModel is passed, the controller should get one from
-     * the service container (for normal HTTP requests).
-     */
-    public function testControllerWorksWithoutExplicitInjection(): void
+    public function testCompositionRootInjectsTheRegisteredRepository(): void
     {
-        // Act: Create controller without passing a model
-        $controller = new Chat();
+        Services::injectMock('chatRepository', $this->mockChatModel);
+        $controller = Services::controller(Chat::class);
 
-        // Assert: Controller should still be created
         $this->assertInstanceOf(Chat::class, $controller);
     }
 
@@ -278,7 +269,7 @@ final class ChatControllerTest extends CIUnitTestCase
     public function testBackendHandlesEmptyMessages(): void
     {
         // Arrange: Mock returns empty messages
-        $emptyMock = $this->createStub(ChatModel::class);
+        $emptyMock = $this->createStub(ChatRepository::class);
         $emptyMock->method('getMsgPaginated')
             ->willReturn([
                 'messages' => [],
@@ -292,7 +283,7 @@ final class ChatControllerTest extends CIUnitTestCase
                 ]
             ]);
 
-        $controller = new Chat($emptyMock);
+        $controller = new Chat($emptyMock, new ChatFormatter());
         $this->initializeControllerInstance($controller);
 
         // Act
@@ -449,7 +440,7 @@ final class ChatControllerTest extends CIUnitTestCase
     public function testControllerUsesInjectedChatModel(): void
     {
         // Arrange: Create a mock that expects to be called
-        $mockModel = $this->createMock(ChatModel::class);
+        $mockModel = $this->createMock(ChatRepository::class);
         $mockModel->expects($this->atLeastOnce())
             ->method('getMsgPaginated')
             ->willReturn([
@@ -457,7 +448,7 @@ final class ChatControllerTest extends CIUnitTestCase
                 'pagination' => $this->samplePagination
             ]);
 
-        $controller = new Chat($mockModel);
+        $controller = new Chat($mockModel, new ChatFormatter());
         $this->initializeControllerInstance($controller);
 
         // Act: Call a method that uses the model

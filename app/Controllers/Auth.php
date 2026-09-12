@@ -2,9 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Contracts\AuditLogger;
+use App\Contracts\UserRepository;
 use App\Helpers\UserHelper;
 use App\Helpers\WebSocketTokenHelper;
-use App\Models\UserModel;
 
 /**
  * Auth Controller
@@ -15,52 +16,38 @@ use App\Models\UserModel;
  * DEPENDENCY INJECTION PATTERN (for beginners)
  * ============================================================================
  *
- * This controller uses Dependency Injection (DI) to receive its UserModel.
- * See the Chat controller for a detailed explanation of the DI pattern.
+ * This controller uses dependency injection to receive repository and audit
+ * logger contracts.
  *
  * Key points:
- * - The UserModel is passed via the constructor, not created internally
- * - This makes the controller easier to test with mock objects
- * - The service container provides instances during normal HTTP requests
- * - Tests can inject mock UserModels to avoid database calls
+ * - Dependencies are required and explicit.
+ * - The controller never reaches into the service container.
+ * - Config\Services selects concrete implementations for HTTP requests.
+ * - Tests can inject small interface stubs directly.
  *
  * ============================================================================
  */
 class Auth extends BaseController
 {
     /**
-     * User model instance for authentication operations.
+     * User repository for authentication operations.
      *
-     * This property holds the UserModel that handles user data and
-     * authentication. It's injected via the constructor for testability.
-     *
-     * @var UserModel
+     * @var UserRepository
      */
-    protected UserModel $userModel;
+    protected UserRepository $userRepository;
+
+    private readonly AuditLogger $auditLogger;
 
     /**
      * Constructor - receives dependencies via injection.
      *
-     * Implements the Dependency Injection pattern for better testability
-     * and loose coupling. The UserModel is received as a parameter rather
-     * than being created internally with `new UserModel()`.
-     *
-     * During normal HTTP requests, if no model is provided, the controller
-     * automatically fetches one from the service container via service('userModel').
-     *
-     * Example usage in tests:
-     *   $mockUserModel = $this->createMock(UserModel::class);
-     *   $mockUserModel->method('verifyCredentials')->willReturn(['id' => 1, 'username' => 'test']);
-     *   $controller = new Auth($mockUserModel);
-     *
-     * @param UserModel|null $userModel The user model instance. If null, the service
-     *                                  container will provide one. Pass a mock here for testing.
+     * Config\Services is the composition root. Both dependencies are required,
+     * which keeps the controller's runtime needs visible and testable.
      */
-    public function __construct(?UserModel $userModel = null)
+    public function __construct(UserRepository $userRepository, AuditLogger $auditLogger)
     {
-        // Fetch from service container if not injected (normal HTTP requests)
-        // See Config\Services::userModel() for the service definition
-        $this->userModel = $userModel ?? service('userModel');
+        $this->userRepository = $userRepository;
+        $this->auditLogger = $auditLogger;
     }
 
     /**
@@ -97,7 +84,7 @@ class Auth extends BaseController
 
             // Create the user
             try {
-                $userId = $this->userModel->createUser($username, $email, $password);
+                $userId = $this->userRepository->createUser($username, $email, $password);
 
                 if (!$userId) {
                     return $this->handleDatabaseError('Failed to create user account', [
@@ -111,7 +98,7 @@ class Auth extends BaseController
                 ]);
             }
 
-            service('auditLogger')->record('auth.register', (int) $userId, ['username_attempted' => $username]);
+            $this->auditLogger->record('auth.register', (int) $userId, ['username_attempted' => $username]);
             $this->logMessage('info', 'New user registered: ' . $username);
 
             // Set success message and redirect to login
@@ -152,10 +139,10 @@ class Auth extends BaseController
 
             // Verify credentials
             try {
-                $user = $this->userModel->verifyCredentials($username, $password);
+                $user = $this->userRepository->verifyCredentials($username, $password);
 
                 if (!$user) {
-                    service('auditLogger')->record('auth.login.failure', null, ['username_attempted' => $username, 'reason' => 'invalid_credentials']);
+                    $this->auditLogger->record('auth.login.failure', null, ['username_attempted' => $username, 'reason' => 'invalid_credentials']);
                     $this->logMessage('warning', 'Failed login attempt for username: ' . $username);
                     return $this->handleAuthenticationError('Invalid username or password');
                 }
@@ -183,7 +170,7 @@ class Auth extends BaseController
             $websocketToken = WebSocketTokenHelper::generateToken($user['id']);
             session()->set('websocket_token', $websocketToken);
 
-            service('auditLogger')->record('auth.login.success', (int) $user['id'], ['username_attempted' => $username]);
+            $this->auditLogger->record('auth.login.success', (int) $user['id'], ['username_attempted' => $username]);
             $this->logMessage('info', 'User logged in: ' . $username);
 
             // Redirect to chat
@@ -222,7 +209,7 @@ class Auth extends BaseController
             }
 
             if ($username) {
-                service('auditLogger')->record('auth.logout', $userId, ['username_attempted' => $username]);
+                $this->auditLogger->record('auth.logout', $userId, ['username_attempted' => $username]);
                 $this->logMessage('info', 'User logged out: ' . $username);
             }
 

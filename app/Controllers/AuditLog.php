@@ -2,11 +2,11 @@
 
 namespace App\Controllers;
 
-use App\Models\AuditLogModel;
+use App\Contracts\AuditLogRepository;
 
 class AuditLog extends BaseController
 {
-    public function __construct(private readonly AuditLogModel $logs = new AuditLogModel())
+    public function __construct(private readonly AuditLogRepository $logs)
     {
     }
     public function index(): string

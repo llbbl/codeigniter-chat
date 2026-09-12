@@ -5,9 +5,10 @@ namespace Tests\Feature;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
-use App\Models\UserModel;
+use App\Contracts\UserRepository;
 use Config\Services;
 use PHPUnit\Framework\MockObject\Stub;
+use Tests\Support\UsesApplication;
 
 /**
  * Auth Controller Feature Tests
@@ -18,6 +19,7 @@ final class AuthTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
     use FeatureTestTrait;
+    use UsesApplication;
 
     /** @var string */
     protected $namespace = 'App';
@@ -30,7 +32,7 @@ final class AuthTest extends CIUnitTestCase
         parent::setUp();
 
         // Create a mock for the UserModel
-        $this->mockUserModel = $this->createStub(UserModel::class);
+        $this->mockUserModel = $this->createStub(UserRepository::class);
 
         // Sample user data for testing
         $this->sampleUser = [
@@ -44,7 +46,7 @@ final class AuthTest extends CIUnitTestCase
         ];
 
         // Replace the service with our mock
-        Services::injectMock('userModel', $this->mockUserModel);
+        Services::injectMock('userRepository', $this->mockUserModel);
     }
 
     public function testRegisterDisplaysForm(): void
@@ -221,7 +223,7 @@ final class AuthTest extends CIUnitTestCase
 
     protected function tearDown(): void
     {
-        Services::resetSingle('userModel');
+        Services::resetSingle('userRepository');
         parent::tearDown();
     }
 }
