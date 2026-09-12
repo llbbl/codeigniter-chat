@@ -6,48 +6,49 @@ use Exception;
 
 /**
  * WebSocket Client
- * 
+ *
  * A simple WebSocket client for sending messages to the WebSocket server
  */
 class WebSocketClient
 {
     /**
      * WebSocket server host
-     * 
+     *
      * @var string
      */
     protected string $host;
-    
+
     /**
      * WebSocket server port
-     * 
+     *
      * @var int
      */
     protected int $port;
-    
+
     /**
      * Socket resource
-     * 
+     *
      * @var resource|null
      */
     protected $socket = null;
-    
+
     /**
      * Constructor
-     * 
+     *
      * @param string $host WebSocket server host
-     * @param int $port WebSocket server port
+     * @param int    $port WebSocket server port
      */
     public function __construct(string $host = 'localhost', int $port = 8080)
     {
         $this->host = $host;
         $this->port = $port;
     }
-    
+
     /**
      * Send a message to the WebSocket server
-     * 
+     *
      * @param array $data Message data
+     *
      * @return bool True if the message was sent successfully, false otherwise
      */
     public function send(array $data): bool
@@ -59,7 +60,7 @@ class WebSocketClient
                 log_message('error', 'WebSocketClient: Failed to create socket: ' . socket_strerror(socket_last_error()));
                 return false;
             }
-            
+
             // Connect to the WebSocket server
             $result = socket_connect($socket, $this->host, $this->port);
             if ($result === false) {
@@ -67,7 +68,7 @@ class WebSocketClient
                 socket_close($socket);
                 return false;
             }
-            
+
             // Prepare the HTTP headers for the WebSocket handshake
             $key = base64_encode(random_bytes(16));
             $headers = "GET / HTTP/1.1\r\n";
@@ -77,10 +78,10 @@ class WebSocketClient
             $headers .= "Sec-WebSocket-Key: {$key}\r\n";
             $headers .= "Sec-WebSocket-Version: 13\r\n";
             $headers .= "\r\n";
-            
+
             // Send the headers
             socket_write($socket, $headers, strlen($headers));
-            
+
             // Read the response
             $response = socket_read($socket, 2048);
             if ($response === false) {
@@ -88,18 +89,18 @@ class WebSocketClient
                 socket_close($socket);
                 return false;
             }
-            
+
             // Check if the handshake was successful
             if (!str_contains($response, '101 Switching Protocols')) {
                 log_message('error', 'WebSocketClient: Handshake failed: ' . $response);
                 socket_close($socket);
                 return false;
             }
-            
+
             // Encode the message according to the WebSocket protocol
             $message = json_encode($data);
             $encodedMessage = $this->encodeMessage($message);
-            
+
             // Send the message
             $sent = socket_write($socket, $encodedMessage, strlen($encodedMessage));
             if ($sent === false) {
@@ -107,10 +108,10 @@ class WebSocketClient
                 socket_close($socket);
                 return false;
             }
-            
+
             // Close the socket
             socket_close($socket);
-            
+
             return true;
         } catch (Exception $e) {
             log_message('error', 'WebSocketClient: Exception: ' . $e->getMessage());
@@ -120,18 +121,19 @@ class WebSocketClient
             return false;
         }
     }
-    
+
     /**
      * Encode a message according to the WebSocket protocol
-     * 
+     *
      * @param string $message Message to encode
+     *
      * @return string Encoded message
      */
     protected function encodeMessage(string $message): string
     {
         $length = strlen($message);
         $header = chr(129); // 0x81 (FIN + text frame)
-        
+
         if ($length <= 125) {
             $header .= chr($length);
         } elseif ($length <= 65535) {
@@ -139,7 +141,7 @@ class WebSocketClient
         } else {
             $header .= chr(127) . chr(0) . chr(0) . chr(0) . chr(0) . chr(($length >> 24) & 255) . chr(($length >> 16) & 255) . chr(($length >> 8) & 255) . chr($length & 255);
         }
-        
+
         return $header . $message;
     }
 }

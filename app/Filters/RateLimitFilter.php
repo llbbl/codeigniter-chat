@@ -27,7 +27,8 @@ class RateLimitFilter implements FilterInterface
      * Check if the request exceeds the rate limit
      *
      * @param RequestInterface $request
-     * @param array|null $arguments
+     * @param array|null       $arguments
+     *
      * @return mixed
      */
     public function before(RequestInterface $request, $arguments = null)
@@ -42,7 +43,7 @@ class RateLimitFilter implements FilterInterface
         $history = session()->get('rate_limit_' . $identifier) ?? [];
 
         // Remove requests that are outside the time window
-        $history = array_filter($history, function($timestamp) use ($now) {
+        $history = array_filter($history, function ($timestamp) use ($now) {
             return $timestamp > ($now - $this->timeWindow);
         });
 
@@ -64,9 +65,10 @@ class RateLimitFilter implements FilterInterface
     /**
      * We don't have anything to do after the controller.
      *
-     * @param RequestInterface $request
+     * @param RequestInterface  $request
      * @param ResponseInterface $response
-     * @param array|null $arguments
+     * @param array|null        $arguments
+     *
      * @return void
      */
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

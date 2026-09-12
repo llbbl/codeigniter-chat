@@ -98,8 +98,8 @@ abstract class BaseController extends Controller
     /**
      * Return a JSON response with the specified data.
      *
-     * @param mixed $data    The data to be converted to JSON
-     * @param int   $status  The HTTP status code
+     * @param mixed $data   The data to be converted to JSON
+     * @param int   $status The HTTP status code
      *
      * @return ResponseInterface
      */
@@ -118,8 +118,8 @@ abstract class BaseController extends Controller
     /**
      * Return an XML response with the specified data.
      *
-     * @param string $xml     The XML string
-     * @param int    $status  The HTTP status code
+     * @param string $xml    The XML string
+     * @param int    $status The HTTP status code
      *
      * @return ResponseInterface
      */
@@ -139,11 +139,11 @@ abstract class BaseController extends Controller
     /**
      * Return a view response with appropriate caching headers.
      *
-     * @param string $view       The view file to load
-     * @param array  $data       The data to pass to the view
-     * @param array  $options    View options
-     * @param bool   $cacheable  Whether the view should be cacheable (default: false)
-     * @param int    $cacheTime  Cache time in seconds (default: 300 - 5 minutes)
+     * @param string $view      The view file to load
+     * @param array  $data      The data to pass to the view
+     * @param array  $options   View options
+     * @param bool   $cacheable Whether the view should be cacheable (default: false)
+     * @param int    $cacheTime Cache time in seconds (default: 300 - 5 minutes)
      *
      * @return string
      */
@@ -353,8 +353,8 @@ abstract class BaseController extends Controller
      * @return mixed
      */
     protected function handleException(
-        Throwable $exception, 
-        string $type = ErrorHandler::ERROR_TYPE_SERVER, 
+        Throwable $exception,
+        string $type = ErrorHandler::ERROR_TYPE_SERVER,
         int $statusCode = 500
     ) {
         return $this->errorHandler->handleException($exception, $type, $statusCode);

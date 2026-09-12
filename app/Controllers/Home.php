@@ -4,14 +4,14 @@ namespace App\Controllers;
 
 /**
  * Home controller
- * 
+ *
  * Handles the main landing page and redirects users based on login status
  */
 class Home extends BaseController
 {
     /**
      * Index method - redirects based on login status
-     * 
+     *
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
     public function index(): \CodeIgniter\HTTP\RedirectResponse

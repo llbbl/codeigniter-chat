@@ -2,10 +2,9 @@
 
 namespace App\Controllers;
 
-use App\Models\UserModel;
 use App\Helpers\UserHelper;
 use App\Helpers\WebSocketTokenHelper;
-use CodeIgniter\I18n\Time;
+use App\Models\UserModel;
 
 /**
  * Auth Controller
@@ -66,7 +65,7 @@ class Auth extends BaseController
 
     /**
      * Display the registration form
-     * 
+     *
      * @return string
      */
     public function register(): string
@@ -76,7 +75,7 @@ class Auth extends BaseController
 
     /**
      * Process the registration form
-     * 
+     *
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
     public function processRegistration(): \CodeIgniter\HTTP\RedirectResponse
@@ -87,7 +86,7 @@ class Auth extends BaseController
                 'username' => $this->request->getPost('username'),
                 'email' => $this->request->getPost('email'),
                 'password' => $this->request->getPost('password'),
-                'password_confirm' => $this->request->getPost('password_confirm')
+                'password_confirm' => $this->request->getPost('password_confirm'),
             ];
 
             // Validate registration data using UserHelper
@@ -110,13 +109,13 @@ class Auth extends BaseController
 
                 if (!$userId) {
                     return $this->handleDatabaseError('Failed to create user account', [
-                        'username' => $username
+                        'username' => $username,
                     ]);
                 }
             } catch (\Exception $e) {
                 return $this->handleDatabaseError('Error creating user account', [
                     'error' => $e->getMessage(),
-                    'username' => $username
+                    'username' => $username,
                 ]);
             }
 
@@ -132,7 +131,7 @@ class Auth extends BaseController
 
     /**
      * Display the login form
-     * 
+     *
      * @return string
      */
     public function login(): string
@@ -142,7 +141,7 @@ class Auth extends BaseController
 
     /**
      * Process the login form
-     * 
+     *
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
     public function processLogin(): \CodeIgniter\HTTP\RedirectResponse
@@ -151,7 +150,7 @@ class Auth extends BaseController
             // Get data for validation
             $data = [
                 'username' => $this->request->getPost('username'),
-                'password' => $this->request->getPost('password')
+                'password' => $this->request->getPost('password'),
             ];
 
             // Validate login data using UserHelper
@@ -177,7 +176,7 @@ class Auth extends BaseController
             } catch (\Exception $e) {
                 return $this->handleDatabaseError('Error verifying credentials', [
                     'error' => $e->getMessage(),
-                    'username' => $username
+                    'username' => $username,
                 ]);
             }
 
@@ -210,7 +209,7 @@ class Auth extends BaseController
 
     /**
      * Log the user out
-     * 
+     *
      * @return \CodeIgniter\HTTP\RedirectResponse
      */
     public function logout(): \CodeIgniter\HTTP\RedirectResponse

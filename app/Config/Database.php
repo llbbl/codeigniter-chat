@@ -139,7 +139,7 @@ class Database extends Config
             // Ensure the database directory exists
             $dbDir = WRITEPATH . 'database';
             if (! is_dir($dbDir)) {
-                mkdir($dbDir, 0755, true);
+                mkdir($dbDir, 0o755, true);
             }
         }
     }

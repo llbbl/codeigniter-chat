@@ -12,7 +12,8 @@ class AuthFilter implements FilterInterface
      * Check if user is logged in, redirect to login page if not
      *
      * @param RequestInterface $request
-     * @param array|null $arguments
+     * @param array|null       $arguments
+     *
      * @return mixed
      */
     public function before(RequestInterface $request, $arguments = null)
@@ -26,9 +27,10 @@ class AuthFilter implements FilterInterface
     /**
      * We don't have anything to do after the controller.
      *
-     * @param RequestInterface $request
+     * @param RequestInterface  $request
      * @param ResponseInterface $response
-     * @param array|null $arguments
+     * @param array|null        $arguments
+     *
      * @return void
      */
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

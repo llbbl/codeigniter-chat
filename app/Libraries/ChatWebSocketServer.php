@@ -2,12 +2,12 @@
 
 namespace App\Libraries;
 
-use Exception;
-use Ratchet\MessageComponentInterface;
-use Ratchet\ConnectionInterface;
-use App\Models\ChatModel;
 use App\Helpers\WebSocketTokenHelper;
+use App\Models\ChatModel;
 use CodeIgniter\I18n\Time;
+use Exception;
+use Ratchet\ConnectionInterface;
+use Ratchet\MessageComponentInterface;
 use SplObjectStorage;
 
 /**
@@ -74,8 +74,8 @@ class ChatWebSocketServer implements MessageComponentInterface
      * Initializes the WebSocket server with its dependencies.
      * Uses dependency injection to allow for easier testing.
      *
-     * @param SplObjectStorage|null $clients    Optional: Pre-configured client storage
-     * @param ChatModel|null        $chatModel  Optional: Pre-configured chat model
+     * @param SplObjectStorage|null $clients     Optional: Pre-configured client storage
+     * @param ChatModel|null        $chatModel   Optional: Pre-configured chat model
      * @param bool                  $requireAuth Whether to require authentication (default: true)
      */
     public function __construct(
@@ -88,17 +88,6 @@ class ChatWebSocketServer implements MessageComponentInterface
         $this->requireAuth = $requireAuth;
 
         $this->logServerStart();
-    }
-
-    /**
-     * Log server startup message
-     *
-     * @return void
-     */
-    private function logServerStart(): void
-    {
-        echo "Chat WebSocket Server started\n";
-        echo "Authentication: " . ($this->requireAuth ? "ENABLED" : "DISABLED") . "\n";
     }
 
     /**
@@ -115,6 +104,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * 5. If invalid, close the connection with an error
      *
      * @param ConnectionInterface $conn The new connection
+     *
      * @return void
      */
     public function onOpen(ConnectionInterface $conn): void
@@ -140,12 +130,135 @@ class ChatWebSocketServer implements MessageComponentInterface
         $this->clients->attach($conn, [
             'user_id'      => $userId,
             'connected_at' => time(),
-            'authenticated' => $this->requireAuth ? true : ($userId > 0)
+            'authenticated' => $this->requireAuth ? true : ($userId > 0),
         ]);
 
         // Log successful connection
-        $authStatus = $this->requireAuth ? "(authenticated, user_id: {$userId})" : "(auth disabled)";
-        echo "New connection! (" . spl_object_id($conn) . ") {$authStatus}\n";
+        $authStatus = $this->requireAuth ? "(authenticated, user_id: {$userId})" : '(auth disabled)';
+        echo 'New connection! (' . spl_object_id($conn) . ") {$authStatus}\n";
+    }
+
+    /**
+     * Handle incoming messages from clients
+     *
+     * This method processes messages received from connected clients.
+     * Messages are expected to be JSON with an 'action' field indicating
+     * what operation to perform.
+     *
+     * Supported actions:
+     * - getMessages: Retrieve chat messages with pagination
+     * - sendMessage: Post a new chat message
+     *
+     * @param ConnectionInterface $from The connection that sent the message
+     * @param string              $msg  The message content (JSON string)
+     *
+     * @return void
+     */
+    public function onMessage(ConnectionInterface $from, $msg)
+    {
+        // Parse the JSON message
+        $data = json_decode($msg, true);
+
+        // Validate message format
+        if (!$data || !isset($data['action'])) {
+            return;
+        }
+
+        // Get the user info stored with this connection
+        $connectionData = $this->clients[$from] ?? [];
+        $userId = $connectionData['user_id'] ?? 0;
+
+        // Handle different actions
+        switch ($data['action']) {
+            case 'getMessages':
+                $this->handleGetMessages($from, $data);
+                break;
+
+            case 'sendMessage':
+                $this->handleSendMessage($from, $data, $userId);
+                break;
+        }
+    }
+
+    /**
+     * Handle connection close
+     *
+     * Called when a client disconnects. We clean up by removing
+     * the connection from our storage.
+     *
+     * @param ConnectionInterface $conn The connection that closed
+     *
+     * @return void
+     */
+    public function onClose(ConnectionInterface $conn): void
+    {
+        // Get user info before removing
+        $connectionData = $this->clients[$conn] ?? [];
+        $userId = $connectionData['user_id'] ?? 'unknown';
+
+        // Remove the connection from our storage
+        $this->clients->detach($conn);
+
+        echo 'Connection ' . spl_object_id($conn) . " (user_id: {$userId}) has disconnected\n";
+    }
+
+    /**
+     * Handle connection errors
+     *
+     * Called when an error occurs on a connection. We log the error
+     * and close the connection.
+     *
+     * @param ConnectionInterface $conn The connection that errored
+     * @param Exception           $e    The exception that occurred
+     *
+     * @return void
+     */
+    public function onError(ConnectionInterface $conn, Exception $e): void
+    {
+        echo "An error has occurred: {$e->getMessage()}\n";
+
+        $conn->close();
+    }
+
+    /**
+     * Get the number of currently connected clients
+     *
+     * Useful for monitoring and debugging.
+     *
+     * @return int The number of connected clients
+     */
+    public function getClientCount(): int
+    {
+        return $this->clients->count();
+    }
+
+    /**
+     * Check if a specific user is connected
+     *
+     * @param int $userId The user ID to check
+     *
+     * @return bool True if the user has an active connection
+     */
+    public function isUserConnected(int $userId): bool
+    {
+        foreach ($this->clients as $client) {
+            $data = $this->clients[$client];
+            if (($data['user_id'] ?? 0) === $userId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Log server startup message
+     *
+     * @return void
+     */
+    private function logServerStart(): void
+    {
+        echo "Chat WebSocket Server started\n";
+        echo 'Authentication: ' . ($this->requireAuth ? 'ENABLED' : 'DISABLED') . "\n";
     }
 
     /**
@@ -155,6 +268,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * handshake. We use this to extract query parameters.
      *
      * @param ConnectionInterface $conn The connection to parse
+     *
      * @return array Associative array of query parameters
      */
     private function parseQueryParams(ConnectionInterface $conn): array
@@ -183,6 +297,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param string              $token  The authentication token
      * @param int                 $userId The claimed user ID
      * @param ConnectionInterface $conn   The connection to authenticate
+     *
      * @return bool True if authenticated, false if rejected
      */
     private function authenticateConnection(string $token, int $userId, ConnectionInterface $conn): bool
@@ -214,6 +329,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      *
      * @param ConnectionInterface $conn   The connection to reject
      * @param string              $reason The reason for rejection
+     *
      * @return void
      */
     private function rejectConnection(ConnectionInterface $conn, string $reason): void
@@ -225,53 +341,12 @@ class ChatWebSocketServer implements MessageComponentInterface
             'action' => 'error',
             'data'   => [
                 'message' => $reason,
-                'code'    => 'AUTH_FAILED'
-            ]
+                'code'    => 'AUTH_FAILED',
+            ],
         ]));
 
         // Close the connection
         $conn->close();
-    }
-
-    /**
-     * Handle incoming messages from clients
-     *
-     * This method processes messages received from connected clients.
-     * Messages are expected to be JSON with an 'action' field indicating
-     * what operation to perform.
-     *
-     * Supported actions:
-     * - getMessages: Retrieve chat messages with pagination
-     * - sendMessage: Post a new chat message
-     *
-     * @param ConnectionInterface $from The connection that sent the message
-     * @param string              $msg  The message content (JSON string)
-     * @return void
-     */
-    public function onMessage(ConnectionInterface $from, $msg)
-    {
-        // Parse the JSON message
-        $data = json_decode($msg, true);
-
-        // Validate message format
-        if (!$data || !isset($data['action'])) {
-            return;
-        }
-
-        // Get the user info stored with this connection
-        $connectionData = $this->clients[$from] ?? [];
-        $userId = $connectionData['user_id'] ?? 0;
-
-        // Handle different actions
-        switch ($data['action']) {
-            case 'getMessages':
-                $this->handleGetMessages($from, $data);
-                break;
-
-            case 'sendMessage':
-                $this->handleSendMessage($from, $data, $userId);
-                break;
-        }
     }
 
     /**
@@ -281,6 +356,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      *
      * @param ConnectionInterface $from The connection requesting messages
      * @param array               $data The request data containing page and perPage
+     *
      * @return void
      */
     private function handleGetMessages(ConnectionInterface $from, array $data): void
@@ -296,8 +372,8 @@ class ChatWebSocketServer implements MessageComponentInterface
             'action' => 'messages',
             'data' => [
                 'messages'   => $result['messages'],
-                'pagination' => $result['pagination']
-            ]
+                'pagination' => $result['pagination'],
+            ],
         ]));
     }
 
@@ -310,6 +386,7 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @param ConnectionInterface $from   The connection sending the message
      * @param array               $data   The message data containing username and message
      * @param int                 $userId The authenticated user's ID
+     *
      * @return void
      */
     private function handleSendMessage(ConnectionInterface $from, array $data, int $userId): void
@@ -332,8 +409,8 @@ class ChatWebSocketServer implements MessageComponentInterface
             'data' => [
                 'user'      => $username,
                 'msg'       => $message,
-                'timestamp' => $timestamp
-            ]
+                'timestamp' => $timestamp,
+            ],
         ];
 
         // Broadcast the message to ALL connected clients
@@ -341,72 +418,5 @@ class ChatWebSocketServer implements MessageComponentInterface
         foreach ($this->clients as $client) {
             $client->send(json_encode($messageData));
         }
-    }
-
-    /**
-     * Handle connection close
-     *
-     * Called when a client disconnects. We clean up by removing
-     * the connection from our storage.
-     *
-     * @param ConnectionInterface $conn The connection that closed
-     * @return void
-     */
-    public function onClose(ConnectionInterface $conn): void
-    {
-        // Get user info before removing
-        $connectionData = $this->clients[$conn] ?? [];
-        $userId = $connectionData['user_id'] ?? 'unknown';
-
-        // Remove the connection from our storage
-        $this->clients->detach($conn);
-
-        echo "Connection " . spl_object_id($conn) . " (user_id: {$userId}) has disconnected\n";
-    }
-
-    /**
-     * Handle connection errors
-     *
-     * Called when an error occurs on a connection. We log the error
-     * and close the connection.
-     *
-     * @param ConnectionInterface $conn The connection that errored
-     * @param Exception           $e    The exception that occurred
-     * @return void
-     */
-    public function onError(ConnectionInterface $conn, Exception $e): void
-    {
-        echo "An error has occurred: {$e->getMessage()}\n";
-
-        $conn->close();
-    }
-
-    /**
-     * Get the number of currently connected clients
-     *
-     * Useful for monitoring and debugging.
-     *
-     * @return int The number of connected clients
-     */
-    public function getClientCount(): int
-    {
-        return $this->clients->count();
-    }
-
-    /**
-     * Check if a specific user is connected
-     *
-     * @param int $userId The user ID to check
-     * @return bool True if the user has an active connection
-     */
-    public function isUserConnected(int $userId): bool
-    {
-        foreach ($this->clients as $client) {
-            $data = $this->clients[$client];
-            if (($data['user_id'] ?? 0) === $userId) {
-                return true;
-            }
-        }
-        return false;
     }
 }

@@ -6,16 +6,17 @@ use Config\Services;
 
 /**
  * Validation Helper
- * 
+ *
  * Contains utility functions for data validation
  */
 class ValidationHelper
 {
     /**
      * Validate data against rules
-     * 
-     * @param array $data Data to validate
+     *
+     * @param array $data  Data to validate
      * @param array $rules Validation rules
+     *
      * @return array|bool Validation errors or true if valid
      */
     public static function validate(array $data, array $rules): array|bool
@@ -32,9 +33,10 @@ class ValidationHelper
 
     /**
      * Get common validation rules for email fields
-     * 
+     *
      * @param bool $required Whether the field is required
-     * @param bool $unique Whether the email should be unique in the users table
+     * @param bool $unique   Whether the email should be unique in the users table
+     *
      * @return array Validation rules
      */
     public static function getEmailRules(bool $required = true, bool $unique = true): array
@@ -42,8 +44,8 @@ class ValidationHelper
         $rules = [
             'rules' => 'valid_email',
             'errors' => [
-                'valid_email' => 'Please enter a valid email address'
-            ]
+                'valid_email' => 'Please enter a valid email address',
+            ],
         ];
 
         if ($required) {
@@ -61,24 +63,25 @@ class ValidationHelper
 
     /**
      * Get common validation rules for username fields
-     * 
-     * @param bool $required Whether the field is required
-     * @param bool $unique Whether the username should be unique in the users table
-     * @param int $minLength Minimum length of the username
-     * @param int $maxLength Maximum length of the username
+     *
+     * @param bool $required  Whether the field is required
+     * @param bool $unique    Whether the username should be unique in the users table
+     * @param int  $minLength Minimum length of the username
+     * @param int  $maxLength Maximum length of the username
+     *
      * @return array Validation rules
      */
     public static function getUsernameRules(
-        bool $required = true, 
-        bool $unique = true, 
-        int $minLength = 3, 
+        bool $required = true,
+        bool $unique = true,
+        int $minLength = 3,
         int $maxLength = 50
     ): array {
         $rules = [
             'rules' => 'alpha_numeric',
             'errors' => [
-                'alpha_numeric' => 'Username can only contain alphanumeric characters'
-            ]
+                'alpha_numeric' => 'Username can only contain alphanumeric characters',
+            ],
         ];
 
         if ($required) {
@@ -106,16 +109,17 @@ class ValidationHelper
 
     /**
      * Get common validation rules for password fields
-     * 
-     * @param bool $required Whether the field is required
-     * @param int $minLength Minimum length of the password
+     *
+     * @param bool $required  Whether the field is required
+     * @param int  $minLength Minimum length of the password
+     *
      * @return array Validation rules
      */
     public static function getPasswordRules(bool $required = true, int $minLength = 8): array
     {
         $rules = [
             'rules' => '',
-            'errors' => []
+            'errors' => [],
         ];
 
         if ($required) {
@@ -133,9 +137,10 @@ class ValidationHelper
 
     /**
      * Get validation rules for password confirmation
-     * 
+     *
      * @param string $matchField The field to match (usually 'password')
-     * @param bool $required Whether the field is required
+     * @param bool   $required   Whether the field is required
+     *
      * @return array Validation rules
      */
     public static function getPasswordConfirmRules(string $matchField = 'password', bool $required = true): array
@@ -143,8 +148,8 @@ class ValidationHelper
         $rules = [
             'rules' => 'matches[' . $matchField . ']',
             'errors' => [
-                'matches' => 'Passwords do not match'
-            ]
+                'matches' => 'Passwords do not match',
+            ],
         ];
 
         if ($required) {
@@ -157,20 +162,21 @@ class ValidationHelper
 
     /**
      * Get common validation rules for message content
-     * 
-     * @param bool $required Whether the field is required
-     * @param int $minLength Minimum length of the message
-     * @param int $maxLength Maximum length of the message
+     *
+     * @param bool $required  Whether the field is required
+     * @param int  $minLength Minimum length of the message
+     * @param int  $maxLength Maximum length of the message
+     *
      * @return array Validation rules
      */
     public static function getMessageRules(
-        bool $required = true, 
-        int $minLength = 1, 
+        bool $required = true,
+        int $minLength = 1,
         int $maxLength = 500
     ): array {
         $rules = [
             'rules' => '',
-            'errors' => []
+            'errors' => [],
         ];
 
         if ($required) {
