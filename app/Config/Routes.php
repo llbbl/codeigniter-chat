@@ -29,3 +29,4 @@ $routes->get('chat/svelteApi', 'Chat::svelteApi');
 
 // CSP report route
 $routes->post('csp-report', 'CspReport::index');
+$routes->get('admin/csp-reports', 'CspReport::admin', ['filter' => 'auth']);
