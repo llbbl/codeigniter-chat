@@ -36,6 +36,7 @@ class Filters extends BaseFilters
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
         'rateLimit'     => \App\Filters\RateLimitFilter::class,
+        'securityHeaders' => \App\Filters\SecurityHeadersFilter::class,
     ];
 
     /**
@@ -57,6 +58,7 @@ class Filters extends BaseFilters
             'pagecache',  // Web Page Caching
         ],
         'after' => [
+            'securityHeaders',
             'pagecache',   // Web Page Caching
             'performance', // Performance Metrics
             'toolbar',     // Debug Toolbar
@@ -77,7 +79,7 @@ class Filters extends BaseFilters
         ],
         'after' => [
             // 'honeypot',
-            'secureheaders',
+            'securityHeaders',
             'cors',
         ],
     ];
