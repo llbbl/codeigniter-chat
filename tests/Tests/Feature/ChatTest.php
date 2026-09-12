@@ -77,6 +77,18 @@ final class ChatTest extends CIUnitTestCase
         $result->assertSee('CodeIgniter Shoutbox');
     }
 
+    public function testSecurityHeadersAreAppliedGlobally(): void
+    {
+        $result = $this->withHeaders(['Origin' => 'http://localhost'])
+                       ->withSession(['logged_in' => true, 'username' => 'Test User'])
+                       ->call('get', '/chat');
+
+        $result->assertHeader('X-Frame-Options', 'DENY');
+        $result->assertHeader('X-Content-Type-Options', 'nosniff');
+        $result->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+        $this->assertSame('', $result->response()->getHeaderLine('Strict-Transport-Security'));
+    }
+
     public function testBackendReturnsXml(): void
     {
         $result = $this->withHeaders(['Origin' => 'http://localhost'])
