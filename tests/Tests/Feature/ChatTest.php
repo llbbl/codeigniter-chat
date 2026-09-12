@@ -27,6 +27,7 @@ final class ChatTest extends CIUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Services::resetSingle('response');
 
         // Create a mock for the ChatModel
         $this->mockChatModel = $this->createStub(ChatModel::class);
@@ -87,6 +88,68 @@ final class ChatTest extends CIUnitTestCase
         $result->assertHeader('X-Content-Type-Options', 'nosniff');
         $result->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $this->assertSame('', $result->response()->getHeaderLine('Strict-Transport-Security'));
+    }
+
+    public function testSecurityHeadersAreAppliedToUnauthenticatedRedirects(): void
+    {
+        $result = $this->withHeaders(['Origin' => 'http://localhost'])
+                       ->call('get', '/chat');
+
+        $result->assertRedirect();
+        $result->assertHeader('X-Frame-Options', 'DENY');
+        $result->assertHeader('X-Content-Type-Options', 'nosniff');
+        $result->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+
+    public function testSecurityHeadersAreAppliedToCsrfRejections(): void
+    {
+        $securityConfig = new \Config\Security();
+        $securityConfig->redirect = true;
+        Services::injectMock('security', new \CodeIgniter\Security\Security($securityConfig));
+
+        $result = $this->withHeaders(['Origin' => 'http://localhost'])
+                       ->withSession(['logged_in' => true, 'username' => 'Test User'])
+                       ->call('post', '/chat/update', [
+                           'message' => 'Test Message',
+                           'action' => 'postmsg',
+                       ]);
+
+        $result->assertRedirect();
+        $result->assertHeader('X-Frame-Options', 'DENY');
+        $result->assertHeader('X-Content-Type-Options', 'nosniff');
+        $result->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+
+    public function testFrameRelaxedSecurityHeaderOverrideIsAppliedThroughTheFilterPipeline(): void
+    {
+        $result = $this->withRoutes([
+            [
+                'GET',
+                'frame-relaxed-test',
+                static fn (): string => 'OK',
+                ['filter' => 'securityHeaders:frame-relaxed'],
+            ],
+        ])->call('get', '/frame-relaxed-test');
+
+        $result->assertOK();
+        $result->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    public function testFrameRelaxedSecurityHeaderOverrideDoesNotReplaceControllerHeaders(): void
+    {
+        $result = $this->withRoutes([
+            [
+                'GET',
+                'controller-frame-header-test',
+                static fn () => service('response')
+                    ->setHeader('X-Frame-Options', 'ALLOW-FROM https://example.com')
+                    ->setBody('OK'),
+                ['filter' => 'securityHeaders:frame-relaxed'],
+            ],
+        ])->call('get', '/controller-frame-header-test');
+
+        $result->assertOK();
+        $result->assertHeader('X-Frame-Options', 'ALLOW-FROM https://example.com');
     }
 
     public function testBackendReturnsXml(): void
@@ -200,6 +263,8 @@ final class ChatTest extends CIUnitTestCase
     protected function tearDown(): void
     {
         Services::resetSingle('chatModel');
+        Services::resetSingle('response');
+        Services::resetSingle('security');
         parent::tearDown();
     }
 }
