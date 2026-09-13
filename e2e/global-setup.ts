@@ -23,6 +23,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     stdio: 'inherit',
   });
 
+  await assertPortFree(8080);
   const webSocketServer = spawn('php', ['spark', 'chat:websocket', '--port', '8080'], {
     cwd: rootDir,
     env: applicationEnvironment,
@@ -46,6 +47,26 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       fs.writeFileSync(tokenPath, tokenBackup);
     }
   };
+}
+
+function assertPortFree(port: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+
+    server.once('error', () => {
+      reject(new Error(`Port ${port} is already in use; refusing to run E2E against an unknown server`));
+    });
+    server.listen(port, '127.0.0.1', () => {
+      server.close(error => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+  });
 }
 
 function waitForPort(child: ChildProcess, port: number): Promise<void> {

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { applicationEnvironment, baseURL, cachePath, rootDir } from './e2e/support/environment';
 
 fs.mkdirSync(cachePath, { recursive: true });
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === '1';
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,14 +32,14 @@ export default defineConfig({
       cwd: rootDir,
       env: applicationEnvironment,
       port: 8085,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 30_000,
     },
     {
       command: 'pnpm dev --host 127.0.0.1 --port 5173 --strictPort',
       cwd: rootDir,
       port: 5173,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 30_000,
     },
   ],

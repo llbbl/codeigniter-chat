@@ -58,4 +58,6 @@ The harness starts the CodeIgniter HTTP server, Vite development server, and Web
 
 Use `pnpm e2e:ui` for Playwright's interactive runner. `pnpm e2e:codegen` opens the application for locator exploration after the stack is running. Traces, screenshots, and video are retained for failures in `test-results/`; the HTML report is written to `playwright-report/` in CI and uploaded when a pull-request run fails.
 
+By default, the suite refuses to reuse processes already listening on its HTTP, Vite, or WebSocket ports so it cannot accidentally write through a non-test application stack. Set `PLAYWRIGHT_REUSE_SERVER=1` only when you intentionally started compatible HTTP and Vite servers with the same isolated E2E environment; WebSocket server reuse is never allowed.
+
 Shared behavior belongs in `e2e/support/chat-scenarios.ts`; keep one small spec in `e2e/` for each frontend route. Pull requests run the suite through `.github/workflows/e2e.yml`.
