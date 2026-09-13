@@ -7,8 +7,10 @@ use App\Contracts\AuditLogRepository;
 use App\Contracts\ChatFormatter as ChatFormatterContract;
 use App\Contracts\ChatRepository;
 use App\Contracts\CspReportRepository;
+use App\Contracts\PushSubscriptionRepository;
 use App\Contracts\UserRepository;
 use App\Controllers\Api\V1\MessagesController;
+use App\Controllers\Api\V1\PushSubscriptionsController;
 use App\Controllers\AuditLog;
 use App\Controllers\Auth;
 use App\Controllers\Chat;
@@ -19,6 +21,7 @@ use App\Libraries\ErrorHandler;
 use App\Models\AuditLogModel;
 use App\Models\ChatModel;
 use App\Models\CspReportModel;
+use App\Models\PushSubscriptionModel;
 use App\Models\UserModel;
 use App\Services\AuditLogger;
 use App\Services\ChatFormatter;
@@ -64,6 +67,7 @@ class Services extends BaseService
             Home::class => new Home(),
             Chat::class => new Chat(static::chatRepository(), static::chatFormatter()),
             MessagesController::class => new MessagesController(static::chatRepository(), static::chatFormatter()),
+            PushSubscriptionsController::class => new PushSubscriptionsController(static::pushSubscriptionRepository()),
             Auth::class => new Auth(static::userRepository(), static::auditLogger()),
             CspReport::class => new CspReport(static::cspReportRepository()),
             AuditLog::class => new AuditLog(static::auditLogRepository()),
@@ -105,6 +109,15 @@ class Services extends BaseService
         }
 
         return new CspReportModel();
+    }
+
+    public static function pushSubscriptionRepository(bool $getShared = true): PushSubscriptionRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('pushSubscriptionRepository');
+        }
+
+        return new PushSubscriptionModel();
     }
 
     public static function auditLogRepository(bool $getShared = true): AuditLogRepository

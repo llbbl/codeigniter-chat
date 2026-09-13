@@ -1,0 +1,15 @@
+{
+  "name": "CodeIgniter Chat",
+  "short_name": "CI Chat",
+  "description": "A real-time chat application with Vue and Svelte clients.",
+  "start_url": "/chat/vue",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#3f6398",
+  "icons": [
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

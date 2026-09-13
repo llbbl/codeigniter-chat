@@ -105,6 +105,8 @@ vendor/
 #-------------------------
 node_modules/
 public/dist/
+public/sw.js
+public/workbox-*.js
 
 #-------------------------
 # IDE / Development Files

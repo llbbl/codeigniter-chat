@@ -55,6 +55,45 @@ $border-radius: 4px;
     }
 }
 
+.pwa-action {
+    margin-left: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #3f6398;
+    border-radius: $border-radius;
+    background: #fff;
+    color: #3f6398;
+    cursor: pointer;
+}
+
+.connection-status {
+    padding: 0.65rem 1rem;
+    background: #fff3cd;
+    color: #664d03;
+    font-size: 0.9rem;
+    text-align: center;
+
+    &.queued {
+        background: #cff4fc;
+        color: #055160;
+    }
+
+    &.failed {
+        background: #f8d7da;
+        color: #842029;
+    }
+}
+
+.message-item.queued {
+    opacity: 0.75;
+    border-left: 3px solid #3f6398;
+}
+
+.queued-label {
+    display: block;
+    margin-top: 0.25rem;
+    color: #5c6268;
+}
+
 // Loading indicator
 .contentLoading {
     display: none;

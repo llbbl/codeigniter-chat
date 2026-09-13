@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">CodeIgniter Chat</title>
+  <rect width="512" height="512" rx="112" fill="#3f6398"/>
+  <path d="M112 130h288a48 48 0 0 1 48 48v142a48 48 0 0 1-48 48H244l-92 70v-70h-40a48 48 0 0 1-48-48V178a48 48 0 0 1 48-48Z" fill="#fff"/>
+  <circle cx="170" cy="249" r="25" fill="#3f6398"/>
+  <circle cx="256" cy="249" r="25" fill="#3f6398"/>
+  <circle cx="342" cy="249" r="25" fill="#3f6398"/>
+</svg>

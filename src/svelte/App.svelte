@@ -38,6 +38,13 @@
 
 <script>
   import { onDestroy, onMount } from 'svelte';
+  import {
+    enablePushNotifications,
+    promptInstall,
+    recordQueuedMessage,
+    subscribePwa,
+    userScopedMessagesUrl,
+  } from '../js/pwa.js';
 
   // ============================================================================
   // PROPS - Data passed from main.js
@@ -91,6 +98,15 @@
   let reconnectAttempts = $state(0);
   let reconnectInterval = $state(null);
   let lastMessageTime = $state(null);
+  let pwa = $state({
+    online: navigator.onLine,
+    installAvailable: false,
+    serviceWorkerReady: false,
+    queuedMessages: 0,
+    failedMessages: 0,
+  });
+  let unsubscribePwa = null;
+  let notificationsEnabled = $state(false);
 
   // ============================================================================
   // DERIVED STATE - Computed values
@@ -103,6 +119,9 @@
 
   // Check if the send button should be disabled
   let canSend = $derived(!sending && message.trim().length > 0);
+  let canEnableNotifications = $derived(
+    Boolean(config.pushPublicKey && !notificationsEnabled && 'PushManager' in window),
+  );
 
   // ============================================================================
   // LIFECYCLE - Component mount and cleanup
@@ -116,6 +135,9 @@
    * component loads.
    */
   onMount(() => {
+    unsubscribePwa = subscribePwa((state) => {
+      pwa = state;
+    });
     connectWebSocket();
 
     // Add cleanup listener for page unload
@@ -131,7 +153,27 @@
    */
   onDestroy(() => {
     cleanUp();
+    unsubscribePwa?.();
   });
+
+  async function installApp() {
+    await promptInstall();
+  }
+
+  async function enableNotifications() {
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      notificationsEnabled = await enablePushNotifications({
+        endpoint: config.chatRoutes.pushSubscriptions,
+        csrfTokenName: config.csrfTokenName,
+        csrfToken,
+        publicKey: config.pushPublicKey,
+      });
+    } catch (err) {
+      console.error('Could not enable notifications:', err);
+      error = 'Notifications could not be enabled.';
+    }
+  }
 
   // ============================================================================
   // WEBSOCKET FUNCTIONS
@@ -184,6 +226,7 @@
 
       // Load initial messages once connected
       loadMessages();
+      warmMessagesCache();
     });
 
     // Handle incoming messages from WebSocket server
@@ -266,6 +309,7 @@
     webSocket.addEventListener('error', (event) => {
       console.error('WebSocket error:', event);
       webSocketConnected = false;
+      if (loading) loadMessagesHttp();
     });
   }
 
@@ -317,8 +361,11 @@
    */
   async function loadMessagesHttp() {
     try {
-      const response = await fetch(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`);
+      const response = await fetch(
+        userScopedMessagesUrl(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`, config.userId),
+      );
       const data = await response.json();
+      if (!response.ok) throw new Error('Message request failed');
 
       messages = data.messages || [];
       hasMoreMessages = data.pagination?.hasNext || false;
@@ -328,9 +375,19 @@
       if (messages.length > 0 && messages[0].timestamp) {
         lastMessageTime = messages[0].timestamp;
       }
+      return true;
     } catch (err) {
       console.error('Error loading messages:', err);
       loading = false;
+      return false;
+    }
+  }
+
+  async function warmMessagesCache() {
+    try {
+      await fetch(userScopedMessagesUrl(`${config.chatRoutes.api}?page=1&per_page=10`, config.userId));
+    } catch {
+      // The live WebSocket remains authoritative; cache warming is best effort.
     }
   }
 
@@ -371,7 +428,9 @@
    */
   async function loadMoreMessagesHttp() {
     try {
-      const response = await fetch(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`);
+      const response = await fetch(
+        userScopedMessagesUrl(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`, config.userId),
+      );
       const data = await response.json();
 
       if (data.messages && data.messages.length > 0) {
@@ -435,6 +494,7 @@
    * HTTP fallback for sending messages.
    */
   async function sendMessageHttp() {
+    const outgoingMessage = message;
     try {
       const formData = new FormData();
       formData.append('message', message);
@@ -474,7 +534,22 @@
       }
     } catch (err) {
       console.error('Error sending message:', err);
-      error = 'Failed to send message. Please try again.';
+      if (navigator.serviceWorker?.controller) {
+        recordQueuedMessage();
+        messages = [
+          {
+            user: config.username,
+            msg: outgoingMessage,
+            timestamp: Math.floor(Date.now() / 1000),
+            queued: true,
+          },
+          ...messages,
+        ];
+        message = '';
+        error = 'Message queued. It will be retried when delivery is available.';
+      } else {
+        error = 'Failed to send message. Please try again.';
+      }
     } finally {
       sending = false;
     }
@@ -632,9 +707,31 @@
   <header class="chat-header">
     <div class="user-info">
       <span class="welcome-text">Welcome, <b>{config.username}</b>!</span>
+      {#if pwa.installAvailable}
+        <button type="button" class="pwa-action" onclick={installApp}>Install app</button>
+      {/if}
+      {#if canEnableNotifications}
+        <button type="button" class="pwa-action" onclick={enableNotifications}>Enable notifications</button>
+      {/if}
       <a href="/auth/logout" class="logout-btn"> <i class="icon-logout"></i> Logout </a>
     </div>
   </header>
+
+  {#if !pwa.online}
+    <div class="connection-status" role="status">
+      You’re offline. New messages will be queued and retried when the connection returns.
+    </div>
+  {:else if pwa.queuedMessages > 0}
+    <div class="connection-status queued" role="status">
+      {pwa.queuedMessages} {pwa.queuedMessages === 1 ? 'message' : 'messages'} queued for delivery.
+    </div>
+  {/if}
+  {#if pwa.failedMessages > 0}
+    <div class="connection-status failed" role="alert">
+      {pwa.failedMessages}
+      queued {pwa.failedMessages === 1 ? 'message' : 'messages'} could not be delivered. Please send again.
+    </div>
+  {/if}
 
   <!-- Message display area -->
   <div class="message-container">
@@ -648,7 +745,7 @@
       <!-- Message list -->
       <div id="messagewindow" class="messages">
         {#each messages as msg, index (index)}
-          <div class="message-item">
+          <div class:queued={msg.queued} class="message-item">
             <div class="message-header">
               <span class="username">{msg.user}</span>
               {#if msg.timestamp}
@@ -658,6 +755,9 @@
             <!-- Using {@html} to render formatted message HTML -->
             <!-- This is safe because we escape user input in formatMessage() -->
             <div class="message-content">{@html formatMessage(msg.msg)}</div>
+            {#if msg.queued}
+              <small class="queued-label">Queued for delivery</small>
+            {/if}
           </div>
         {/each}
 
