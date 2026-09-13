@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Libraries\ErrorHandler;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -20,6 +21,20 @@ class AuthFilter implements FilterInterface
     {
         // If user is not logged in, redirect to login page
         if (!session()->get('logged_in')) {
+            if (
+                $request->getHeaderLine(ApiFormatFilter::FORMAT_HEADER) === 'json'
+                || str_contains($request->getHeaderLine('Accept'), 'application/json')
+            ) {
+                return service('errorHandler')
+                    ->setContext($request, service('response'))
+                    ->handleError(
+                        ErrorHandler::ERROR_TYPE_AUTHENTICATION,
+                        'Authentication required',
+                        statusCode: 401,
+                        logLevel: ErrorHandler::LOG_LEVEL_WARNING,
+                    );
+            }
+
             return redirect()->to('/auth/login')->with('error', 'Please log in to access this page.');
         }
     }

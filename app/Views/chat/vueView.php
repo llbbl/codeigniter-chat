@@ -27,8 +27,8 @@
 
         // API routes for chat operations
         window.CHAT_ROUTES = {
-            update: "<?= esc(site_url('chat/update')) ?>",
-            vueApi: "<?= esc(site_url('chat/vueApi')) ?>"
+            update: "<?= esc(site_url('api/v1/messages')) ?>",
+            messagesApi: "<?= esc(site_url('api/v1/messages')) ?>"
         };
 
         // CSRF protection token name (CodeIgniter's built-in XSS protection)

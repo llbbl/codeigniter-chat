@@ -8,6 +8,7 @@ use App\Contracts\ChatFormatter as ChatFormatterContract;
 use App\Contracts\ChatRepository;
 use App\Contracts\CspReportRepository;
 use App\Contracts\UserRepository;
+use App\Controllers\Api\V1\MessagesController;
 use App\Controllers\AuditLog;
 use App\Controllers\Auth;
 use App\Controllers\Chat;
@@ -62,6 +63,7 @@ class Services extends BaseService
         return match ($controllerClass) {
             Home::class => new Home(),
             Chat::class => new Chat(static::chatRepository(), static::chatFormatter()),
+            MessagesController::class => new MessagesController(static::chatRepository(), static::chatFormatter()),
             Auth::class => new Auth(static::userRepository(), static::auditLogger()),
             CspReport::class => new CspReport(static::cspReportRepository()),
             AuditLog::class => new AuditLog(static::auditLogRepository()),

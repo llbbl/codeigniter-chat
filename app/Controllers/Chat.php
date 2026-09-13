@@ -130,8 +130,12 @@ class Chat extends BaseController
                 return redirect()->to('/chat/html');
             }
 
-            // For AJAX requests, return success JSON
-            if ($this->request->isAJAX()) {
+            // Machine-consumed routes always return JSON, with or without the
+            // legacy X-Requested-With header.
+            if (
+                $this->request->isAJAX()
+                || str_contains($this->request->getHeaderLine('Accept'), 'application/json')
+            ) {
                 return $this->respondWithJson(['success' => true]);
             }
 

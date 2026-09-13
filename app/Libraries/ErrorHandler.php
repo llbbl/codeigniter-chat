@@ -2,6 +2,7 @@
 
 namespace App\Libraries;
 
+use App\Filters\ApiFormatFilter;
 use App\Services\CorrelationId;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\IncomingRequest;
@@ -90,6 +91,7 @@ class ErrorHandler
 
         // For AJAX or API requests, return JSON
         if (($this->request instanceof IncomingRequest && $this->request->isAJAX())
+            || $this->request->getHeaderLine(ApiFormatFilter::FORMAT_HEADER) === 'json'
             || strpos($this->request->getHeaderLine('Accept'), 'application/json') !== false
         ) {
             return $this->respondJSON($type, $message, $errors, $statusCode, $correlationId);

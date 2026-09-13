@@ -21,7 +21,7 @@
      * This file is nearly identical to vueView.php. The main difference is:
      * - Different title ("Svelte Edition" vs "Vue.js Edition")
      * - Loads src/svelte/main.js instead of src/vue/main.js
-     * - Uses svelteApi endpoint instead of vueApi
+     * - Uses the shared versioned messages API
      *
      * The pattern of passing data via window globals is the same because
      * both frameworks need the same information from the PHP backend.
@@ -69,9 +69,9 @@
         // These URLs are used by the Svelte app to communicate with the backend
         window.CHAT_ROUTES = {
             // POST endpoint for sending new messages
-            update: "<?= esc(site_url('chat/update')) ?>",
+            update: "<?= esc(site_url('api/v1/messages')) ?>",
             // GET endpoint for fetching messages (JSON format)
-            svelteApi: "<?= esc(site_url('chat/svelteApi')) ?>"
+            messagesApi: "<?= esc(site_url('api/v1/messages')) ?>"
         };
 
         // CSRF protection token name (CodeIgniter's built-in XSS protection)

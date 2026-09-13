@@ -37,8 +37,8 @@ import { mount } from 'svelte';
 const config = {
     // API routes for chat operations
     chatRoutes: {
-        update: window.CHAT_ROUTES?.update || '/chat/update',
-        api: window.CHAT_ROUTES?.svelteApi || '/chat/svelteApi'
+        update: window.CHAT_ROUTES?.update || '/api/v1/messages',
+        api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages'
     },
 
     // CSRF token name for secure form submissions

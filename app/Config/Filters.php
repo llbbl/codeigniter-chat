@@ -40,6 +40,8 @@ class Filters extends BaseFilters
         'securityHeaders' => \App\Filters\SecurityHeadersFilter::class,
         'validate'      => \App\Filters\ValidateInputFilter::class,
         'requestId'     => \App\Filters\RequestIdFilter::class,
+        'deprecation'   => \App\Filters\DeprecationFilter::class,
+        'apiFormat'     => \App\Filters\ApiFormatFilter::class,
     ];
 
     /**
