@@ -4,7 +4,7 @@
   "description": "CodeIgniter Chat Application",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20.19"
   },
@@ -15,7 +15,7 @@
     "bench:post": "k6 run bench/post-messages.js",
     "bench:read": "k6 run bench/read-messages.js",
     "bench:ws": "k6 run bench/websocket-fanout.js",
-    "check": "pnpm check:biome && pnpm check:svelte && pnpm check:vue",
+    "check": "biome check --error-on-warnings . && svelte-check --config ./svelte.config.js --fail-on-warnings && vue-tsc --noEmit -p tsconfig.vue.json",
     "check:biome": "biome check --error-on-warnings .",
     "check:svelte": "svelte-check --config ./svelte.config.js --fail-on-warnings",
     "check:vue": "vue-tsc --noEmit -p tsconfig.vue.json",
