@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, type Response, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 type NetworkFormat = 'json' | 'xml';
 
@@ -18,6 +18,7 @@ interface ChatScenario {
 export function chatScenario(scenario: ChatScenario): void {
   test(`${scenario.name} posts and displays a message without browser errors`, async ({ page }) => {
     await login(page);
+    await page.waitForLoadState('networkidle');
 
     const browserErrors: string[] = [];
     page.on('pageerror', (error) => browserErrors.push(error.message));
@@ -28,7 +29,6 @@ export function chatScenario(scenario: ChatScenario): void {
     });
 
     const payloadPromise = scenario.network ? captureNetworkPayload(page, scenario.network) : null;
-
     await page.goto(scenario.path);
 
     if (payloadPromise && scenario.network) {
@@ -71,24 +71,19 @@ function assertNetworkPayload(payload: unknown, format: NetworkFormat): void {
 }
 
 function captureNetworkPayload(page: Page, network: NonNullable<ChatScenario['network']>): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const handleResponse = async (response: Response): Promise<void> => {
-      if (!new URL(response.url()).pathname.endsWith(network.path)) {
-        return;
+  return page
+    .waitForResponse((response) => {
+      const resourceType = response.request().resourceType();
+      if (resourceType !== 'fetch' && resourceType !== 'xhr') {
+        return false;
       }
 
-      page.off('response', handleResponse);
-
-      try {
-        expect(response.ok()).toBeTruthy();
-        resolve(network.format === 'json' ? await response.json() : await response.text());
-      } catch (error) {
-        reject(error);
-      }
-    };
-
-    page.on('response', handleResponse);
-  });
+      return new URL(response.url()).pathname.endsWith(network.path);
+    })
+    .then(async (response) => {
+      expect(response.ok()).toBeTruthy();
+      return network.format === 'json' ? await response.json() : await response.text();
+    });
 }
 
 async function assertNoSeriousAccessibilityViolations(page: Page): Promise<void> {

@@ -104,7 +104,7 @@ export async function dismissFailedMessages() {
   emit();
 
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await serviceWorkerReadyWithin();
   registration.active?.postMessage({ type: 'CHAT_OUTBOX_DISMISS_FAILURES' });
 }
 
@@ -114,11 +114,18 @@ function clearDeliveryState() {
   emit();
 }
 
+function serviceWorkerReadyWithin(timeout = 1000) {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => window.setTimeout(() => resolve(null), timeout)),
+  ]);
+}
+
 async function clearServiceWorkerOutbox() {
   if (!('serviceWorker' in navigator)) return;
 
-  const registration = await navigator.serviceWorker.ready;
-  if (!registration.active) return;
+  const registration = await serviceWorkerReadyWithin();
+  if (!registration?.active) return;
 
   await Promise.race([
     new Promise((resolve) => {
