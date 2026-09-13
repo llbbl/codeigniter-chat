@@ -1,0 +1,20 @@
+{
+  "$schema": "./vendor/infection/infection/resources/schema.json",
+  "source": {
+    "directories": ["app"],
+    "excludes": ["Views", "Config/Routes.php", "Config/Services.php"]
+  },
+  "timeout": 10,
+  "initialTestsPhpOptions": "-d pcov.directory=app",
+  "testFrameworkExtraArgs": "--exclude-group=integration-websocket --order-by=default",
+  "logs": {
+    "html": "build/logs/infection.html",
+    "json": "build/logs/infection.json"
+  },
+  "mutators": {
+    "@default": true,
+    "@function_signature": false
+  },
+  "minMsi": 0,
+  "minCoveredMsi": 0
+}

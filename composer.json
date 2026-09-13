@@ -21,6 +21,7 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.9",
+        "infection/infection": "^0.35.4",
         "mikey179/vfsstream": "^1.6",
         "phpunit/phpunit": "^13.0"
     },
@@ -42,7 +43,10 @@
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "infection/extension-installer": true
+        }
     },
     "scripts": {
         "test": "phpunit --testsuite UnitFeature --exclude-group integration,integration-websocket",
@@ -54,6 +58,7 @@
         "test:all": "phpunit --exclude-group integration-websocket",
         "test:coverage": "phpunit --colors --coverage-html build/logs/html",
         "test:coverage:text": "phpunit --colors --coverage-text",
+        "infection": "@php -d memory_limit=1G vendor/bin/infection --threads=4 --show-mutations",
         "analyse": "phpstan analyse --memory-limit=256M",
         "cs-check": "php-cs-fixer fix --dry-run --diff",
         "cs-fix": "php-cs-fixer fix"
