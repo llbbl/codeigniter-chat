@@ -35,21 +35,21 @@ import { mount } from 'svelte';
  * without making additional API calls.
  */
 const config = {
-    // API routes for chat operations
-    chatRoutes: {
-        update: window.CHAT_ROUTES?.update || '/api/v1/messages',
-        api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages'
-    },
+  // API routes for chat operations
+  chatRoutes: {
+    update: window.CHAT_ROUTES?.update || '/api/v1/messages',
+    api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages',
+  },
 
-    // CSRF token name for secure form submissions
-    csrfTokenName: window.CSRF_TOKEN_NAME || 'csrf_test_name',
+  // CSRF token name for secure form submissions
+  csrfTokenName: window.CSRF_TOKEN_NAME || 'csrf_test_name',
 
-    // Current user information from session
-    username: window.CURRENT_USERNAME || 'Guest',
-    userId: window.CURRENT_USER_ID || 0,
+  // Current user information from session
+  username: window.CURRENT_USERNAME || 'Guest',
+  userId: window.CURRENT_USER_ID || 0,
 
-    // WebSocket authentication token (generated on login)
-    wsToken: window.WEBSOCKET_TOKEN || ''
+  // WebSocket authentication token (generated on login)
+  wsToken: window.WEBSOCKET_TOKEN || '',
 };
 
 /**
@@ -67,14 +67,14 @@ const config = {
  * inside the App component via $props().
  */
 const app = mount(App, {
-    // The DOM element where the app will be rendered
-    target: document.getElementById('app'),
+  // The DOM element where the app will be rendered
+  target: document.getElementById('app'),
 
-    // Props passed to the root component
-    // These are accessed in App.svelte using $props()
-    props: {
-        config
-    }
+  // Props passed to the root component
+  // These are accessed in App.svelte using $props()
+  props: {
+    config,
+  },
 });
 
 // Export the app instance for debugging (optional)

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "types": ["vite/client"]
+  },
+  "include": ["src/vue/**/*.js", "src/vue/**/*.vue"]
+}

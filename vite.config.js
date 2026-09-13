@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
-import vue from '@vitejs/plugin-vue';
+import { resolve } from 'node:path';
 import { svelte, vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import vue from '@vitejs/plugin-vue';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
   // Both Vue and Svelte plugins can coexist in the same Vite config
@@ -11,8 +11,8 @@ export default defineConfig({
     svelte({
       // Enable preprocessing for SCSS in Svelte components
       // vitePreprocess uses Vite's built-in preprocessors
-      preprocess: vitePreprocess()
-    })
+      preprocess: vitePreprocess(),
+    }),
   ],
   // Base public path when served in production
   base: '/',
@@ -34,13 +34,13 @@ export default defineConfig({
     rollupOptions: {
       input: {
         // Entry points for our JavaScript files
-        'chat': resolve(__dirname, 'src/js/chat.js'),
-        'chat-json': resolve(__dirname, 'src/js/chat-json.js'),
-        'chat-html': resolve(__dirname, 'src/js/chat-html.js'),
-        'chat-vue': resolve(__dirname, 'src/vue/main.js'), // Vue.js entry point
-        'chat-svelte': resolve(__dirname, 'src/svelte/main.js'), // Svelte entry point
-        'styles': resolve(__dirname, 'src/css/chat.scss'),
-        'zipcodes': resolve(__dirname, 'src/css/zipcodes.scss')
+        chat: resolve(import.meta.dirname, 'src/js/chat.js'),
+        'chat-json': resolve(import.meta.dirname, 'src/js/chat-json.js'),
+        'chat-html': resolve(import.meta.dirname, 'src/js/chat-html.js'),
+        'chat-vue': resolve(import.meta.dirname, 'src/vue/main.js'), // Vue.js entry point
+        'chat-svelte': resolve(import.meta.dirname, 'src/svelte/main.js'), // Svelte entry point
+        styles: resolve(import.meta.dirname, 'src/css/chat.scss'),
+        zipcodes: resolve(import.meta.dirname, 'src/css/zipcodes.scss'),
       },
       output: {
         // Configure output file naming
@@ -53,9 +53,9 @@ export default defineConfig({
           }
           // Put other assets in the assets directory
           return 'assets/[name]-[hash][extname]';
-        }
-      }
-    }
+        },
+      },
+    },
   },
 
   // Configure the development server
@@ -63,6 +63,6 @@ export default defineConfig({
     // Open the browser on server start
     open: false,
     // Configure CORS
-    cors: true
-  }
+    cors: true,
+  },
 });

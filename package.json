@@ -4,6 +4,7 @@
   "description": "CodeIgniter Chat Application",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20.19"
   },
@@ -14,18 +15,27 @@
     "bench:post": "k6 run bench/post-messages.js",
     "bench:read": "k6 run bench/read-messages.js",
     "bench:ws": "k6 run bench/websocket-fanout.js",
+    "check": "biome check --error-on-warnings . && svelte-check --config ./svelte.config.js --fail-on-warnings && vue-tsc --noEmit -p tsconfig.vue.json",
+    "check:biome": "biome check --error-on-warnings .",
+    "check:svelte": "svelte-check --config ./svelte.config.js --fail-on-warnings",
+    "check:vue": "vue-tsc --noEmit -p tsconfig.vue.json",
+    "format": "biome check --write .",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:codegen": "playwright codegen http://127.0.0.1:8085"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@biomejs/biome": "^2.5.13",
     "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "sass": "^1.104.0",
     "svelte": "^5.57.0",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
     "vite": "^8.2.2",
-    "vue": "^3.5.42"
+    "vue": "^3.5.42",
+    "vue-tsc": "^3.3.11"
   }
 }

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page, type Response } from '@playwright/test';
+import { expect, type Page, type Response, test } from '@playwright/test';
 
 type NetworkFormat = 'json' | 'xml';
 
@@ -20,16 +20,14 @@ export function chatScenario(scenario: ChatScenario): void {
     await login(page);
 
     const browserErrors: string[] = [];
-    page.on('pageerror', error => browserErrors.push(error.message));
-    page.on('console', message => {
+    page.on('pageerror', (error) => browserErrors.push(error.message));
+    page.on('console', (message) => {
       if (message.type() === 'error') {
         browserErrors.push(message.text());
       }
     });
 
-    const payloadPromise = scenario.network
-      ? captureNetworkPayload(page, scenario.network)
-      : null;
+    const payloadPromise = scenario.network ? captureNetworkPayload(page, scenario.network) : null;
 
     await page.goto(scenario.path);
 
@@ -95,9 +93,9 @@ function captureNetworkPayload(page: Page, network: NonNullable<ChatScenario['ne
 
 async function assertNoSeriousAccessibilityViolations(page: Page): Promise<void> {
   const results = await new AxeBuilder({ page }).analyze();
-  const blocking = results.violations.filter(violation =>
-    violation.impact === 'critical' || violation.impact === 'serious',
+  const blocking = results.violations.filter(
+    (violation) => violation.impact === 'critical' || violation.impact === 'serious',
   );
 
-  expect(blocking, blocking.map(violation => `${violation.id}: ${violation.help}`).join('\n')).toEqual([]);
+  expect(blocking, blocking.map((violation) => `${violation.id}: ${violation.help}`).join('\n')).toEqual([]);
 }

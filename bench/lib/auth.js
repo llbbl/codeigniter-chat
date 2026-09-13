@@ -1,6 +1,6 @@
-import http from 'k6/http';
 import { check, fail } from 'k6';
 import exec from 'k6/execution';
+import http from 'k6/http';
 
 export const baseUrl = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 export const websocketUrl = (__ENV.WS_URL || 'ws://127.0.0.1:8081').replace(/\/$/, '');
@@ -20,14 +20,18 @@ export function loginForUser(sequence) {
     fail(`Could not read the CSRF token from ${baseUrl}/auth/login`);
   }
 
-  const response = http.post(`${baseUrl}/auth/processLogin`, {
-    username,
-    password,
-    csrf_test_name: loginCsrf,
-  }, {
-    redirects: 5,
-    tags: { name: 'POST /auth/processLogin' },
-  });
+  const response = http.post(
+    `${baseUrl}/auth/processLogin`,
+    {
+      username,
+      password,
+      csrf_test_name: loginCsrf,
+    },
+    {
+      redirects: 5,
+      tags: { name: 'POST /auth/processLogin' },
+    },
+  );
   const authenticated = check(response, {
     'login succeeds': (result) => result.status === 200 && result.url.includes('/chat'),
   });

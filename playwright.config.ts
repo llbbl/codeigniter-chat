@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
 import fs from 'node:fs';
+import { defineConfig, devices } from '@playwright/test';
 import { applicationEnvironment, baseURL, cachePath, rootDir } from './e2e/support/environment';
 
 fs.mkdirSync(cachePath, { recursive: true });
