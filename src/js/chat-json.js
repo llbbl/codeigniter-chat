@@ -228,7 +228,7 @@ function addMessages(data, append = false) {
  */
 function loadMsg(page = 1) {
     // Build the URL with query parameters for pagination
-    const url = `${CHAT_ROUTES.jsonBackend}?page=${page}&per_page=${messagesPerPage}`;
+    const url = `${CHAT_ROUTES.messagesApi}?page=${page}&per_page=${messagesPerPage}`;
 
     // Use fetch() to make a GET request
     // fetch() returns a Promise that resolves to a Response object
@@ -272,7 +272,7 @@ function loadMsg(page = 1) {
  * @param {number} page - The page number to load
  */
 function loadOlderMessages(page) {
-    const url = `${CHAT_ROUTES.jsonBackend}?page=${page}&per_page=${messagesPerPage}`;
+    const url = `${CHAT_ROUTES.messagesApi}?page=${page}&per_page=${messagesPerPage}`;
     const loadMoreBtn = $('#load-more-btn');
 
     fetch(url, {

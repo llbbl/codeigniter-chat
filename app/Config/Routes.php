@@ -19,13 +19,26 @@ $routes->get('chat', 'Chat::index');
 $routes->post('chat/update', 'Chat::update', ['filter' => ['rate:write', 'validate:message']]);
 $routes->get('chat/backend', 'Chat::backend');
 $routes->get('chat/json', 'Chat::json');
-$routes->get('chat/jsonBackend', 'Chat::jsonBackend');
 $routes->get('chat/html', 'Chat::html');
 $routes->get('chat/htmlBackend', 'Chat::htmlBackend');
 $routes->get('chat/vue', 'Chat::vue');
-$routes->get('chat/vueApi', 'Chat::vueApi');
 $routes->get('chat/svelte', 'Chat::svelte');
-$routes->get('chat/svelteApi', 'Chat::svelteApi');
+
+// Stable, machine-consumed API routes.
+$routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static function (RouteCollection $routes): void {
+    $routes->get('messages', 'MessagesController::list', ['filter' => ['apiFormat', 'auth']]);
+    $routes->post('messages', 'MessagesController::create', ['filter' => ['apiFormat', 'auth', 'rate:write', 'validate:message']]);
+    $routes->get('messages/xml', 'MessagesController::listXml', ['filter' => 'auth']);
+});
+
+// Compatibility shims: same v1 implementation, with machine-readable sunset metadata.
+$legacyApiOptions = [
+    'namespace' => 'App\Controllers\Api\V1',
+    'filter' => ['apiFormat', 'auth', 'deprecation:/api/v1/messages'],
+];
+$routes->get('chat/jsonBackend', 'MessagesController::list', $legacyApiOptions);
+$routes->get('chat/vueApi', 'MessagesController::list', $legacyApiOptions);
+$routes->get('chat/svelteApi', 'MessagesController::list', $legacyApiOptions);
 
 // CSP report route
 $routes->post('csp-report', 'CspReport::index');

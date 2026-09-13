@@ -10,8 +10,8 @@
     <script type="text/javascript">
         // Define constants for use in the external JavaScript file
         const CHAT_ROUTES = {
-            update: "<?= esc(site_url('chat/update')) ?>",
-            jsonBackend: "<?= esc(site_url('chat/jsonBackend')) ?>"
+            update: "<?= esc(site_url('api/v1/messages')) ?>",
+            messagesApi: "<?= esc(site_url('api/v1/messages')) ?>"
         };
         const CSRF_TOKEN_NAME = "<?= csrf_token() ?>";
     </script>

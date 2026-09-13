@@ -20,7 +20,7 @@ This implementation uses jQuery to make AJAX requests to the server and receive 
 - **Code**: 
   - Frontend: `src/js/chat-json.js`
   - View: `app/Views/chat/jsonView.php`
-  - Backend: `app/Controllers/Chat.php` (methods: `json()`, `jsonBackend()`)
+  - Backend: `app/Controllers/Chat.php` (view) and `app/Controllers/Api/V1/MessagesController.php` (API)
 
 Similar to the XML version, but uses JSON as the data format, which is more lightweight and easier to work with in JavaScript.
 
@@ -42,7 +42,7 @@ This implementation uses traditional form submission with page reloads. It repre
 - **Code**: 
   - Frontend: `src/vue/main.js`, `src/vue/App.vue`
   - View: `app/Views/chat/vueView.php`
-  - Backend: `app/Controllers/Chat.php` (methods: `vue()`, `vueApi()`)
+  - Backend: `app/Controllers/Chat.php` (view) and `app/Controllers/Api/V1/MessagesController.php` (API)
 
 This implementation uses Vue.js, a modern JavaScript framework that provides a reactive and component-based approach to building user interfaces. It represents the current best practice for building complex web applications.
 

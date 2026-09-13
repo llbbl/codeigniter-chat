@@ -95,6 +95,10 @@ class ValidateInputFilter implements FilterInterface
 
     private function preferredFormat(RequestInterface $request): string
     {
+        if ($request->getHeaderLine(ApiFormatFilter::FORMAT_HEADER) === 'json') {
+            return 'json';
+        }
+
         if ($request->isAJAX()) {
             return 'json';
         }
