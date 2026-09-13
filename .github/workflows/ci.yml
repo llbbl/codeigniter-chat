@@ -48,5 +48,9 @@ jobs:
       - name: Run PHPUnit tests
         run: composer test
 
+      - name: Run database integration tests
+        if: github.event_name == 'pull_request'
+        run: composer test:integration
+
       - name: Run Composer audit
         run: composer audit
