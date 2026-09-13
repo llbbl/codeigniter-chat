@@ -20,6 +20,7 @@
     <div v-if="pwa.failedMessages > 0" class="connection-status failed" role="alert">
       {{ pwa.failedMessages }} queued message{{ pwa.failedMessages === 1 ? '' : 's' }} could not be delivered. Please
       send again.
+      <button type="button" class="status-dismiss" @click="dismissDeliveryFailures">Dismiss</button>
     </div>
 
     <div class="message-container">
@@ -28,13 +29,12 @@
         <span>Loading messages...</span>
       </div>
       <div v-else id="messagewindow" class="messages">
-        <div v-for="(message, index) in messages" :key="index" class="message-item" :class="{ queued: message.queued }">
+        <div v-for="(message, index) in messages" :key="index" class="message-item">
           <div class="message-header">
             <span class="username">{{ message.user }}</span>
             <span class="timestamp" v-if="message.timestamp">{{ formatTimestamp(message.timestamp) }}</span>
           </div>
           <div class="message-content" v-html="formatMessage(message.msg)"></div>
-          <small v-if="message.queued" class="queued-label">Queued for delivery</small>
         </div>
         <div v-if="messages.length === 0" class="no-messages">No messages yet. Be the first to send a message!</div>
       </div>
@@ -87,9 +87,9 @@
 
 <script>
   import {
+    dismissFailedMessages,
     enablePushNotifications,
     promptInstall,
-    recordQueuedMessage,
     subscribePwa,
     userScopedMessagesUrl,
   } from '../js/pwa.js';
@@ -160,6 +160,9 @@
       this.unsubscribePwa?.();
     },
     methods: {
+      dismissDeliveryFailures() {
+        void dismissFailedMessages();
+      },
       async installApp() {
         await promptInstall();
       },
@@ -473,7 +476,7 @@
 
       // HTTP fallback for sending messages
       async sendMessageHttp() {
-        const outgoingMessage = this.message;
+        let fetchCompleted = false;
         try {
           const formData = new FormData();
           formData.append('message', this.message);
@@ -487,6 +490,7 @@
               'X-Requested-With': 'XMLHttpRequest',
             },
           });
+          fetchCompleted = true;
 
           const data = await response.json();
 
@@ -505,14 +509,7 @@
           }
         } catch (error) {
           console.error('Error sending message:', error);
-          if (navigator.serviceWorker?.controller) {
-            recordQueuedMessage();
-            this.messages.unshift({
-              user: this.username,
-              msg: outgoingMessage,
-              timestamp: Math.floor(Date.now() / 1000),
-              queued: true,
-            });
+          if (!fetchCompleted && navigator.serviceWorker?.controller) {
             this.message = '';
             this.error = 'Message queued. It will be retried when delivery is available.';
           } else {

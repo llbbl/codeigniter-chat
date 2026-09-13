@@ -39,9 +39,9 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import {
+    dismissFailedMessages,
     enablePushNotifications,
     promptInstall,
-    recordQueuedMessage,
     subscribePwa,
     userScopedMessagesUrl,
   } from '../js/pwa.js';
@@ -158,6 +158,10 @@
 
   async function installApp() {
     await promptInstall();
+  }
+
+  function dismissDeliveryFailures() {
+    void dismissFailedMessages();
   }
 
   async function enableNotifications() {
@@ -494,7 +498,7 @@
    * HTTP fallback for sending messages.
    */
   async function sendMessageHttp() {
-    const outgoingMessage = message;
+    let fetchCompleted = false;
     try {
       const formData = new FormData();
       formData.append('message', message);
@@ -513,6 +517,7 @@
           'X-Requested-With': 'XMLHttpRequest',
         },
       });
+      fetchCompleted = true;
 
       const data = await response.json();
 
@@ -534,17 +539,7 @@
       }
     } catch (err) {
       console.error('Error sending message:', err);
-      if (navigator.serviceWorker?.controller) {
-        recordQueuedMessage();
-        messages = [
-          {
-            user: config.username,
-            msg: outgoingMessage,
-            timestamp: Math.floor(Date.now() / 1000),
-            queued: true,
-          },
-          ...messages,
-        ];
+      if (!fetchCompleted && navigator.serviceWorker?.controller) {
         message = '';
         error = 'Message queued. It will be retried when delivery is available.';
       } else {
@@ -730,6 +725,7 @@
     <div class="connection-status failed" role="alert">
       {pwa.failedMessages}
       queued {pwa.failedMessages === 1 ? 'message' : 'messages'} could not be delivered. Please send again.
+      <button type="button" class="status-dismiss" onclick={dismissDeliveryFailures}>Dismiss</button>
     </div>
   {/if}
 
@@ -745,7 +741,7 @@
       <!-- Message list -->
       <div id="messagewindow" class="messages">
         {#each messages as msg, index (index)}
-          <div class:queued={msg.queued} class="message-item">
+          <div class="message-item">
             <div class="message-header">
               <span class="username">{msg.user}</span>
               {#if msg.timestamp}
@@ -755,9 +751,6 @@
             <!-- Using {@html} to render formatted message HTML -->
             <!-- This is safe because we escape user input in formatMessage() -->
             <div class="message-content">{@html formatMessage(msg.msg)}</div>
-            {#if msg.queued}
-              <small class="queued-label">Queued for delivery</small>
-            {/if}
           </div>
         {/each}
 

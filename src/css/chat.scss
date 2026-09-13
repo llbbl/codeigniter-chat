@@ -83,15 +83,14 @@ $border-radius: 4px;
     }
 }
 
-.message-item.queued {
-    opacity: 0.75;
-    border-left: 3px solid #3f6398;
-}
-
-.queued-label {
-    display: block;
-    margin-top: 0.25rem;
-    color: #5c6268;
+.status-dismiss {
+    margin-left: 0.5rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 // Loading indicator

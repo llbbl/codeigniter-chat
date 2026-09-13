@@ -1,4 +1,4 @@
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
+import { Queue } from 'workbox-background-sync';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
@@ -14,6 +14,25 @@ precacheAndRoute(self.__WB_MANIFEST);
 async function notifyClients(message) {
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   for (const client of windows) client.postMessage(message);
+}
+
+const outboxStatusCache = 'chat-outbox-status-v1';
+const outboxStatusUrl = '/__pwa/outbox-status';
+
+async function publishOutboxStatus(queue, failedDelta = 0, resetFailures = false) {
+  const cache = await caches.open(outboxStatusCache);
+  const existingResponse = await cache.match(outboxStatusUrl);
+  const existing = existingResponse ? await existingResponse.json() : { failedMessages: 0 };
+  const status = {
+    type: 'CHAT_OUTBOX_STATUS',
+    queuedMessages: await queue.size(),
+    failedMessages: resetFailures ? 0 : Math.max(0, Number(existing.failedMessages) || 0) + failedDelta,
+  };
+  await cache.put(
+    outboxStatusUrl,
+    new Response(JSON.stringify(status), { headers: { 'Content-Type': 'application/json' } }),
+  );
+  await notifyClients(status);
 }
 
 async function replayOutbox({ queue }) {
@@ -36,19 +55,41 @@ async function replayOutbox({ queue }) {
       }
     } catch (error) {
       await queue.unshiftRequest(entry);
-      if (replayed > 0 || failed > 0) {
-        await notifyClients({ type: 'CHAT_OUTBOX_RESULT', replayed, failed });
-      }
+      await publishOutboxStatus(queue, failed);
       throw error;
     }
 
     entry = await queue.shiftRequest();
   }
 
-  if (replayed > 0 || failed > 0) {
-    await notifyClients({ type: 'CHAT_OUTBOX_RESULT', replayed, failed });
-  }
+  if (replayed > 0 || failed > 0) await publishOutboxStatus(queue, failed);
 }
+
+const outbox = new Queue('chat-message-outbox', {
+  maxRetentionTime: 24 * 60,
+  onSync: replayOutbox,
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'CHAT_OUTBOX_STATUS_REQUEST') {
+    event.waitUntil(publishOutboxStatus(outbox));
+  }
+  if (event.data?.type === 'CHAT_OUTBOX_CLEAR') {
+    event.waitUntil(
+      (async () => {
+        while (await outbox.shiftRequest()) {
+          // Drain queued requests before ending the authenticated session.
+        }
+        await caches.delete(outboxStatusCache);
+        await notifyClients({ type: 'CHAT_OUTBOX_STATUS', queuedMessages: 0, failedMessages: 0 });
+        event.ports[0]?.postMessage({ cleared: true });
+      })(),
+    );
+  }
+  if (event.data?.type === 'CHAT_OUTBOX_DISMISS_FAILURES') {
+    event.waitUntil(publishOutboxStatus(outbox, 0, true));
+  }
+});
 
 registerRoute(
   ({ url, request }) =>
@@ -69,17 +110,19 @@ registerRoute(
     request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/api/v1/messages',
   new NetworkOnly({
     plugins: [
-      new BackgroundSyncPlugin('chat-message-outbox', {
-        maxRetentionTime: 24 * 60,
-        onSync: replayOutbox,
-      }),
+      {
+        async fetchDidFail({ request }) {
+          await outbox.pushRequest({ request });
+          await publishOutboxStatus(outbox);
+        },
+      },
     ],
   }),
   'POST',
 );
 
-registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/offline.html'), {
-    denylist: [/^\/api\//, /^\/auth\//],
-  }),
-);
+const navigationRoute = new NavigationRoute(new NetworkOnly(), {
+  denylist: [/^\/api\//, /^\/auth\//],
+});
+navigationRoute.setCatchHandler(createHandlerBoundToURL('/offline.html'));
+registerRoute(navigationRoute);

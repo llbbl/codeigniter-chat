@@ -3,7 +3,6 @@ import { registerSW } from 'virtual:pwa-register';
 const listeners = new Set();
 let deferredInstallPrompt = null;
 let initialized = false;
-let currentUserId = 0;
 
 const state = {
   online: navigator.onLine,
@@ -12,32 +11,6 @@ const state = {
   queuedMessages: 0,
   failedMessages: 0,
 };
-
-function storageKey() {
-  return `chat-pwa-outbox:${currentUserId}`;
-}
-
-function readQueuedMessages() {
-  try {
-    const value = Number.parseInt(localStorage.getItem(storageKey()) || '0', 10);
-    return Number.isFinite(value) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function failedStorageKey() {
-  return `chat-pwa-failed:${currentUserId}`;
-}
-
-function readFailedMessages() {
-  try {
-    const value = Number.parseInt(localStorage.getItem(failedStorageKey()) || '0', 10);
-    return Number.isFinite(value) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
 
 function emit() {
   const snapshot = { ...state };
@@ -49,11 +22,7 @@ function setOnline(online) {
   emit();
 }
 
-export function setupPwa(userId) {
-  currentUserId = Number(userId) || 0;
-  state.queuedMessages = readQueuedMessages();
-  state.failedMessages = readFailedMessages();
-
+export function setupPwa() {
   if (initialized) return;
   initialized = true;
 
@@ -62,6 +31,7 @@ export function setupPwa(userId) {
     onRegisteredSW(_url, registration) {
       state.serviceWorkerReady = Boolean(registration);
       emit();
+      registration?.active?.postMessage({ type: 'CHAT_OUTBOX_STATUS_REQUEST' });
     },
     onRegisterError(error) {
       console.error('Service worker registration failed:', error);
@@ -82,14 +52,14 @@ export function setupPwa(userId) {
     emit();
   });
   navigator.serviceWorker?.addEventListener('message', (event) => {
-    if (event.data?.type !== 'CHAT_OUTBOX_RESULT') return;
+    if (event.data?.type !== 'CHAT_OUTBOX_STATUS') return;
 
-    const replayed = Math.max(0, Number(event.data.replayed) || 0);
-    const failed = Math.max(0, Number(event.data.failed) || 0);
-    state.queuedMessages = Math.max(0, state.queuedMessages - replayed - failed);
-    state.failedMessages += failed;
-    persistDeliveryState();
+    state.queuedMessages = Math.max(0, Number(event.data.queuedMessages) || 0);
+    state.failedMessages = Math.max(0, Number(event.data.failedMessages) || 0);
     emit();
+  });
+  navigator.serviceWorker?.ready.then((registration) => {
+    registration.active?.postMessage({ type: 'CHAT_OUTBOX_STATUS_REQUEST' });
   });
 
   document.addEventListener('click', async (event) => {
@@ -129,49 +99,49 @@ export function userScopedMessagesUrl(url, userId) {
   return scoped.toString();
 }
 
-export function recordQueuedMessage() {
-  state.queuedMessages += 1;
-  try {
-    localStorage.setItem(storageKey(), String(state.queuedMessages));
-  } catch {
-    // Storage can be unavailable in strict privacy modes; in-memory state remains useful.
-  }
+export async function dismissFailedMessages() {
+  state.failedMessages = 0;
   emit();
+
+  if (!('serviceWorker' in navigator)) return;
+  const registration = await navigator.serviceWorker.ready;
+  registration.active?.postMessage({ type: 'CHAT_OUTBOX_DISMISS_FAILURES' });
 }
 
-function persistDeliveryState() {
-  try {
-    if (state.queuedMessages > 0) localStorage.setItem(storageKey(), String(state.queuedMessages));
-    else localStorage.removeItem(storageKey());
-
-    if (state.failedMessages > 0) localStorage.setItem(failedStorageKey(), String(state.failedMessages));
-    else localStorage.removeItem(failedStorageKey());
-  } catch {
-    // In-memory status still works when persistent storage is unavailable.
-  }
-}
-
-export function clearQueuedMessages() {
+function clearDeliveryState() {
   state.queuedMessages = 0;
   state.failedMessages = 0;
-  try {
-    localStorage.removeItem(storageKey());
-    localStorage.removeItem(failedStorageKey());
-  } catch {
-    // Nothing else is required when persistent storage is unavailable.
-  }
   emit();
+}
+
+async function clearServiceWorkerOutbox() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.ready;
+  if (!registration.active) return;
+
+  await Promise.race([
+    new Promise((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = resolve;
+      registration.active.postMessage({ type: 'CHAT_OUTBOX_CLEAR' }, [channel.port2]);
+    }),
+    new Promise((resolve) => window.setTimeout(resolve, 1000)),
+  ]);
 }
 
 export async function clearPrivatePwaData() {
-  clearQueuedMessages();
+  await clearServiceWorkerOutbox();
+  clearDeliveryState();
 
   if ('caches' in window) {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key.startsWith('chat-messages-')).map((key) => caches.delete(key)));
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith('chat-messages-') || key.startsWith('chat-outbox-status-'))
+        .map((key) => caches.delete(key)),
+    );
   }
-
-  if ('indexedDB' in window) indexedDB.deleteDatabase('workbox-background-sync');
 }
 
 function urlBase64ToUint8Array(value) {
