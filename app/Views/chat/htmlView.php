@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>CodeIgniter Shoutbox</title>
     <?php
@@ -26,12 +26,12 @@
     <form id="chatform" action="<?= esc(site_url('chat/update')) ?>" method="post">
     <?= csrf_field() ?>
     <div id="author">
-        Name: <input type="text" name="name" id="name" value="<?= esc(old('name')) ?>" />
+        <label for="name">Name:</label> <input type="text" name="name" id="name" value="<?= esc(old('name')) ?>" />
         <div id="name-error" class="error"></div>
     </div><br />
 
     <div id="txt">
-        Message: <input type="text" name="message" id="content" value="<?= esc(old('message')) ?>" />
+        <label for="content">Message:</label> <input type="text" name="message" id="content" value="<?= esc(old('message')) ?>" />
         <div id="content-error" class="error"></div>
     </div>
 

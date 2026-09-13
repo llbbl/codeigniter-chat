@@ -546,12 +546,12 @@ export default {
 @use "sass:color";
 
 // Variables
-$primary-color: #4a6fa5;
+$primary-color: #3f6398;
 $secondary-color: #6c757d;
 $background-color: #f8f9fa;
 $border-color: #dee2e6;
 $text-color: #343a40;
-$light-text-color: #6c757d;
+$light-text-color: #5c6268;
 $error-color: #dc3545;
 $success-color: #28a745;
 $hover-color: #e9ecef;
@@ -599,7 +599,7 @@ $transition-speed: 0.2s;
   font-size: 16px;
 }
 
-.logout-btn {
+.chat-header .logout-btn {
   color: white;
   text-decoration: none;
   font-size: 14px;

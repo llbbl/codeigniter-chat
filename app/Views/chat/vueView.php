@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>CodeIgniter Chat - Vue.js Edition</title>
     <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">

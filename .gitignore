@@ -66,6 +66,8 @@ writable/debugbar/*
 writable/database/*
 !writable/database/.gitkeep
 
+writable/websocket_tokens.json
+
 php_errors.log
 
 # Legacy CI3 paths
@@ -148,6 +150,8 @@ CLAUDE.md
 
 /results/
 /phpunit*.xml
+/playwright-report/
+/test-results/
 
 #-------------------------
 # Static Analysis Cache
