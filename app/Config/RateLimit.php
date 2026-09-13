@@ -27,4 +27,18 @@ class RateLimit extends BaseConfig
             'authenticated' => [30, 60],
         ],
     ];
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        if (ENVIRONMENT !== 'production' && filter_var(env('BENCHMARK_MODE', false), FILTER_VALIDATE_BOOL)) {
+            foreach ($this->profiles as $profile => $limits) {
+                $this->profiles[$profile] = [
+                    'anonymous' => [1_000_000, $limits['anonymous'][1]],
+                    'authenticated' => [1_000_000, $limits['authenticated'][1]],
+                ];
+            }
+        }
+    }
 }
