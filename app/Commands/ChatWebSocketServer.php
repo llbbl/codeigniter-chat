@@ -23,42 +23,42 @@ class ChatWebSocketServer extends BaseCommand
      *
      * @var string
      */
-    protected string $group = 'Chat';
+    protected $group = 'Chat';
 
     /**
      * The Command's Name
      *
      * @var string
      */
-    protected string $name = 'chat:websocket';
+    protected $name = 'chat:websocket';
 
     /**
      * The Command's Description
      *
      * @var string
      */
-    protected string $description = 'Starts the WebSocket server for the chat application';
+    protected $description = 'Starts the WebSocket server for the chat application';
 
     /**
      * The Command's Usage
      *
      * @var string
      */
-    protected string $usage = 'chat:websocket [options]';
+    protected $usage = 'chat:websocket [options]';
 
     /**
      * The Command's Arguments
      *
      * @var array
      */
-    protected array $arguments = [];
+    protected $arguments = [];
 
     /**
      * The Command's Options
      *
      * @var array
      */
-    protected array $options = [
+    protected $options = [
         '--port' => 'Port to run the WebSocket server on (default: 8080)',
     ];
 

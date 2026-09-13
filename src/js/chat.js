@@ -326,7 +326,8 @@ function postMessage(message) {
         method: 'POST',
         headers: {
             // This header tells the server we're sending form data
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
         },
         body: formData.toString()
     })

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>CodeIgniter Shoutbox - JSON edition</title>
     <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">
@@ -23,12 +23,12 @@
     <p id="messagewindow"><span id="loading">Loading...</span></p>
     <form id="chatform">
     <div id="author">
-        Name: <input type="text" id="name" />
+        <label for="name">Name:</label> <input type="text" id="name" />
         <div id="name-error" class="error"></div>
     </div><br />
 
     <div id="txt">
-        Message: <input type="text" name="content" id="content" value="" />
+        <label for="content">Message:</label> <input type="text" name="content" id="content" value="" />
         <div id="content-error" class="error"></div>
     </div>
 

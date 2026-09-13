@@ -35,3 +35,27 @@ composer test:integration:websocket
 ```
 
 Keep actual browser and network-server end-to-end coverage separate from this suite.
+
+## Browser end-to-end tests
+
+Playwright covers the XML, JSON, HTML, Vue, and Svelte chat implementations in Chromium. Each scenario signs in through the real login page, posts a message, verifies that the message appears, checks the frontend's network payload when applicable, fails on browser errors, and runs axe against serious and critical accessibility violations.
+
+Install the PHP and JavaScript dependencies, then install the Playwright browser once:
+
+```shell
+composer install
+pnpm install
+pnpm exec playwright install chromium
+```
+
+Run the complete browser suite with:
+
+```shell
+pnpm e2e
+```
+
+The harness starts the CodeIgniter HTTP server, Vite development server, and WebSocket server automatically. It migrates and seeds an isolated SQLite database and uses a dedicated cache directory, then removes those test artifacts and stops every process during teardown. The fixed `e2euser` credentials exist only in this isolated test database.
+
+Use `pnpm e2e:ui` for Playwright's interactive runner. `pnpm e2e:codegen` opens the application for locator exploration after the stack is running. Traces, screenshots, and video are retained for failures in `test-results/`; the HTML report is written to `playwright-report/` in CI and uploaded when a pull-request run fails.
+
+Shared behavior belongs in `e2e/support/chat-scenarios.ts`; keep one small spec in `e2e/` for each frontend route. Pull requests run the suite through `.github/workflows/e2e.yml`.
