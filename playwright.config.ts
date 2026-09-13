@@ -30,7 +30,7 @@ export default defineConfig({
       command: 'php spark serve --host 127.0.0.1 --port 8085',
       cwd: rootDir,
       env: applicationEnvironment,
-      url: baseURL,
+      port: 8085,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },
