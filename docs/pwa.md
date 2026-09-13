@@ -44,6 +44,6 @@ php spark migrate
 3. In browser application tools, confirm the manifest is installable and the service worker controls the page.
 4. Load messages once, switch the browser network to Offline, and confirm the offline indicator and cached messages appear.
 5. Post while offline, restore the network, and confirm the queued notice clears only after the service worker reports a successful replay.
-6. Run Lighthouse against a production build. Address installability and best-practice findings; authenticated pages may require Lighthouse to run with a preserved session.
+6. Run current Lighthouse best-practices and performance audits against a production build. Lighthouse 12 removed the scored PWA category, so installability is verified through browser application tools plus the automated manifest and offline-browser tests instead of an obsolete PWA score.
 
 Mutation testing remains manual-only through the `Mutation Tests` workflow's `workflow_dispatch` trigger; PWA changes do not make it a pull-request check.

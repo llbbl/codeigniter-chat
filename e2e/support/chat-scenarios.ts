@@ -36,6 +36,13 @@ export function chatScenario(scenario: ChatScenario): void {
     }
 
     await expect(page.locator(scenario.messageInput)).toBeVisible();
+    if (scenario.path === '/chat/vue' || scenario.path === '/chat/svelte') {
+      await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
+      await page.context().setOffline(true);
+      await expect(page.getByText('You’re offline.')).toBeVisible();
+      await page.context().setOffline(false);
+      await expect(page.getByText('You’re offline.')).toBeHidden();
+    }
     await assertNoSeriousAccessibilityViolations(page);
 
     const message = `${scenario.name} message ${Date.now()}`;
