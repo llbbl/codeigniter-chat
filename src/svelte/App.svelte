@@ -37,7 +37,7 @@
 -->
 
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   // ============================================================================
   // PROPS - Data passed from main.js
@@ -302,11 +302,13 @@
     loading = true;
 
     // Request messages via WebSocket
-    webSocket.send(JSON.stringify({
-      action: 'getMessages',
-      page: currentPage,
-      perPage: 10
-    }));
+    webSocket.send(
+      JSON.stringify({
+        action: 'getMessages',
+        page: currentPage,
+        perPage: 10,
+      }),
+    );
   }
 
   /**
@@ -348,11 +350,13 @@
     }
 
     // Request more messages via WebSocket
-    webSocket.send(JSON.stringify({
-      action: 'getMessages',
-      page: currentPage,
-      perPage: 10
-    }));
+    webSocket.send(
+      JSON.stringify({
+        action: 'getMessages',
+        page: currentPage,
+        perPage: 10,
+      }),
+    );
 
     // Fallback timeout to reset loading state
     setTimeout(() => {
@@ -410,11 +414,13 @@
 
     if (webSocketConnected) {
       // Send message via WebSocket
-      webSocket.send(JSON.stringify({
-        action: 'sendMessage',
-        username: config.username,
-        message: message
-      }));
+      webSocket.send(
+        JSON.stringify({
+          action: 'sendMessage',
+          username: config.username,
+          message: message,
+        }),
+      );
 
       // Clear message field
       message = '';
@@ -444,21 +450,24 @@
         method: 'POST',
         body: formData,
         headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
+          'X-Requested-With': 'XMLHttpRequest',
+        },
       });
 
       const data = await response.json();
 
-      if (data && data.error) {
+      if (data?.error) {
         error = data.error.details?.message || data.error.message || 'Failed to send message';
       } else {
         // Add message to the beginning of the list
-        messages = [{
-          user: config.username,
-          msg: message,
-          timestamp: Math.floor(Date.now() / 1000)
-        }, ...messages];
+        messages = [
+          {
+            user: config.username,
+            msg: message,
+            timestamp: Math.floor(Date.now() / 1000),
+          },
+          ...messages,
+        ];
 
         // Clear message field
         message = '';
@@ -547,7 +556,7 @@
     // Convert URLs to clickable links
     formatted = formatted.replace(
       /(https?:\/\/[^\s]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
     );
 
     // Convert line breaks to <br>
@@ -594,10 +603,7 @@
     // Using setTimeout to wait for DOM update
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(
-        start + prefix.length,
-        end + prefix.length
-      );
+      textarea.setSelectionRange(start + prefix.length, end + prefix.length);
     }, 0);
   }
 </script>
@@ -626,9 +632,7 @@
   <header class="chat-header">
     <div class="user-info">
       <span class="welcome-text">Welcome, <b>{config.username}</b>!</span>
-      <a href="/auth/logout" class="logout-btn">
-        <i class="icon-logout"></i> Logout
-      </a>
+      <a href="/auth/logout" class="logout-btn"> <i class="icon-logout"></i> Logout </a>
     </div>
   </header>
 
@@ -659,9 +663,7 @@
 
         <!-- Empty state -->
         {#if messages.length === 0}
-          <div class="no-messages">
-            No messages yet. Be the first to send a message!
-          </div>
+          <div class="no-messages">No messages yet. Be the first to send a message!</div>
         {/if}
       </div>
     {/if}
@@ -670,11 +672,7 @@
   <!-- Load more button -->
   {#if !loading && hasMoreMessages}
     <div class="load-more-container">
-      <button
-        class="load-more-btn"
-        onclick={loadMoreMessages}
-        disabled={loadingMore}
-      >
+      <button type="button" class="load-more-btn" onclick={loadMoreMessages} disabled={loadingMore}>
         {#if loadingMore}
           <span class="spinner-small"></span>
         {/if}
@@ -723,19 +721,8 @@
 
       <!-- Form action buttons -->
       <div class="form-actions">
-        <button
-          type="submit"
-          class="send-btn"
-          disabled={!canSend}
-        >
-          Send Message
-        </button>
-        <button
-          type="button"
-          class="clear-btn"
-          onclick={() => message = ''}
-          disabled={sending || !message.trim()}
-        >
+        <button type="submit" class="send-btn" disabled={!canSend}>Send Message</button>
+        <button type="button" class="clear-btn" onclick={() => message = ''} disabled={sending || !message.trim()}>
           Clear
         </button>
       </div>

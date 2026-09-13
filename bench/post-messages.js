@@ -1,5 +1,5 @@
-import http from 'k6/http';
 import { check, sleep } from 'k6';
+import http from 'k6/http';
 import { Rate, Trend } from 'k6/metrics';
 import { baseUrl, csrfToken, login } from './lib/auth.js';
 
@@ -25,13 +25,17 @@ export const options = {
 
 export default function () {
   session ||= login();
-  const response = http.post(`${baseUrl}/api/v1/messages`, {
-    message: `k6 post ${session.username} ${Date.now()}`,
-    csrf_test_name: csrfToken(),
-  }, {
-    headers: { Accept: 'application/json' },
-    tags: { name: 'POST /api/v1/messages' },
-  });
+  const response = http.post(
+    `${baseUrl}/api/v1/messages`,
+    {
+      message: `k6 post ${session.username} ${Date.now()}`,
+      csrf_test_name: csrfToken(),
+    },
+    {
+      headers: { Accept: 'application/json' },
+      tags: { name: 'POST /api/v1/messages' },
+    },
+  );
   const succeeded = check(response, {
     'message post succeeds': (result) => result.status === 200 && result.json('success') === true,
   });

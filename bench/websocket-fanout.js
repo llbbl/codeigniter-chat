@@ -1,6 +1,6 @@
 import { check } from 'k6';
-import { Rate, Trend } from 'k6/metrics';
 import exec from 'k6/execution';
+import { Rate, Trend } from 'k6/metrics';
 import { WebSocket } from 'k6/websockets';
 import { loginForUser, websocketUrl } from './lib/auth.js';
 
@@ -48,11 +48,13 @@ export default function (sessions) {
   socket.addEventListener('open', () => {
     setTimeout(() => {
       sentAt = Date.now();
-      socket.send(JSON.stringify({
-        action: 'sendMessage',
-        username: session.username,
-        message: marker,
-      }));
+      socket.send(
+        JSON.stringify({
+          action: 'sendMessage',
+          username: session.username,
+          message: marker,
+        }),
+      );
     }, 2_000);
   });
 

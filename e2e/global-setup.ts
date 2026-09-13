@@ -1,4 +1,4 @@
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -57,7 +57,7 @@ function assertPortFree(port: number): Promise<void> {
       reject(new Error(`Port ${port} is already in use; refusing to run E2E against an unknown server`));
     });
     server.listen(port, '127.0.0.1', () => {
-      server.close(error => {
+      server.close((error) => {
         if (error) {
           reject(error);
           return;
@@ -117,7 +117,7 @@ function stopProcess(child: ChildProcess): Promise<void> {
     return Promise.resolve();
   }
 
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       child.kill('SIGKILL');
       resolve();

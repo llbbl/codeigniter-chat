@@ -23,8 +23,8 @@ const app = createApp(App);
 
 // API routes for chat operations
 app.config.globalProperties.$chatRoutes = {
-    update: window.CHAT_ROUTES.update,
-    api: window.CHAT_ROUTES.messagesApi
+  update: window.CHAT_ROUTES.update,
+  api: window.CHAT_ROUTES.messagesApi,
 };
 
 // CSRF token name for form submissions

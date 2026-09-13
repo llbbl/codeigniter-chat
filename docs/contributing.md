@@ -18,7 +18,7 @@ Thank you for your interest in contributing to this project! This is a learning 
 php spark serve
 
 # In a separate terminal, start Vite for frontend assets
-npm run dev
+pnpm dev
 
 # Optional: Start the WebSocket server for real-time features
 php spark websocket:start
@@ -43,7 +43,7 @@ composer test:coverage
 
 ### Code Quality
 
-This project uses PHPStan for static analysis and PHP-CS-Fixer for code style:
+This project uses PHPStan and PHP-CS-Fixer for PHP, plus Biome, `svelte-check`, and `vue-tsc` for frontend code:
 
 ```bash
 # Run static analysis
@@ -54,13 +54,20 @@ composer cs-check
 
 # Automatically fix code style issues
 composer cs-fix
+
+# Lint and format-check JavaScript, then check Svelte and Vue components
+pnpm check
+
+# Apply safe Biome formatting and lint fixes
+pnpm format
 ```
 
-Please ensure your code passes both static analysis and code style checks before submitting a pull request.
+Please ensure the PHP and frontend checks pass before submitting a pull request. Biome covers repository JavaScript and TypeScript; framework-aware diagnostics are handled separately by `svelte-check` and `vue-tsc`.
 
 ## Code Style Guidelines
 
 - Follow PSR-12 coding standards (enforced by PHP-CS-Fixer)
+- Keep JavaScript and TypeScript formatted and lint-clean with Biome
 - Use meaningful variable and function names
 - Add comments for complex logic
 - Keep functions focused and small
@@ -70,8 +77,9 @@ Please ensure your code passes both static analysis and code style checks before
 1. Ensure all tests pass (`composer test`)
 2. Run static analysis (`composer analyse`)
 3. Fix any code style issues (`composer cs-fix`)
-4. Update documentation if needed
-5. Write a clear description of your changes
+4. Run frontend checks (`pnpm check`)
+5. Update documentation if needed
+6. Write a clear description of your changes
 
 ## Project Structure
 

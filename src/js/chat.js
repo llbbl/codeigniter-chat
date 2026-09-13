@@ -27,19 +27,6 @@ let hasMoreMessages = true;
 // ============================================================================
 
 /**
- * Escapes HTML special characters to prevent XSS attacks
- * This is important when displaying user-generated content!
- *
- * @param {string} text - The text to escape
- * @returns {string} - The escaped text safe for HTML display
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
  * Shorthand function to select a single DOM element
  * Similar to jQuery's $() but returns only the first match
  *
@@ -47,7 +34,7 @@ function escapeHtml(text) {
  * @returns {Element|null} - The matched element or null
  */
 function $(selector) {
-    return document.querySelector(selector);
+  return document.querySelector(selector);
 }
 
 /**
@@ -58,7 +45,7 @@ function $(selector) {
  * @returns {NodeList} - List of matched elements
  */
 function $$(selector) {
-    return document.querySelectorAll(selector);
+  return document.querySelectorAll(selector);
 }
 
 /**
@@ -68,7 +55,7 @@ function $$(selector) {
  * @returns {string} - The CSRF token value
  */
 function getCsrfToken() {
-    return $('meta[name="csrf-token"]').getAttribute('content');
+  return $('meta[name="csrf-token"]').getAttribute('content');
 }
 
 // ============================================================================
@@ -80,8 +67,8 @@ function getCsrfToken() {
  * Called when submitting a message to provide visual feedback
  */
 function showLoading() {
-    $('#contentLoading').style.display = 'block';
-    $('#txt').style.display = 'none';
+  $('#contentLoading').style.display = 'block';
+  $('#txt').style.display = 'none';
 }
 
 /**
@@ -89,18 +76,22 @@ function showLoading() {
  * Called after a message submission completes
  */
 function hideLoading() {
-    $('#contentLoading').style.display = 'none';
-    $('#txt').style.display = 'block';
+  $('#contentLoading').style.display = 'none';
+  $('#txt').style.display = 'block';
 }
 
 /**
  * Clears all error messages and removes error styling from inputs
  */
 function clearErrors() {
-    // Clear error text
-    $$('.error').forEach(el => el.textContent = '');
-    // Remove error styling from inputs
-    $$('input').forEach(el => el.classList.remove('error-field'));
+  // Clear error text
+  $$('.error').forEach((el) => {
+    el.textContent = '';
+  });
+  // Remove error styling from inputs
+  $$('input').forEach((el) => {
+    el.classList.remove('error-field');
+  });
 }
 
 /**
@@ -111,8 +102,8 @@ function clearErrors() {
  * @param {string} inputId - The ID of the input field to highlight
  */
 function showError(fieldId, message, inputId) {
-    $(fieldId).textContent = message;
-    $(inputId).classList.add('error-field');
+  $(fieldId).textContent = message;
+  $(inputId).classList.add('error-field');
 }
 
 /**
@@ -124,24 +115,24 @@ function showError(fieldId, message, inputId) {
  * @returns {DocumentFragment} - A document fragment containing the message elements
  */
 function createMessageElement(author, message) {
-    const fragment = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
 
-    // Create bold element for author name
-    const bold = document.createElement('b');
-    bold.textContent = author;
+  // Create bold element for author name
+  const bold = document.createElement('b');
+  bold.textContent = author;
 
-    // Create text node for ": " and message
-    const textNode = document.createTextNode(': ' + message);
+  // Create text node for ": " and message
+  const textNode = document.createTextNode(`: ${message}`);
 
-    // Create line break
-    const br = document.createElement('br');
+  // Create line break
+  const br = document.createElement('br');
 
-    // Assemble the fragment
-    fragment.appendChild(bold);
-    fragment.appendChild(textNode);
-    fragment.appendChild(br);
+  // Assemble the fragment
+  fragment.appendChild(bold);
+  fragment.appendChild(textNode);
+  fragment.appendChild(br);
 
-    return fragment;
+  return fragment;
 }
 
 // ============================================================================
@@ -167,45 +158,45 @@ function createMessageElement(author, message) {
  * @returns {number} - The number of messages added
  */
 function addMessages(xml, append = false) {
-    let messagesAdded = 0;
-    const messageWindow = $('#messagewindow');
+  let messagesAdded = 0;
+  const messageWindow = $('#messagewindow');
 
-    // Find all <message> elements in the XML
-    const messages = xml.querySelectorAll('message');
+  // Find all <message> elements in the XML
+  const messages = xml.querySelectorAll('message');
 
-    messages.forEach(message => {
-        // Extract author and text from the XML structure
-        const author = message.querySelector('author').textContent;
-        const msg = message.querySelector('text').textContent;
+  messages.forEach((message) => {
+    // Extract author and text from the XML structure
+    const author = message.querySelector('author').textContent;
+    const msg = message.querySelector('text').textContent;
 
-        // Create message element safely (no innerHTML)
-        const messageFragment = createMessageElement(author, msg);
+    // Create message element safely (no innerHTML)
+    const messageFragment = createMessageElement(author, msg);
 
-        if (append) {
-            // Add to the end of the message window
-            messageWindow.appendChild(messageFragment);
-        } else {
-            // Add to the end (for initial load, messages come in order)
-            messageWindow.appendChild(messageFragment);
-        }
-        messagesAdded++;
-    });
-
-    // Check pagination info from XML
-    const totalPagesEl = xml.querySelector('pagination totalPages');
-    const totalPages = totalPagesEl ? parseInt(totalPagesEl.textContent) : 0;
-    hasMoreMessages = currentPage < totalPages;
-
-    // Update the "Load More" button visibility
-    const loadMoreBtn = $('#load-more-btn');
-    if (hasMoreMessages) {
-        loadMoreBtn.style.display = 'block';
-        loadMoreBtn.textContent = 'Load More Messages';
+    if (append) {
+      // Add to the end of the message window
+      messageWindow.appendChild(messageFragment);
     } else {
-        loadMoreBtn.style.display = 'none';
+      // Add to the end (for initial load, messages come in order)
+      messageWindow.appendChild(messageFragment);
     }
+    messagesAdded++;
+  });
 
-    return messagesAdded;
+  // Check pagination info from XML
+  const totalPagesEl = xml.querySelector('pagination totalPages');
+  const totalPages = totalPagesEl ? parseInt(totalPagesEl.textContent, 10) : 0;
+  hasMoreMessages = currentPage < totalPages;
+
+  // Update the "Load More" button visibility
+  const loadMoreBtn = $('#load-more-btn');
+  if (hasMoreMessages) {
+    loadMoreBtn.style.display = 'block';
+    loadMoreBtn.textContent = 'Load More Messages';
+  } else {
+    loadMoreBtn.style.display = 'none';
+  }
+
+  return messagesAdded;
 }
 
 // ============================================================================
@@ -221,43 +212,43 @@ function addMessages(xml, append = false) {
  * @param {number} page - The page number to load
  */
 function loadMsg(page = 1) {
-    // Build the URL with query parameters for pagination
-    const url = `${CHAT_ROUTES.backend}?page=${page}&per_page=${messagesPerPage}`;
+  // Build the URL with query parameters for pagination
+  const url = `${CHAT_ROUTES.backend}?page=${page}&per_page=${messagesPerPage}`;
 
-    // Use fetch() to make a GET request
-    // fetch() returns a Promise that resolves to a Response object
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            // Include CSRF token for security
-            'X-CSRF-TOKEN': getCsrfToken()
-        }
+  // Use fetch() to make a GET request
+  // fetch() returns a Promise that resolves to a Response object
+  fetch(url, {
+    method: 'GET',
+    headers: {
+      // Include CSRF token for security
+      'X-CSRF-TOKEN': getCsrfToken(),
+    },
+  })
+    .then((response) => {
+      // Check if the request was successful
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      // For XML responses, we get the raw text first
+      return response.text();
     })
-    .then(response => {
-        // Check if the request was successful
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        // For XML responses, we get the raw text first
-        return response.text();
-    })
-    .then(xmlText => {
-        // Parse the XML text into a Document object
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, 'text/xml');
+    .then((xmlText) => {
+      // Parse the XML text into a Document object
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, 'text/xml');
 
-        // Remove the "Loading..." text
-        const loading = $('#loading');
-        if (loading) {
-            loading.remove();
-        }
+      // Remove the "Loading..." text
+      const loading = $('#loading');
+      if (loading) {
+        loading.remove();
+      }
 
-        // Add the messages to the chat window
-        addMessages(xml);
+      // Add the messages to the chat window
+      addMessages(xml);
     })
-    .catch(error => {
-        // Handle any errors that occurred during the fetch
-        console.error('Error loading messages:', error);
+    .catch((error) => {
+      // Handle any errors that occurred during the fetch
+      console.error('Error loading messages:', error);
     });
 }
 
@@ -267,39 +258,39 @@ function loadMsg(page = 1) {
  * @param {number} page - The page number to load
  */
 function loadOlderMessages(page) {
-    const url = `${CHAT_ROUTES.backend}?page=${page}&per_page=${messagesPerPage}`;
-    const loadMoreBtn = $('#load-more-btn');
+  const url = `${CHAT_ROUTES.backend}?page=${page}&per_page=${messagesPerPage}`;
+  const loadMoreBtn = $('#load-more-btn');
 
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': getCsrfToken()
-        }
+  fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-CSRF-TOKEN': getCsrfToken(),
+    },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.text();
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.text();
-    })
-    .then(xmlText => {
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, 'text/xml');
+    .then((xmlText) => {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, 'text/xml');
 
-        const messagesAdded = addMessages(xml, true);
+      const messagesAdded = addMessages(xml, true);
 
-        if (messagesAdded === 0) {
-            loadMoreBtn.textContent = 'No more messages';
-            loadMoreBtn.disabled = true;
-        } else {
-            loadMoreBtn.textContent = 'Load More Messages';
-        }
+      if (messagesAdded === 0) {
+        loadMoreBtn.textContent = 'No more messages';
+        loadMoreBtn.disabled = true;
+      } else {
+        loadMoreBtn.textContent = 'Load More Messages';
+      }
     })
-    .catch(error => {
-        // If loading fails, revert the page counter and show error
-        currentPage--;
-        loadMoreBtn.textContent = 'Failed to load. Try again.';
-        console.error('Error loading older messages:', error);
+    .catch((error) => {
+      // If loading fails, revert the page counter and show error
+      currentPage--;
+      loadMoreBtn.textContent = 'Failed to load. Try again.';
+      console.error('Error loading older messages:', error);
     });
 }
 
@@ -312,58 +303,58 @@ function loadOlderMessages(page) {
  * @param {string} message - The message content to send
  */
 function postMessage(message) {
-    showLoading();
+  showLoading();
 
-    // Create the form data to send
-    // URLSearchParams creates application/x-www-form-urlencoded data
-    const formData = new URLSearchParams();
-    formData.append('message', message);
-    formData.append('action', 'postmsg');
-    formData.append(CSRF_TOKEN_NAME, getCsrfToken());
+  // Create the form data to send
+  // URLSearchParams creates application/x-www-form-urlencoded data
+  const formData = new URLSearchParams();
+  formData.append('message', message);
+  formData.append('action', 'postmsg');
+  formData.append(CSRF_TOKEN_NAME, getCsrfToken());
 
-    // Make a POST request with fetch()
-    fetch(CHAT_ROUTES.update, {
-        method: 'POST',
-        headers: {
-            // This header tells the server we're sending form data
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json'
-        },
-        body: formData.toString()
+  // Make a POST request with fetch()
+  fetch(CHAT_ROUTES.update, {
+    method: 'POST',
+    headers: {
+      // This header tells the server we're sending form data
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body: formData.toString(),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      // The server returns JSON for the response
+      return response.json();
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    .then((data) => {
+      hideLoading();
+
+      if (data && data.success === false) {
+        // Display server-side validation errors
+        if (data.errors?.message) {
+          showError('#content-error', data.errors.message, '#content');
         }
-        // The server returns JSON for the response
-        return response.json();
+      } else {
+        // Success! Add the message to the chat window
+        const messageWindow = $('#messagewindow');
+        const messageFragment = createMessageElement(CURRENT_USERNAME, message);
+
+        // prepend = add to the beginning (newest messages first)
+        messageWindow.insertBefore(messageFragment, messageWindow.firstChild);
+
+        // Clear the input field and refocus it
+        const contentInput = $('#content');
+        contentInput.value = '';
+        contentInput.focus();
+      }
     })
-    .then(data => {
-        hideLoading();
-
-        if (data && data.success === false) {
-            // Display server-side validation errors
-            if (data.errors && data.errors.message) {
-                showError('#content-error', data.errors.message, '#content');
-            }
-        } else {
-            // Success! Add the message to the chat window
-            const messageWindow = $('#messagewindow');
-            const messageFragment = createMessageElement(CURRENT_USERNAME, message);
-
-            // prepend = add to the beginning (newest messages first)
-            messageWindow.insertBefore(messageFragment, messageWindow.firstChild);
-
-            // Clear the input field and refocus it
-            const contentInput = $('#content');
-            contentInput.value = '';
-            contentInput.focus();
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        alert('An error occurred while sending your message. Please try again.');
-        console.error('Error posting message:', error);
+    .catch((error) => {
+      hideLoading();
+      alert('An error occurred while sending your message. Please try again.');
+      console.error('Error posting message:', error);
     });
 }
 
@@ -378,17 +369,17 @@ function postMessage(message) {
  * @returns {boolean} - True if valid, false otherwise
  */
 function validateMessage(message) {
-    if (message === '') {
-        showError('#content-error', 'Message is required', '#content');
-        return false;
-    }
+  if (message === '') {
+    showError('#content-error', 'Message is required', '#content');
+    return false;
+  }
 
-    if (message.length > 500) {
-        showError('#content-error', 'Message cannot exceed 500 characters', '#content');
-        return false;
-    }
+  if (message.length > 500) {
+    showError('#content-error', 'Message cannot exceed 500 characters', '#content');
+    return false;
+  }
 
-    return true;
+  return true;
 }
 
 // ============================================================================
@@ -401,47 +392,47 @@ function validateMessage(message) {
  * DOMContentLoaded is similar to jQuery's $(document).ready()
  * It fires when the HTML is parsed, before images and stylesheets are loaded
  */
-document.addEventListener('DOMContentLoaded', function() {
-    // Load initial messages
-    loadMsg(currentPage);
-    hideLoading();
+document.addEventListener('DOMContentLoaded', () => {
+  // Load initial messages
+  loadMsg(currentPage);
+  hideLoading();
 
-    // Create and add the "Load More" button
-    const messageWindow = $('#messagewindow');
-    const loadMoreContainer = document.createElement('div');
-    loadMoreContainer.id = 'load-more-container';
+  // Create and add the "Load More" button
+  const messageWindow = $('#messagewindow');
+  const loadMoreContainer = document.createElement('div');
+  loadMoreContainer.id = 'load-more-container';
 
-    const loadMoreBtn = document.createElement('button');
-    loadMoreBtn.id = 'load-more-btn';
-    loadMoreBtn.style.display = 'none';
-    loadMoreBtn.textContent = 'Load More Messages';
-    loadMoreContainer.appendChild(loadMoreBtn);
+  const loadMoreBtn = document.createElement('button');
+  loadMoreBtn.id = 'load-more-btn';
+  loadMoreBtn.style.display = 'none';
+  loadMoreBtn.textContent = 'Load More Messages';
+  loadMoreContainer.appendChild(loadMoreBtn);
 
-    messageWindow.after(loadMoreContainer);
+  messageWindow.after(loadMoreContainer);
 
-    // Add click handler for the "Load More" button
-    $('#load-more-btn').addEventListener('click', function() {
-        if (hasMoreMessages) {
-            currentPage++;
-            this.textContent = 'Loading...';
-            loadOlderMessages(currentPage);
-        }
-    });
+  // Add click handler for the "Load More" button
+  $('#load-more-btn').addEventListener('click', function () {
+    if (hasMoreMessages) {
+      currentPage++;
+      this.textContent = 'Loading...';
+      loadOlderMessages(currentPage);
+    }
+  });
 
-    // Handle form submission
-    $('form#chatform').addEventListener('submit', function(event) {
-        // Prevent the default form submission (page reload)
-        event.preventDefault();
+  // Handle form submission
+  $('form#chatform').addEventListener('submit', (event) => {
+    // Prevent the default form submission (page reload)
+    event.preventDefault();
 
-        // Clear any previous errors
-        clearErrors();
+    // Clear any previous errors
+    clearErrors();
 
-        // Get and trim the message value
-        const message = $('#content').value.trim();
+    // Get and trim the message value
+    const message = $('#content').value.trim();
 
-        // Validate and send if valid
-        if (validateMessage(message)) {
-            postMessage(message);
-        }
-    });
+    // Validate and send if valid
+    if (validateMessage(message)) {
+      postMessage(message);
+    }
+  });
 });

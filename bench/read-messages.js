@@ -1,11 +1,11 @@
-import http from 'k6/http';
 import { check, sleep } from 'k6';
+import http from 'k6/http';
 import { Rate, Trend } from 'k6/metrics';
 import { baseUrl, login } from './lib/auth.js';
 
 const failures = new Rate('read_message_failures');
 const latency = new Trend('read_message_duration', true);
-let session;
+let _session;
 
 export const options = {
   noCookiesReset: true,
@@ -24,7 +24,7 @@ export const options = {
 };
 
 export default function () {
-  session ||= login();
+  _session ||= login();
   const response = http.get(`${baseUrl}/api/v1/messages?page=1&per_page=50`, {
     headers: { Accept: 'application/json' },
     tags: { name: 'GET /api/v1/messages' },
