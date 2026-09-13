@@ -76,4 +76,4 @@ Reports are written to `build/logs/infection.html` and `build/logs/infection.jso
 
 The initial baseline, recorded on September 13, 2026, is 909 covered mutants: 502 killed and 407 escaped, for a 55.23% mutation score indicator (MSI). Infection reports 100% mutation code coverage because it only creates mutants in code exercised by the selected tests; this is not the application's line-coverage percentage.
 
-Pull requests run mutation testing as a non-gating quality signal and upload both reports as the `infection-report` artifact. The minimum MSI thresholds remain zero while the baseline is evaluated. Review escaped mutants and avoid lowering the baseline without explaining the tradeoff in the pull request.
+Mutation testing does not run automatically on pushes or pull requests. Run the `Mutation Testing` workflow manually from GitHub Actions when you want a fresh quality signal; it uploads both reports as the `infection-report` artifact. The minimum MSI thresholds remain zero while the baseline is evaluated. Review escaped mutants and avoid lowering the baseline without explaining the tradeoff in the pull request.
