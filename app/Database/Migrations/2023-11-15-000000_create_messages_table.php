@@ -2,6 +2,7 @@
 
 namespace App\Database\Migrations;
 
+use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\Database\Migration;
 
 class CreateMessagesTable extends Migration
@@ -37,13 +38,24 @@ class CreateMessagesTable extends Migration
         // Set character set to latin1 for user and msg columns to match original table
         // This is MySQL-specific - SQLite doesn't support character sets at column level
         if ($this->db->getPlatform() === 'MySQLi') {
-            $this->db->query('ALTER TABLE messages MODIFY user VARCHAR(255) CHARACTER SET latin1 NOT NULL');
-            $this->db->query('ALTER TABLE messages MODIFY msg TEXT CHARACTER SET latin1 NOT NULL');
+            $db = $this->database();
+            $messages = $db->prefixTable('messages');
+            $db->query("ALTER TABLE {$messages} MODIFY user VARCHAR(255) CHARACTER SET latin1 NOT NULL");
+            $db->query("ALTER TABLE {$messages} MODIFY msg TEXT CHARACTER SET latin1 NOT NULL");
         }
     }
 
     public function down()
     {
         $this->forge->dropTable('messages');
+    }
+
+    private function database(): BaseConnection
+    {
+        if (! $this->db instanceof BaseConnection) {
+            throw new \LogicException('Message migrations require a CodeIgniter base database connection.');
+        }
+
+        return $this->db;
     }
 }

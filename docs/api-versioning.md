@@ -21,6 +21,7 @@ with the message endpoints at `/api/v1/messages`.
 | --- | --- | --- |
 | `GET` | `/api/v1/messages` | Paginated JSON messages |
 | `POST` | `/api/v1/messages` | Create a message |
+| `GET` | `/api/v1/messages/search` | Search messages by text, exact user, or Unix time range |
 | `GET` | `/api/v1/messages/xml` | Paginated XML messages |
 
 All endpoints use the existing session authentication and CSRF rules. The

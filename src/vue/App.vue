@@ -31,6 +31,62 @@
       <button type="button" class="status-dismiss" @click="dismissDeliveryFailures">Dismiss</button>
     </div>
 
+    <section class="search-panel" aria-labelledby="message-search-title">
+      <div class="search-panel-header">
+        <h2 id="message-search-title">Search messages</h2>
+        <button type="button" class="clear-btn" @click="clearSearch" :disabled="!hasSearchFilters && !searchActive">
+          Clear search
+        </button>
+      </div>
+      <form class="search-form" @submit.prevent="applySearch">
+        <div class="search-field search-field-wide">
+          <label for="message-search-text">Text</label>
+          <input
+            id="message-search-text"
+            v-model="search.text"
+            type="search"
+            maxlength="500"
+            placeholder="Search message text"
+            @input="scheduleSearch"
+          >
+        </div>
+        <div class="search-field">
+          <label for="message-search-user">User</label>
+          <input
+            id="message-search-user"
+            v-model="search.user"
+            type="search"
+            maxlength="255"
+            autocomplete="off"
+            placeholder="Username"
+            @input="scheduleSearch"
+          >
+        </div>
+        <div class="search-field">
+          <label for="message-search-from">From</label>
+          <input id="message-search-from" v-model="search.from" type="date" @input="scheduleSearch">
+        </div>
+        <div class="search-field">
+          <label for="message-search-to">To</label>
+          <input id="message-search-to" v-model="search.to" type="date" @input="scheduleSearch">
+        </div>
+        <button type="submit" class="search-btn" :disabled="searchLoading || !hasSearchFilters">
+          {{ searchLoading ? 'Searching...' : 'Search' }}
+        </button>
+      </form>
+      <p id="message-search-help" class="search-help">
+        Search waits briefly while you type. New live messages stay out of filtered results until you refresh or clear.
+      </p>
+      <div v-if="searchError" id="message-search-error" class="error" role="alert">{{ searchError }}</div>
+      <div v-if="searchActive" class="search-status" role="status" aria-live="polite">
+        Showing filtered results.
+        <button v-if="searchHasLiveUpdates" type="button" class="status-dismiss" @click="applySearch">
+          Refresh search
+        </button>
+        <span v-if="searchHasLiveUpdates">New messages arrived outside this filtered view.</span>
+      </div>
+    </section>
+
     <div class="message-container">
       <div v-if="loading" class="loading-indicator" role="status" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
@@ -60,7 +116,9 @@
           </div>
           <div class="message-content" v-html="formatMessage(message.msg)"></div>
         </article>
-        <div v-if="messages.length === 0" class="no-messages">No messages yet. Be the first to send a message!</div>
+        <div v-if="messages.length === 0" class="no-messages">
+          {{ searchActive ? 'No messages match your search.' : 'No messages yet. Be the first to send a message!' }}
+        </div>
       </div>
     </div>
 
@@ -157,6 +215,7 @@
         reconnectAttempts: 0,
         reconnectInterval: null,
         lastMessageTime: null,
+        pendingSearchAppend: false,
 
         // Form helpers
         selectionStart: 0,
@@ -170,11 +229,28 @@
         },
         unsubscribePwa: null,
         notificationsEnabled: false,
+        search: {
+          text: '',
+          user: '',
+          from: '',
+          to: '',
+        },
+        searchActive: false,
+        searchLoading: false,
+        searchDebounce: null,
+        searchHasLiveUpdates: false,
+        searchError: '',
+        activeSearchKey: '',
+        searchRequestId: 0,
+        searchAbortController: null,
       };
     },
     computed: {
       canEnableNotifications() {
         return Boolean(this.$pushPublicKey && !this.notificationsEnabled && 'PushManager' in window);
+      },
+      hasSearchFilters() {
+        return Object.values(this.normalizedSearch()).some((value) => value !== '');
       },
     },
     mounted() {
@@ -283,10 +359,16 @@
           // Handle different message types (actions) from the server
           switch (data.action) {
             case 'messages':
+              if (this.searchActive) {
+                break;
+              }
+
               // Handle messages list response
               this.messages = data.data.messages || [];
               this.hasMoreMessages = data.data.pagination?.hasNext || false;
               this.loading = false;
+              this.loadingMore = false;
+              this.searchLoading = false;
 
               // Store timestamp of the newest message for refresh comparison
               if (this.messages.length > 0 && this.messages[0].timestamp) {
@@ -296,6 +378,11 @@
 
             case 'newMessage':
               // Handle new message broadcast from another user
+              if (this.searchActive) {
+                this.searchHasLiveUpdates = true;
+                break;
+              }
+
               if (!this.lastMessageTime || data.data.timestamp > this.lastMessageTime) {
                 // Add new message to the beginning of our list
                 this.messages.unshift(data.data);
@@ -303,12 +390,38 @@
               }
               break;
 
+            case 'searchResults': {
+              if (data.data.requestId !== this.searchRequestId || !this.isCurrentSearchResponse(data.data.filters)) {
+                break;
+              }
+
+              const searchMessages = data.data.messages || [];
+              this.messages = this.pendingSearchAppend ? [...this.messages, ...searchMessages] : searchMessages;
+              this.hasMoreMessages = data.data.pagination?.hasNext || false;
+              this.loading = false;
+              this.loadingMore = false;
+              this.searchLoading = false;
+              this.searchActive = true;
+              this.pendingSearchAppend = false;
+              this.searchHasLiveUpdates = false;
+              this.searchError = '';
+              break;
+            }
+
             case 'error':
               // Handle authentication or other errors from the server
               // The server sends this when token validation fails
-              console.error('WebSocket server error:', data.data.message);
-
-              if (data.data.code === 'AUTH_FAILED') {
+              if (
+                data.data.code === 'INVALID_SEARCH' &&
+                this.searchActive &&
+                data.data.requestId === this.searchRequestId
+              ) {
+                this.searchError = data.data.message || 'Search failed.';
+                this.loading = false;
+                this.loadingMore = false;
+                this.searchLoading = false;
+                this.pendingSearchAppend = false;
+              } else if (data.data.code === 'AUTH_FAILED') {
                 // Authentication failed - likely token expired or invalid
                 // Redirect to login page to get a new token
                 this.error = 'Session expired. Please log in again.';
@@ -357,11 +470,26 @@
         this.webSocket.addEventListener('error', (event) => {
           console.error('WebSocket error:', event);
           this.webSocketConnected = false;
+          if (this.searchActive && this.activeSearchKey) {
+            void this.searchMessagesHttp(
+              this.currentPage,
+              this.pendingSearchAppend,
+              this.searchRequestId,
+              this.normalizedSearch(),
+              this.activeSearchKey,
+            );
+            return;
+          }
           if (this.loading) this.loadMessagesHttp();
         });
       },
 
       cleanUp() {
+        if (this.searchDebounce) {
+          clearTimeout(this.searchDebounce);
+        }
+        this.cancelSearchRequest();
+
         if (this.webSocket) {
           this.webSocket.close();
         }
@@ -374,6 +502,13 @@
       },
 
       loadMessages() {
+        this.searchActive = false;
+        this.searchHasLiveUpdates = false;
+        this.searchLoading = false;
+        this.pendingSearchAppend = false;
+        this.searchError = '';
+        this.activeSearchKey = '';
+
         if (!this.webSocketConnected) {
           console.log('WebSocket not connected, using HTTP fallback');
           this.loadMessagesHttp();
@@ -430,6 +565,11 @@
         this.loadingMore = true;
         this.currentPage++;
 
+        if (this.searchActive) {
+          this.executeSearch(this.currentPage, true);
+          return;
+        }
+
         if (!this.webSocketConnected) {
           console.log('WebSocket not connected, using HTTP fallback');
           this.loadMoreMessagesHttp();
@@ -474,6 +614,229 @@
         } finally {
           this.loadingMore = false;
         }
+      },
+
+      scheduleSearch() {
+        if (this.searchDebounce) {
+          clearTimeout(this.searchDebounce);
+        }
+
+        if (!this.hasSearchFilters) {
+          if (this.searchActive) {
+            this.clearSearch();
+          }
+          return;
+        }
+
+        this.searchDebounce = setTimeout(() => this.applySearch(), 400);
+      },
+
+      applySearch() {
+        if (this.searchDebounce) {
+          clearTimeout(this.searchDebounce);
+          this.searchDebounce = null;
+        }
+
+        if (!this.hasSearchFilters) {
+          this.clearSearch();
+          return;
+        }
+
+        this.currentPage = 1;
+        this.executeSearch(1, false);
+      },
+
+      clearSearch() {
+        if (this.searchDebounce) {
+          clearTimeout(this.searchDebounce);
+          this.searchDebounce = null;
+        }
+        this.cancelSearchRequest();
+
+        this.search = {
+          text: '',
+          user: '',
+          from: '',
+          to: '',
+        };
+        this.searchActive = false;
+        this.searchLoading = false;
+        this.searchHasLiveUpdates = false;
+        this.searchError = '';
+        this.activeSearchKey = '';
+        this.currentPage = 1;
+        this.loadMessages();
+      },
+
+      executeSearch(page = 1, append = false) {
+        const filters = this.normalizedSearch();
+        if (!Object.values(filters).some((value) => value !== '')) {
+          this.clearSearch();
+          return;
+        }
+
+        const validationError = this.searchValidationError(filters);
+        if (validationError) {
+          this.searchError = validationError;
+          this.loading = false;
+          this.loadingMore = false;
+          this.searchLoading = false;
+          return;
+        }
+
+        this.searchActive = true;
+        this.searchLoading = !append;
+        this.pendingSearchAppend = append;
+        this.searchHasLiveUpdates = false;
+        this.searchError = '';
+        this.activeSearchKey = this.searchKey(filters);
+        this.searchRequestId++;
+        const requestId = this.searchRequestId;
+
+        if (append) {
+          this.loadingMore = true;
+        } else {
+          this.loading = true;
+        }
+
+        if (!this.webSocketConnected) {
+          void this.searchMessagesHttp(page, append, requestId, filters, this.activeSearchKey);
+          return;
+        }
+
+        this.webSocket.send(
+          JSON.stringify({
+            action: 'getMessages',
+            requestId,
+            page,
+            perPage: 10,
+            search: this.compactSearch(filters),
+          }),
+        );
+
+        setTimeout(() => {
+          if (requestId === this.searchRequestId && (this.searchLoading || this.loadingMore || this.loading)) {
+            this.loading = false;
+            this.searchLoading = false;
+            this.loadingMore = false;
+            this.pendingSearchAppend = false;
+            this.searchError = 'Search timed out. Please try again.';
+          }
+        }, 5000);
+      },
+
+      cancelSearchRequest() {
+        this.searchRequestId++;
+        this.searchAbortController?.abort();
+        this.searchAbortController = null;
+      },
+
+      async searchMessagesHttp(page = 1, append = false, requestId, filters, searchKey) {
+        this.searchAbortController?.abort();
+        this.searchAbortController = new AbortController();
+
+        try {
+          const params = new URLSearchParams({
+            page: String(page),
+            per_page: '10',
+          });
+
+          for (const [key, value] of Object.entries(filters)) {
+            if (value !== '') params.set(key, String(value));
+          }
+
+          const response = await fetch(
+            userScopedMessagesUrl(`${this.searchEndpoint()}?${params.toString()}`, this.userId),
+            { signal: this.searchAbortController.signal },
+          );
+          const data = await response.json();
+          if (!response.ok) throw new Error('Message search failed');
+          if (requestId !== this.searchRequestId || searchKey !== this.activeSearchKey) return false;
+          if (!this.isCurrentSearchResponse(data.filters)) return false;
+
+          const searchMessages = data.messages || [];
+          this.messages = append ? [...this.messages, ...searchMessages] : searchMessages;
+          this.hasMoreMessages = data.pagination?.hasNext || false;
+          this.searchActive = true;
+          this.searchError = '';
+          return true;
+        } catch (error) {
+          if (error.name === 'AbortError') return false;
+          console.error('Error searching messages:', error);
+          this.searchError = 'Search failed. Please adjust your filters and try again.';
+          if (append) this.currentPage--;
+          return false;
+        } finally {
+          if (requestId === this.searchRequestId) {
+            this.loading = false;
+            this.loadingMore = false;
+            this.searchLoading = false;
+            this.pendingSearchAppend = false;
+          }
+        }
+      },
+
+      normalizedSearch() {
+        return {
+          text: this.search.text.trim(),
+          user: this.search.user.trim(),
+          from: this.dateBoundarySeconds(this.search.from, false),
+          to: this.dateBoundarySeconds(this.search.to, true),
+        };
+      },
+
+      compactSearch(filters) {
+        return Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== ''));
+      },
+
+      dateBoundarySeconds(dateValue, endOfDay) {
+        if (!dateValue) return '';
+
+        const [year, month, day] = dateValue.split('-').map((part) => Number.parseInt(part, 10));
+        const date = endOfDay
+          ? new Date(year, month - 1, day, 23, 59, 59, 999)
+          : new Date(year, month - 1, day, 0, 0, 0, 0);
+
+        return Number.isNaN(date.getTime()) ? Number.NaN : Math.floor(date.getTime() / 1000);
+      },
+
+      searchValidationError(filters) {
+        if (filters.text.length > 500) return 'Search text must not exceed 500 characters.';
+        if (filters.user.length > 255) return 'Username filter must not exceed 255 characters.';
+        const dateValues = [filters.from, filters.to].filter((value) => value !== '');
+        if (dateValues.some((value) => Number.isNaN(value))) return 'Search dates are invalid.';
+        if (dateValues.some((value) => value < 0)) return 'Search dates must be on or after 1970-01-01.';
+        if (filters.from !== '' && filters.to !== '' && filters.from > filters.to) {
+          return 'From date must be on or before To date.';
+        }
+        return '';
+      },
+
+      searchKey(filters) {
+        return JSON.stringify(this.compactSearch(filters));
+      },
+
+      isCurrentSearchResponse(filters) {
+        return this.searchKey(this.normalizeResponseFilters(filters || {})) === this.activeSearchKey;
+      },
+
+      normalizeResponseFilters(filters) {
+        return {
+          text: String(filters.text || '').trim(),
+          user: String(filters.user || '').trim(),
+          from: this.numericResponseFilter(filters.from),
+          to: this.numericResponseFilter(filters.to),
+        };
+      },
+
+      numericResponseFilter(value) {
+        if (value === undefined || value === null || value === '') return '';
+        const numberValue = Number(value);
+        return Number.isFinite(numberValue) ? numberValue : '';
+      },
+
+      searchEndpoint() {
+        return `${this.$chatRoutes.api.replace(/\/$/, '')}/search`;
       },
 
       sendMessage() {
@@ -535,12 +898,16 @@
           if (data?.error) {
             this.error = data.error.details?.message || data.error.message || 'Failed to send message';
           } else {
-            // Add message to the beginning of the list
-            this.messages.unshift({
-              user: this.username,
-              msg: this.message,
-              timestamp: Math.floor(Date.now() / 1000), // Current timestamp in seconds
-            });
+            if (this.searchActive) {
+              this.searchHasLiveUpdates = true;
+            } else {
+              // Add message to the beginning of the list
+              this.messages.unshift({
+                user: this.username,
+                msg: this.message,
+                timestamp: Math.floor(Date.now() / 1000), // Current timestamp in seconds
+              });
+            }
 
             // Clear message field
             this.message = '';
@@ -589,8 +956,17 @@
       formatMessage(message) {
         if (!message) return '';
 
-        // Escape HTML to prevent XSS
-        let formattedMessage = this.escapeHtml(message);
+        const urls = [];
+        const messageWithUrlTokens = String(message).replace(/https?:\/\/[^\s<>"']+/g, (url) => {
+          const token = `\u0000CHAT_URL_${urls.length}\u0000`;
+          urls.push(url);
+          return token;
+        });
+
+        // Escape HTML to prevent XSS. URL tokens keep highlighting and
+        // markdown formatting out of generated anchor attributes.
+        let formattedMessage = this.escapeHtml(messageWithUrlTokens);
+        formattedMessage = this.highlightSearchTerms(formattedMessage);
 
         // Format markdown-like syntax
         // Bold: **text**
@@ -605,11 +981,11 @@
         // Blockquote: > text
         formattedMessage = formattedMessage.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
 
-        // Convert URLs to links
-        formattedMessage = formattedMessage.replace(
-          /(https?:\/\/[^\s]+)/g,
-          '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
-        );
+        // Restore sanitized URLs as links.
+        urls.forEach((url, index) => {
+          const anchor = `<a href="${this.escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(url)}</a>`;
+          formattedMessage = formattedMessage.replaceAll(`\u0000CHAT_URL_${index}\u0000`, anchor);
+        });
 
         // Convert line breaks to <br>
         formattedMessage = formattedMessage.replace(/\n/g, '<br>');
@@ -621,6 +997,23 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+      },
+
+      escapeAttribute(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      },
+
+      highlightSearchTerms(escapedText) {
+        const term = this.normalizedSearch().text;
+        if (!this.searchActive || !term) return escapedText;
+
+        const escapedTerm = this.escapeHtml(term);
+        const pattern = new RegExp(`(${this.escapeRegExp(escapedTerm)})`, 'gi');
+        return escapedText.replace(pattern, '<mark>$1</mark>');
+      },
+
+      escapeRegExp(text) {
+        return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       },
 
       insertFormatting(prefix, suffix) {
@@ -723,6 +1116,86 @@ $transition-speed: 0.2s;
   }
 }
 
+.search-panel {
+  padding: 15px;
+  border-bottom: 1px solid $border-color;
+  background-color: white;
+}
+
+.search-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: end;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  input {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    font: inherit;
+  }
+}
+
+.search-field-wide {
+  grid-column: 1 / -1;
+}
+
+.search-btn {
+  padding: 9px 14px;
+  border: 1px solid color.adjust($primary-color, $lightness: -8%);
+  border-radius: $border-radius;
+  background-color: $primary-color;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color $transition-speed;
+
+  &:hover:not(:disabled) {
+    background-color: color.adjust($primary-color, $lightness: -8%);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.search-help,
+.search-status {
+  margin: 10px 0 0;
+  color: $light-text-color;
+  font-size: 13px;
+}
+
 // Message container
 .message-container {
   position: relative;
@@ -797,6 +1270,13 @@ $transition-speed: 0.2s;
     margin: 5px 0;
     padding-left: 10px;
     color: $secondary-color;
+  }
+
+  mark {
+    padding: 0 2px;
+    border-radius: 2px;
+    background-color: #fff0a6;
+    color: inherit;
   }
 }
 

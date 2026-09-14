@@ -243,6 +243,51 @@ Example:
 curl -sS -b cookies.txt "$BASE_URL/api/v1/messages?page=1&per_page=10" | python -m json.tool
 ```
 
+#### `GET /api/v1/messages/search` (JSON)
+
+- **Controller**: `Api\V1\MessagesController::search`
+- **Auth**: required
+- **Response**: JSON
+- **Query filters** (at least one is required):
+  - `text`: full-text search of usernames and message bodies (maximum 500 characters)
+  - `user`: exact username (maximum 255 characters)
+  - `from`: inclusive, non-negative Unix timestamp
+  - `to`: inclusive, non-negative Unix timestamp
+- **Pagination**: `page` defaults to 1; `per_page` defaults to 10 and is capped at 100
+
+SQLite installations use an FTS5 index kept in sync by database triggers.
+MySQL installations use a native `FULLTEXT` index. Search results are newest
+first, with message ID as a deterministic tie-breaker.
+
+```json
+{
+  "messages": [
+    { "id": 123, "user": "alice", "msg": "Hello from class", "time": 1700000000 }
+  ],
+  "pagination": {
+    "page": 1,
+    "perPage": 10,
+    "totalItems": 1,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  },
+  "filters": {
+    "text": "hello",
+    "user": "alice",
+    "from": 1690000000,
+    "to": 1710000000
+  }
+}
+```
+
+Example:
+
+```bash
+curl -sS -b cookies.txt \
+  "$BASE_URL/api/v1/messages/search?text=hello&user=alice&from=1690000000&to=1710000000&page=1&per_page=10"
+```
+
 #### `GET /chat/htmlBackend` (HTML snippet)
 
 - **Controller**: `Chat::htmlBackend`
@@ -414,6 +459,18 @@ All WebSocket messages are JSON with an `action` field.
 { "action": "getMessages", "page": 1, "perPage": 10 }
 ```
 
+To search, include a `search` object with at least one filter. The filter names
+and meanings match the HTTP search endpoint. `from` and `to` are JSON integers.
+
+```json
+{
+  "action": "getMessages",
+  "page": 1,
+  "perPage": 10,
+  "search": { "text": "hello", "user": "alice", "from": 1690000000, "to": 1710000000 }
+}
+```
+
 #### Server → client: `messages`
 
 ```json
@@ -422,6 +479,20 @@ All WebSocket messages are JSON with an `action` field.
   "data": {
     "messages": [{ "id": 1, "user": "alice", "msg": "Hello", "time": 1700000000 }],
     "pagination": { "page": 1, "perPage": 10, "totalItems": 42, "totalPages": 5, "hasNext": true, "hasPrev": false }
+  }
+}
+```
+
+Search mode returns `searchResults`, keeping ordinary `getMessages` responses
+backward compatible:
+
+```json
+{
+  "action": "searchResults",
+  "data": {
+    "messages": [{ "id": 1, "user": "alice", "msg": "Hello", "time": 1700000000 }],
+    "pagination": { "page": 1, "perPage": 10, "totalItems": 1, "totalPages": 1, "hasNext": false, "hasPrev": false },
+    "filters": { "text": "hello", "user": null, "from": null, "to": null }
   }
 }
 ```

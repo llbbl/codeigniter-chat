@@ -132,6 +132,86 @@ class ChatModel extends Model implements ChatRepository
     }
 
     /**
+     * Search messages using each supported database's native full-text index.
+     *
+     * Exact-user and time filters are intentionally applied to the messages
+     * table so its ordinary indexes remain useful alongside full-text search.
+     *
+     * @return array{
+     *     messages: list<array<string, mixed>>,
+     *     pagination: array<string, int|bool|float>
+     * }
+     */
+    public function searchMessages(
+        ?string $text = null,
+        ?string $user = null,
+        ?int $from = null,
+        ?int $to = null,
+        int $page = 1,
+        int $perPage = 10,
+    ): array {
+        $page = max(1, $page);
+        $perPage = max(1, $perPage);
+        $offset = ($page - 1) * $perPage;
+        $text = $text !== null ? trim($text) : null;
+        $user = $user !== null ? trim($user) : null;
+
+        $messagesTable = $this->db->prefixTable($this->table);
+        $bindings = [];
+        $conditions = [];
+
+        if ($this->db->getPlatform() === 'SQLite3' && $text !== null && $text !== '') {
+            $searchTable = $this->db->prefixTable('messages_fts');
+            $fromClause = "{$messagesTable} AS messages INNER JOIN {$searchTable} ON {$searchTable}.rowid = messages.id";
+            $conditions[] = "{$searchTable} MATCH ?";
+            $bindings[] = $this->toSqliteFtsQuery($text);
+        } else {
+            $fromClause = "{$messagesTable} AS messages";
+
+            if ($this->db->getPlatform() === 'MySQLi' && $text !== null && $text !== '') {
+                $conditions[] = 'MATCH(messages.user, messages.msg) AGAINST (? IN NATURAL LANGUAGE MODE)';
+                $bindings[] = $text;
+            }
+        }
+
+        if ($user !== null && $user !== '') {
+            $conditions[] = 'messages.user = ?';
+            $bindings[] = $user;
+        }
+        if ($from !== null) {
+            $conditions[] = 'messages.time >= ?';
+            $bindings[] = $from;
+        }
+        if ($to !== null) {
+            $conditions[] = 'messages.time <= ?';
+            $bindings[] = $to;
+        }
+
+        $where = $conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions);
+        $countRow = $this->db->query("SELECT COUNT(*) AS total FROM {$fromClause}{$where}", $bindings)->getRowArray();
+        $totalItems = (int) ($countRow['total'] ?? 0);
+
+        $queryBindings = [...$bindings, $perPage, $offset];
+        $messages = $this->db->query(
+            "SELECT messages.* FROM {$fromClause}{$where} ORDER BY messages.time DESC, messages.id DESC LIMIT ? OFFSET ?",
+            $queryBindings,
+        )->getResultArray();
+        $totalPages = (int) ceil($totalItems / $perPage);
+
+        return [
+            'messages' => $messages,
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'totalItems' => $totalItems,
+                'totalPages' => $totalPages,
+                'hasNext' => $page < $totalPages,
+                'hasPrev' => $page > 1,
+            ],
+        ];
+    }
+
+    /**
      * Insert a new message into the database and invalidate the cache
      *
      * This method inserts a new chat message into the database with the given
@@ -353,5 +433,11 @@ class ChatModel extends Model implements ChatRepository
         // This is a simple approach; for more complex scenarios,
         // you might want to track and delete specific keys
         $cache->deleteMatching($this->cacheKey . '_*');
+    }
+
+    private function toSqliteFtsQuery(string $text): string
+    {
+        // A quoted phrase treats user input as text rather than FTS5 syntax.
+        return '"' . str_replace('"', '""', $text) . '"';
     }
 }

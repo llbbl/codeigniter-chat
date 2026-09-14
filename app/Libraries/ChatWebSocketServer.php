@@ -363,6 +363,43 @@ class ChatWebSocketServer implements MessageComponentInterface
     {
         $page = $data['page'] ?? 1;
         $perPage = $data['perPage'] ?? 10;
+        $requestId = isset($data['requestId']) && is_int($data['requestId']) ? $data['requestId'] : null;
+
+        if (isset($data['search'])) {
+            if (! is_array($data['search'])) {
+                $this->sendSearchError($from, 'The search field must be an object.', $requestId);
+
+                return;
+            }
+
+            $search = $this->validatedSearchFilters($data['search']);
+            if (isset($search['error'])) {
+                $this->sendSearchError($from, $search['error'], $requestId);
+
+                return;
+            }
+
+            $result = $this->chatModel->searchMessages(
+                $search['filters']['text'],
+                $search['filters']['user'],
+                $search['filters']['from'],
+                $search['filters']['to'],
+                is_int($page) ? max(1, $page) : 1,
+                is_int($perPage) ? min(100, max(1, $perPage)) : 10,
+            );
+
+            $from->send(json_encode([
+                'action' => 'searchResults',
+                'data' => [
+                    'requestId' => $requestId,
+                    'messages' => $result['messages'],
+                    'pagination' => $result['pagination'],
+                    'filters' => $search['filters'],
+                ],
+            ]));
+
+            return;
+        }
 
         // Fetch messages from the database
         $result = $this->chatModel->getMsgPaginated($page, $perPage);
@@ -373,6 +410,61 @@ class ChatWebSocketServer implements MessageComponentInterface
             'data' => [
                 'messages'   => $result['messages'],
                 'pagination' => $result['pagination'],
+            ],
+        ]));
+    }
+
+    /**
+     * @param array<string, mixed> $search
+     *
+     * @return array{filters?: array{text: ?string, user: ?string, from: ?int, to: ?int}, error?: string}
+     */
+    private function validatedSearchFilters(array $search): array
+    {
+        $filters = ['text' => null, 'user' => null, 'from' => null, 'to' => null];
+
+        foreach (['text' => 500, 'user' => 255] as $name => $maxLength) {
+            if (! array_key_exists($name, $search)) {
+                continue;
+            }
+            if (! is_string($search[$name]) || trim($search[$name]) === '') {
+                return ['error' => "The {$name} filter must be a non-empty string."];
+            }
+            $value = trim($search[$name]);
+            if (mb_strlen($value) > $maxLength) {
+                return ['error' => "The {$name} filter is too long."];
+            }
+            $filters[$name] = $value;
+        }
+
+        foreach (['from', 'to'] as $name) {
+            if (! array_key_exists($name, $search)) {
+                continue;
+            }
+            if (! is_int($search[$name]) || $search[$name] < 0) {
+                return ['error' => "The {$name} filter must be a non-negative Unix timestamp."];
+            }
+            $filters[$name] = $search[$name];
+        }
+
+        if ($filters['text'] === null && $filters['user'] === null && $filters['from'] === null && $filters['to'] === null) {
+            return ['error' => 'Provide at least one search filter.'];
+        }
+        if ($filters['from'] !== null && $filters['to'] !== null && $filters['from'] > $filters['to']) {
+            return ['error' => 'The from timestamp must be less than or equal to to.'];
+        }
+
+        return ['filters' => $filters];
+    }
+
+    private function sendSearchError(ConnectionInterface $from, string $message, ?int $requestId = null): void
+    {
+        $from->send(json_encode([
+            'action' => 'error',
+            'data' => [
+                'requestId' => $requestId,
+                'message' => $message,
+                'code' => 'INVALID_SEARCH',
             ],
         ]));
     }

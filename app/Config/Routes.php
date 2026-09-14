@@ -27,6 +27,7 @@ $routes->get('chat/svelte', 'Chat::svelte');
 // Stable, machine-consumed API routes.
 $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static function (RouteCollection $routes): void {
     $routes->get('messages', 'MessagesController::list', ['filter' => ['apiFormat', 'auth']]);
+    $routes->get('messages/search', 'MessagesController::search', ['filter' => ['apiFormat', 'auth']]);
     $routes->post('messages', 'MessagesController::create', ['filter' => ['apiFormat', 'auth', 'rate:write', 'validate:message']]);
     $routes->get('messages/xml', 'MessagesController::listXml', ['filter' => 'auth']);
     $routes->post('push-subscriptions', 'PushSubscriptionsController::create', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
