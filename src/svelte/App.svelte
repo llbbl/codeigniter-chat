@@ -823,7 +823,8 @@
           ></textarea>
 
           <!-- Formatting toolbar -->
-          <div class="formatting-help" role="toolbar" aria-label="Message formatting">
+          <fieldset class="formatting-help">
+            <legend class="sr-only">Message formatting</legend>
             <button type="button" onclick={() => insertFormatting('**', '**')} aria-label="Format as bold">B</button>
             <button type="button" onclick={() => insertFormatting('*', '*')} aria-label="Format as italic">I</button>
             <button type="button" onclick={() => insertFormatting('`', '`')} aria-label="Format as code">Code</button>
@@ -834,7 +835,7 @@
               Supports Markdown: **bold**, *italic*, `code`, &gt; quote. Enter sends; Shift+Enter adds a line; Escape
               clears.
             </span>
-          </div>
+          </fieldset>
 
           <!-- Error display -->
           {#if error}
@@ -1145,6 +1146,9 @@
     display: flex;
     align-items: center;
     margin-top: 5px;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
     flex-wrap: wrap;
 
     button {

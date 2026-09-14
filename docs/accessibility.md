@@ -16,7 +16,7 @@ All interactive controls display a high-contrast focus outline when reached from
 
 Each modern chat page exposes one named `main` landmark. The message history uses a polite ARIA log so new messages can be announced without interrupting the user, and each message is a labelled article with a machine-readable timestamp. Loading, connectivity, queue, delivery failure, and form validation updates use status or alert semantics as appropriate.
 
-The message field is associated with its formatting and keyboard help. Formatting buttons are grouped in a named toolbar and have explicit accessible names.
+The message field is associated with its formatting and keyboard help. Formatting buttons are exposed as a named control group and have explicit accessible names.
 
 ## Verification
 

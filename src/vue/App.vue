@@ -88,7 +88,8 @@
             @keydown.enter.exact.prevent="sendMessage"
             @keydown.esc.prevent="clearMessage"
           ></textarea>
-          <div class="formatting-help" role="toolbar" aria-label="Message formatting">
+          <fieldset class="formatting-help">
+            <legend class="sr-only">Message formatting</legend>
             <button type="button" @click="insertFormatting('**', '**')" aria-label="Format as bold">B</button>
             <button type="button" @click="insertFormatting('*', '*')" aria-label="Format as italic">I</button>
             <button type="button" @click="insertFormatting('`', '`')" aria-label="Format as code">Code</button>
@@ -97,7 +98,7 @@
               Supports Markdown: **bold**, *italic*, `code`, &gt; quote. Enter sends; Shift+Enter adds a line; Escape
               clears.
             </span>
-          </div>
+          </fieldset>
           <div id="message-error" class="error" v-if="error" role="alert">{{ error }}</div>
         </div>
 
@@ -920,6 +921,9 @@ $transition-speed: 0.2s;
   display: flex;
   align-items: center;
   margin-top: 5px;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
   flex-wrap: wrap;
 
   button {

@@ -84,8 +84,9 @@ async function assertModernChatAccessibility(page: Page, messageInput: string): 
   });
   expect(inputFocusOutline.style).not.toBe('none');
   expect(inputFocusOutline.width).toBeGreaterThanOrEqual(3);
-  await expect(page.getByRole('toolbar', { name: 'Message formatting' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Format as bold' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Message formatting' })).toBeVisible();
+  const formattingButton = page.getByRole('button', { name: 'Format as bold' });
+  await expect(formattingButton).toBeVisible();
 
   await input.fill('Clear this draft');
   await input.press('Escape');
@@ -98,12 +99,20 @@ async function assertModernChatAccessibility(page: Page, messageInput: string): 
   await expect(input).toHaveValue('First line\nSecond line');
   await input.press('Escape');
 
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const defaultTransitionMs = await formattingButton.evaluate((element) => {
+    const duration = getComputedStyle(element).transitionDuration;
+    return duration.endsWith('ms') ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
+  });
+  expect(defaultTransitionMs).toBeGreaterThan(1);
+
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
-  const transitionDuration = await page
-    .locator('.chat-container')
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration));
-  expect(transitionDuration).toBeLessThan(0.001);
+  const reducedTransitionMs = await formattingButton.evaluate((element) => {
+    const duration = getComputedStyle(element).transitionDuration;
+    return duration.endsWith('ms') ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
+  });
+  expect(reducedTransitionMs).toBeLessThanOrEqual(1);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 }
 
