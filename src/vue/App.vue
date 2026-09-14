@@ -1,20 +1,28 @@
 <template>
-  <div id="wrapper" class="chat-container">
+  <a class="skip-link" href="#messagewindow">Skip to messages</a>
+  <main id="wrapper" class="chat-container" aria-labelledby="chat-title">
     <header class="chat-header">
+      <h1 id="chat-title" class="sr-only">CodeIgniter Chat</h1>
       <div class="user-info">
         <span class="welcome-text">Welcome, <b>{{ username }}</b>!</span>
         <button v-if="pwa.installAvailable" type="button" class="pwa-action" @click="installApp">Install app</button>
         <button v-if="canEnableNotifications" type="button" class="pwa-action" @click="enableNotifications">
           Enable notifications
         </button>
-        <a href="/auth/logout" class="logout-btn"> <i class="icon-logout"></i> Logout </a>
+        <a href="/auth/logout" class="logout-btn"> <i class="icon-logout" aria-hidden="true"></i> Logout </a>
       </div>
     </header>
 
-    <div v-if="!pwa.online" class="connection-status" role="status">
+    <div v-if="!pwa.online" class="connection-status" role="status" aria-live="polite" aria-atomic="true">
       You’re offline. New messages will be queued and retried when the connection returns.
     </div>
-    <div v-else-if="pwa.queuedMessages > 0" class="connection-status queued" role="status">
+    <div
+      v-else-if="pwa.queuedMessages > 0"
+      class="connection-status queued"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {{ pwa.queuedMessages }} message{{ pwa.queuedMessages === 1 ? '' : 's' }} queued for delivery.
     </div>
     <div v-if="pwa.failedMessages > 0" class="connection-status failed" role="alert">
@@ -24,31 +32,48 @@
     </div>
 
     <div class="message-container">
-      <div v-if="loading" class="loading-indicator">
-        <div class="spinner"></div>
+      <div v-if="loading" class="loading-indicator" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
         <span>Loading messages...</span>
       </div>
-      <div v-else id="messagewindow" class="messages">
-        <div v-for="(message, index) in messages" :key="index" class="message-item">
+      <div
+        v-else
+        id="messagewindow"
+        class="messages"
+        role="log"
+        aria-label="Chat messages"
+        aria-live="polite"
+        aria-relevant="additions text"
+        tabindex="-1"
+      >
+        <article
+          v-for="(message, index) in messages"
+          :key="index"
+          class="message-item"
+          :aria-label="`Message from ${message.user}`"
+        >
           <div class="message-header">
             <span class="username">{{ message.user }}</span>
-            <span class="timestamp" v-if="message.timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+            <time v-if="message.timestamp" class="timestamp" :datetime="formatMachineTimestamp(message.timestamp)">
+              {{ formatTimestamp(message.timestamp) }}
+            </time>
           </div>
           <div class="message-content" v-html="formatMessage(message.msg)"></div>
-        </div>
+        </article>
         <div v-if="messages.length === 0" class="no-messages">No messages yet. Be the first to send a message!</div>
       </div>
     </div>
 
     <div class="load-more-container" v-if="!loading && hasMoreMessages">
       <button type="button" class="load-more-btn" @click="loadMoreMessages" :disabled="loadingMore">
-        <span v-if="loadingMore" class="spinner-small"></span>
+        <span v-if="loadingMore" class="spinner-small" aria-hidden="true"></span>
         <span>{{ loadingMore ? 'Loading...' : 'Load More Messages' }}</span>
       </button>
     </div>
 
     <div class="message-form-container">
       <form @submit.prevent="sendMessage" class="message-form">
+        <h2 id="compose-title" class="sr-only">Compose a message</h2>
         <div class="form-group" v-show="!sending">
           <label for="message-input">Message:</label>
           <textarea
@@ -57,32 +82,40 @@
             :class="{ 'error-field': error }"
             placeholder="Type your message here..."
             rows="2"
+            maxlength="500"
+            :aria-invalid="Boolean(error)"
+            :aria-describedby="error ? 'formatting-help message-error' : 'formatting-help'"
             @keydown.enter.exact.prevent="sendMessage"
+            @keydown.esc.prevent="clearMessage"
           ></textarea>
-          <div class="formatting-help">
-            <button type="button" @click="insertFormatting('**', '**')" title="Bold">B</button>
-            <button type="button" @click="insertFormatting('*', '*')" title="Italic">I</button>
-            <button type="button" @click="insertFormatting('`', '`')" title="Code">Code</button>
-            <button type="button" @click="insertFormatting('\n> ', '')" title="Quote">Quote</button>
-            <span class="format-info">Supports Markdown: **bold**, *italic*, `code`, > quote</span>
-          </div>
-          <div class="error" v-if="error">{{ error }}</div>
+          <fieldset class="formatting-help">
+            <legend class="sr-only">Message formatting</legend>
+            <button type="button" @click="insertFormatting('**', '**')" aria-label="Format as bold">B</button>
+            <button type="button" @click="insertFormatting('*', '*')" aria-label="Format as italic">I</button>
+            <button type="button" @click="insertFormatting('`', '`')" aria-label="Format as code">Code</button>
+            <button type="button" @click="insertFormatting('\n> ', '')" aria-label="Format as quote">Quote</button>
+            <span id="formatting-help" class="format-info">
+              Supports Markdown: **bold**, *italic*, `code`, &gt; quote. Enter sends; Shift+Enter adds a line; Escape
+              clears.
+            </span>
+          </fieldset>
+          <div id="message-error" class="error" v-if="error" role="alert">{{ error }}</div>
         </div>
 
-        <div class="loading-indicator-small" v-show="sending">
-          <div class="spinner"></div>
+        <div class="loading-indicator-small" v-show="sending" role="status" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
           <span>Sending message...</span>
         </div>
 
         <div class="form-actions">
           <button type="submit" class="send-btn" :disabled="sending || !message.trim()">Send Message</button>
-          <button type="button" class="clear-btn" @click="message = ''" :disabled="sending || !message.trim()">
+          <button type="button" class="clear-btn" @click="clearMessage" :disabled="sending || !message.trim()">
             Clear
           </button>
         </div>
       </form>
     </div>
-  </div>
+  </main>
 </template>
 
 <script>
@@ -160,6 +193,11 @@
       this.unsubscribePwa?.();
     },
     methods: {
+      clearMessage() {
+        this.message = '';
+        this.error = '';
+        this.$nextTick(() => document.getElementById('message-input')?.focus());
+      },
       dismissDeliveryFailures() {
         void dismissFailedMessages();
       },
@@ -544,6 +582,9 @@
           return date.toLocaleDateString();
         }
       },
+      formatMachineTimestamp(timestamp) {
+        return new Date(timestamp * 1000).toISOString();
+      },
 
       formatMessage(message) {
         if (!message) return '';
@@ -867,7 +908,6 @@ $transition-speed: 0.2s;
     resize: vertical;
 
     &:focus {
-      outline: none;
       border-color: $primary-color;
     }
 
@@ -881,6 +921,9 @@ $transition-speed: 0.2s;
   display: flex;
   align-items: center;
   margin-top: 5px;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
   flex-wrap: wrap;
 
   button {
