@@ -37,6 +37,7 @@ export function chatScenario(scenario: ChatScenario): void {
 
     await expect(page.locator(scenario.messageInput)).toBeVisible();
     if (scenario.path === '/chat/vue' || scenario.path === '/chat/svelte') {
+      await assertModernChatAccessibility(page, scenario.messageInput);
       await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
       await page.context().setOffline(true);
       await expect(page.getByText('You’re offline.')).toBeVisible();
@@ -55,6 +56,55 @@ export function chatScenario(scenario: ChatScenario): void {
     await expect(page.locator('#messagewindow')).toContainText(message);
     expect(browserErrors, browserErrors.join('\n')).toEqual([]);
   });
+}
+
+async function assertModernChatAccessibility(page: Page, messageInput: string): Promise<void> {
+  await expect(page.getByRole('main', { name: 'CodeIgniter Chat' })).toBeVisible();
+
+  const messageLog = page.getByRole('log', { name: 'Chat messages' });
+  await expect(messageLog).toBeVisible();
+  await expect(messageLog).toHaveAttribute('aria-live', 'polite');
+
+  const skipLink = page.getByRole('link', { name: 'Skip to messages' });
+  await skipLink.focus();
+  await expect(skipLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(messageLog).toBeFocused();
+
+  const input = page.locator(messageInput);
+  await expect(input).toHaveAttribute('aria-describedby', 'formatting-help');
+  await expect(input).toHaveAttribute('aria-invalid', 'false');
+  await input.focus();
+  const inputFocusOutline = await input.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      style: styles.outlineStyle,
+      width: Number.parseFloat(styles.outlineWidth),
+    };
+  });
+  expect(inputFocusOutline.style).not.toBe('none');
+  expect(inputFocusOutline.width).toBeGreaterThanOrEqual(3);
+  await expect(page.getByRole('toolbar', { name: 'Message formatting' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Format as bold' })).toBeVisible();
+
+  await input.fill('Clear this draft');
+  await input.press('Escape');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
+
+  await input.fill('First line');
+  await input.press('Shift+Enter');
+  await input.pressSequentially('Second line');
+  await expect(input).toHaveValue('First line\nSecond line');
+  await input.press('Escape');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+  const transitionDuration = await page
+    .locator('.chat-container')
+    .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration));
+  expect(transitionDuration).toBeLessThan(0.001);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
 }
 
 async function login(page: Page): Promise<void> {

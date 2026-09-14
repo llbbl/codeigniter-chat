@@ -557,10 +557,22 @@
    * @param {KeyboardEvent} event - The keyboard event
    */
   function handleKeydown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      clearMessage();
+      return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       sendMessage();
     }
+  }
+
+  function clearMessage() {
+    message = '';
+    error = '';
+    setTimeout(() => document.getElementById('message-input')?.focus(), 0);
   }
 
   // ============================================================================
@@ -596,6 +608,10 @@
       // Format as date for older messages
       return date.toLocaleDateString();
     }
+  }
+
+  function formatMachineTimestamp(timestamp) {
+    return new Date(timestamp * 1000).toISOString();
   }
 
   /**
@@ -697,9 +713,11 @@
   - Svelte's bind:value is like Vue's v-model
 -->
 
-<div id="wrapper" class="chat-container">
+<a class="skip-link" href="#messagewindow">Skip to messages</a>
+<main id="wrapper" class="chat-container" aria-labelledby="chat-title">
   <!-- Header with user info and logout -->
   <header class="chat-header">
+    <h1 id="chat-title" class="sr-only">CodeIgniter Chat</h1>
     <div class="user-info">
       <span class="welcome-text">Welcome, <b>{config.username}</b>!</span>
       {#if pwa.installAvailable}
@@ -708,16 +726,16 @@
       {#if canEnableNotifications}
         <button type="button" class="pwa-action" onclick={enableNotifications}>Enable notifications</button>
       {/if}
-      <a href="/auth/logout" class="logout-btn"> <i class="icon-logout"></i> Logout </a>
+      <a href="/auth/logout" class="logout-btn"> <i class="icon-logout" aria-hidden="true"></i> Logout </a>
     </div>
   </header>
 
   {#if !pwa.online}
-    <div class="connection-status" role="status">
+    <div class="connection-status" role="status" aria-live="polite" aria-atomic="true">
       You’re offline. New messages will be queued and retried when the connection returns.
     </div>
   {:else if pwa.queuedMessages > 0}
-    <div class="connection-status queued" role="status">
+    <div class="connection-status queued" role="status" aria-live="polite" aria-atomic="true">
       {pwa.queuedMessages} {pwa.queuedMessages === 1 ? 'message' : 'messages'} queued for delivery.
     </div>
   {/if}
@@ -733,25 +751,35 @@
   <div class="message-container">
     <!-- Loading state -->
     {#if loading}
-      <div class="loading-indicator">
-        <div class="spinner"></div>
+      <div class="loading-indicator" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
         <span>Loading messages...</span>
       </div>
     {:else}
       <!-- Message list -->
-      <div id="messagewindow" class="messages">
+      <div
+        id="messagewindow"
+        class="messages"
+        role="log"
+        aria-label="Chat messages"
+        aria-live="polite"
+        aria-relevant="additions text"
+        tabindex="-1"
+      >
         {#each messages as msg, index (index)}
-          <div class="message-item">
+          <article class="message-item" aria-label={`Message from ${msg.user}`}>
             <div class="message-header">
               <span class="username">{msg.user}</span>
               {#if msg.timestamp}
-                <span class="timestamp">{formatTimestamp(msg.timestamp)}</span>
+                <time class="timestamp" datetime={formatMachineTimestamp(msg.timestamp)}>
+                  {formatTimestamp(msg.timestamp)}
+                </time>
               {/if}
             </div>
             <!-- Using {@html} to render formatted message HTML -->
             <!-- This is safe because we escape user input in formatMessage() -->
             <div class="message-content">{@html formatMessage(msg.msg)}</div>
-          </div>
+          </article>
         {/each}
 
         <!-- Empty state -->
@@ -767,7 +795,7 @@
     <div class="load-more-container">
       <button type="button" class="load-more-btn" onclick={loadMoreMessages} disabled={loadingMore}>
         {#if loadingMore}
-          <span class="spinner-small"></span>
+          <span class="spinner-small" aria-hidden="true"></span>
         {/if}
         <span>{loadingMore ? 'Loading...' : 'Load More Messages'}</span>
       </button>
@@ -777,6 +805,7 @@
   <!-- Message input form -->
   <div class="message-form-container">
     <form onsubmit={(e) => { e.preventDefault(); sendMessage(); }} class="message-form">
+      <h2 id="compose-title" class="sr-only">Compose a message</h2>
       <!-- Message input -->
       {#if !sending}
         <div class="form-group">
@@ -787,27 +816,35 @@
             class:error-field={error}
             placeholder="Type your message here..."
             rows="2"
+            maxlength="500"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'formatting-help message-error' : 'formatting-help'}
             onkeydown={handleKeydown}
           ></textarea>
 
           <!-- Formatting toolbar -->
-          <div class="formatting-help">
-            <button type="button" onclick={() => insertFormatting('**', '**')} title="Bold">B</button>
-            <button type="button" onclick={() => insertFormatting('*', '*')} title="Italic">I</button>
-            <button type="button" onclick={() => insertFormatting('`', '`')} title="Code">Code</button>
-            <button type="button" onclick={() => insertFormatting('\n> ', '')} title="Quote">Quote</button>
-            <span class="format-info">Supports Markdown: **bold**, *italic*, `code`, > quote</span>
+          <div class="formatting-help" role="toolbar" aria-label="Message formatting">
+            <button type="button" onclick={() => insertFormatting('**', '**')} aria-label="Format as bold">B</button>
+            <button type="button" onclick={() => insertFormatting('*', '*')} aria-label="Format as italic">I</button>
+            <button type="button" onclick={() => insertFormatting('`', '`')} aria-label="Format as code">Code</button>
+            <button type="button" onclick={() => insertFormatting('\n> ', '')} aria-label="Format as quote">
+              Quote
+            </button>
+            <span id="formatting-help" class="format-info">
+              Supports Markdown: **bold**, *italic*, `code`, &gt; quote. Enter sends; Shift+Enter adds a line; Escape
+              clears.
+            </span>
           </div>
 
           <!-- Error display -->
           {#if error}
-            <div class="error">{error}</div>
+            <div id="message-error" class="error" role="alert">{error}</div>
           {/if}
         </div>
       {:else}
         <!-- Sending indicator -->
-        <div class="loading-indicator-small">
-          <div class="spinner"></div>
+        <div class="loading-indicator-small" role="status" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
           <span>Sending message...</span>
         </div>
       {/if}
@@ -815,13 +852,13 @@
       <!-- Form action buttons -->
       <div class="form-actions">
         <button type="submit" class="send-btn" disabled={!canSend}>Send Message</button>
-        <button type="button" class="clear-btn" onclick={() => message = ''} disabled={sending || !message.trim()}>
+        <button type="button" class="clear-btn" onclick={clearMessage} disabled={sending || !message.trim()}>
           Clear
         </button>
       </div>
     </form>
   </div>
-</div>
+</main>
 
 <!--
   ============================================================================
@@ -1094,7 +1131,6 @@
       resize: vertical;
 
       &:focus {
-        outline: none;
         border-color: $primary-color;
       }
 

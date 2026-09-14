@@ -38,7 +38,7 @@ Keep actual browser and network-server end-to-end coverage separate from this su
 
 ## Browser end-to-end tests
 
-Playwright covers the XML, JSON, HTML, Vue, and Svelte chat implementations in Chromium. Each scenario signs in through the real login page, posts a message, verifies that the message appears, checks the frontend's network payload when applicable, fails on browser errors, and runs axe against serious and critical accessibility violations.
+Playwright covers the XML, JSON, HTML, Vue, and Svelte chat implementations in Chromium. Each scenario signs in through the real login page, posts a message, verifies that the message appears, checks the frontend's network payload when applicable, fails on browser errors, and runs axe against serious and critical accessibility violations. The Vue and Svelte scenarios also exercise the keyboard and semantic behavior documented in [Accessibility](accessibility.md).
 
 Install the PHP and JavaScript dependencies, then install the Playwright browser once:
 
