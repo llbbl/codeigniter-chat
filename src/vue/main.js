@@ -1,4 +1,5 @@
 import { createApp } from 'vue';
+import { setupPwa } from '../js/pwa.js';
 import App from './App.vue';
 
 // Import CSS
@@ -25,6 +26,7 @@ const app = createApp(App);
 app.config.globalProperties.$chatRoutes = {
   update: window.CHAT_ROUTES.update,
   api: window.CHAT_ROUTES.messagesApi,
+  pushSubscriptions: window.CHAT_ROUTES.pushSubscriptions,
 };
 
 // CSRF token name for form submissions
@@ -46,6 +48,9 @@ app.config.globalProperties.$userId = window.CURRENT_USER_ID;
  * @see App.vue connectWebSocket() method for implementation
  */
 app.config.globalProperties.$wsToken = window.WEBSOCKET_TOKEN;
+app.config.globalProperties.$pushPublicKey = window.PUSH_PUBLIC_KEY || '';
+
+setupPwa(window.CURRENT_USER_ID);
 
 // Mount the app
 app.mount('#app');

@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <title>CodeIgniter Chat - Svelte Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#3f6398">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
     <meta name="csrf-token" content="<?= esc(csrf_hash()) ?>">
     <?php
     /**
@@ -71,7 +75,8 @@
             // POST endpoint for sending new messages
             update: "<?= esc(site_url('api/v1/messages')) ?>",
             // GET endpoint for fetching messages (JSON format)
-            messagesApi: "<?= esc(site_url('api/v1/messages')) ?>"
+            messagesApi: "<?= esc(site_url('api/v1/messages')) ?>",
+            pushSubscriptions: "<?= esc(site_url('api/v1/push-subscriptions')) ?>"
         };
 
         // CSRF protection token name (CodeIgniter's built-in XSS protection)
@@ -101,6 +106,7 @@
          * @see App\Libraries\ChatWebSocketServer for server-side validation
          */
         window.WEBSOCKET_TOKEN = "<?= esc(session()->get('websocket_token') ?? '') ?>";
+        window.PUSH_PUBLIC_KEY = "<?= esc((string) env('push.vapidPublicKey', '')) ?>";
     </script>
 
     <!--

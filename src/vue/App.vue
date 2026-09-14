@@ -3,9 +3,25 @@
     <header class="chat-header">
       <div class="user-info">
         <span class="welcome-text">Welcome, <b>{{ username }}</b>!</span>
+        <button v-if="pwa.installAvailable" type="button" class="pwa-action" @click="installApp">Install app</button>
+        <button v-if="canEnableNotifications" type="button" class="pwa-action" @click="enableNotifications">
+          Enable notifications
+        </button>
         <a href="/auth/logout" class="logout-btn"> <i class="icon-logout"></i> Logout </a>
       </div>
     </header>
+
+    <div v-if="!pwa.online" class="connection-status" role="status">
+      You’re offline. New messages will be queued and retried when the connection returns.
+    </div>
+    <div v-else-if="pwa.queuedMessages > 0" class="connection-status queued" role="status">
+      {{ pwa.queuedMessages }} message{{ pwa.queuedMessages === 1 ? '' : 's' }} queued for delivery.
+    </div>
+    <div v-if="pwa.failedMessages > 0" class="connection-status failed" role="alert">
+      {{ pwa.failedMessages }} queued message{{ pwa.failedMessages === 1 ? '' : 's' }} could not be delivered. Please
+      send again.
+      <button type="button" class="status-dismiss" @click="dismissDeliveryFailures">Dismiss</button>
+    </div>
 
     <div class="message-container">
       <div v-if="loading" class="loading-indicator">
@@ -70,6 +86,14 @@
 </template>
 
 <script>
+  import {
+    dismissFailedMessages,
+    enablePushNotifications,
+    promptInstall,
+    subscribePwa,
+    userScopedMessagesUrl,
+  } from '../js/pwa.js';
+
   export default {
     data() {
       return {
@@ -104,9 +128,26 @@
         // Form helpers
         selectionStart: 0,
         selectionEnd: 0,
+        pwa: {
+          online: navigator.onLine,
+          installAvailable: false,
+          serviceWorkerReady: false,
+          queuedMessages: 0,
+          failedMessages: 0,
+        },
+        unsubscribePwa: null,
+        notificationsEnabled: false,
       };
     },
+    computed: {
+      canEnableNotifications() {
+        return Boolean(this.$pushPublicKey && !this.notificationsEnabled && 'PushManager' in window);
+      },
+    },
     mounted() {
+      this.unsubscribePwa = subscribePwa((state) => {
+        this.pwa = state;
+      });
       this.connectWebSocket();
 
       // Clean up when component is destroyed
@@ -116,8 +157,29 @@
     },
     beforeUnmount() {
       this.cleanUp();
+      this.unsubscribePwa?.();
     },
     methods: {
+      dismissDeliveryFailures() {
+        void dismissFailedMessages();
+      },
+      async installApp() {
+        await promptInstall();
+      },
+      async enableNotifications() {
+        try {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+          this.notificationsEnabled = await enablePushNotifications({
+            endpoint: this.$chatRoutes.pushSubscriptions,
+            csrfTokenName: this.$csrfToken,
+            csrfToken,
+            publicKey: this.$pushPublicKey,
+          });
+        } catch (error) {
+          console.error('Could not enable notifications:', error);
+          this.error = 'Notifications could not be enabled.';
+        }
+      },
       connectWebSocket() {
         /**
          * ====================================================================
@@ -173,6 +235,7 @@
 
           // Load initial messages
           this.loadMessages();
+          this.warmMessagesCache();
         });
 
         // Listen for messages from the WebSocket server
@@ -256,6 +319,7 @@
         this.webSocket.addEventListener('error', (event) => {
           console.error('WebSocket error:', event);
           this.webSocketConnected = false;
+          if (this.loading) this.loadMessagesHttp();
         });
       },
 
@@ -293,8 +357,11 @@
       // HTTP fallback for loading messages
       async loadMessagesHttp() {
         try {
-          const response = await fetch(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`);
+          const response = await fetch(
+            userScopedMessagesUrl(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`, this.userId),
+          );
           const data = await response.json();
+          if (!response.ok) throw new Error('Message request failed');
 
           this.messages = data.messages || [];
           this.hasMoreMessages = data.pagination?.hasNext || false;
@@ -304,9 +371,18 @@
           if (this.messages.length > 0 && this.messages[0].timestamp) {
             this.lastMessageTime = this.messages[0].timestamp;
           }
+          return true;
         } catch (error) {
           console.error('Error loading messages:', error);
           this.loading = false;
+          return false;
+        }
+      },
+      async warmMessagesCache() {
+        try {
+          await fetch(userScopedMessagesUrl(`${this.$chatRoutes.api}?page=1&per_page=10`, this.userId));
+        } catch {
+          // The live WebSocket remains authoritative; cache warming is best effort.
         }
       },
 
@@ -344,7 +420,9 @@
       // HTTP fallback for loading more messages
       async loadMoreMessagesHttp() {
         try {
-          const response = await fetch(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`);
+          const response = await fetch(
+            userScopedMessagesUrl(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`, this.userId),
+          );
           const data = await response.json();
 
           if (data.messages && data.messages.length > 0) {
@@ -398,6 +476,7 @@
 
       // HTTP fallback for sending messages
       async sendMessageHttp() {
+        let fetchCompleted = false;
         try {
           const formData = new FormData();
           formData.append('message', this.message);
@@ -411,6 +490,7 @@
               'X-Requested-With': 'XMLHttpRequest',
             },
           });
+          fetchCompleted = true;
 
           const data = await response.json();
 
@@ -429,7 +509,12 @@
           }
         } catch (error) {
           console.error('Error sending message:', error);
-          this.error = 'Failed to send message. Please try again.';
+          if (!fetchCompleted && navigator.serviceWorker?.controller) {
+            this.message = '';
+            this.error = 'Message queued. It will be retried when delivery is available.';
+          } else {
+            this.error = 'Failed to send message. Please try again.';
+          }
         } finally {
           this.sending = false;
         }

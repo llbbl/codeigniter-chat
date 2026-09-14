@@ -54,6 +54,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate \
 # Copy source files needed for the build
 COPY vite.config.js ./
 COPY src/ ./src/
+COPY public/ ./public/
 
 # Build production assets
 RUN pnpm build
@@ -147,6 +148,7 @@ COPY --from=composer /app/vendor ./vendor
 
 # Copy built frontend assets from the node stage
 COPY --from=node /app/public/dist ./public/dist
+COPY --from=node /app/public/sw.js ./public/sw.js
 
 # Create writable directories for CodeIgniter
 # These directories need write permissions for logs, cache, sessions, etc.

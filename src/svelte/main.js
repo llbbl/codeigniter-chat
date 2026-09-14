@@ -18,6 +18,7 @@
  * ============================================================================
  */
 
+import { setupPwa } from '../js/pwa.js';
 // Import the root Svelte component
 import App from './App.svelte';
 
@@ -39,6 +40,7 @@ const config = {
   chatRoutes: {
     update: window.CHAT_ROUTES?.update || '/api/v1/messages',
     api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages',
+    pushSubscriptions: window.CHAT_ROUTES?.pushSubscriptions || '/api/v1/push-subscriptions',
   },
 
   // CSRF token name for secure form submissions
@@ -50,7 +52,10 @@ const config = {
 
   // WebSocket authentication token (generated on login)
   wsToken: window.WEBSOCKET_TOKEN || '',
+  pushPublicKey: window.PUSH_PUBLIC_KEY || '',
 };
+
+setupPwa(config.userId);
 
 /**
  * Mount the Svelte App component

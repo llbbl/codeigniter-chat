@@ -29,6 +29,8 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     $routes->get('messages', 'MessagesController::list', ['filter' => ['apiFormat', 'auth']]);
     $routes->post('messages', 'MessagesController::create', ['filter' => ['apiFormat', 'auth', 'rate:write', 'validate:message']]);
     $routes->get('messages/xml', 'MessagesController::listXml', ['filter' => 'auth']);
+    $routes->post('push-subscriptions', 'PushSubscriptionsController::create', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
+    $routes->delete('push-subscriptions', 'PushSubscriptionsController::delete', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
 });
 
 // Compatibility shims: same v1 implementation, with machine-readable sunset metadata.
