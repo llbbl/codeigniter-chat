@@ -38,6 +38,7 @@
 
 <script>
   import { onDestroy, onMount } from 'svelte';
+  import { reactionEmojis } from '../config/reactions.ts';
   import {
     dismissFailedMessages,
     enablePushNotifications,
@@ -129,6 +130,8 @@
   let displayName = $state('');
   let profiles = $state({});
   const requestedProfiles = new Set();
+  let reactions = $state({});
+  let reactionPickerMessageId = $state(null);
 
   function handleOwnProfile(profile) {
     displayName = profile.display_name || config.username;
@@ -177,9 +180,83 @@
     }
   }
 
+  function reactionsFor(messageId) {
+    return reactions[messageId] || [];
+  }
+
+  function applyReactionUpdate(update) {
+    const messageId = Number(update.message_id);
+    const existing = reactionsFor(messageId).filter((reaction) => reaction.emoji !== update.emoji);
+    const next =
+      Number(update.count) > 0
+        ? [...existing, { emoji: update.emoji, count: Number(update.count), users: update.users || [] }]
+        : existing;
+    reactions = { ...reactions, [messageId]: next };
+  }
+
+  async function loadReactions(messageList) {
+    const messageIds = [...new Set(messageList.map((item) => Number(item.id)).filter((id) => id > 0))];
+    await Promise.all(
+      messageIds.map(async (messageId) => {
+        try {
+          const response = await fetch(`${config.chatRoutes.api}/${messageId}/reactions`);
+          if (!response.ok) return;
+          reactions = { ...reactions, [messageId]: await response.json() };
+        } catch {
+          // Reactions are additive; message reading remains available if this request fails.
+        }
+      }),
+    );
+  }
+
+  async function toggleReaction(messageId, emoji) {
+    const active = reactionsFor(messageId).some(
+      (reaction) => reaction.emoji === emoji && reaction.users.includes(config.username),
+    );
+    reactionPickerMessageId = null;
+    if (webSocketConnected) {
+      webSocket.send(
+        JSON.stringify({
+          type: active ? 'reaction_remove' : 'reaction_add',
+          message_id: Number(messageId),
+          emoji,
+        }),
+      );
+      return;
+    }
+
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      const endpoint = `${config.chatRoutes.api}/${messageId}/reactions${active ? `/${encodeURIComponent(emoji)}` : ''}`;
+      const response = await fetch(endpoint, {
+        method: active ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+        body: active ? undefined : JSON.stringify({ emoji }),
+      });
+      refreshCsrfToken(response);
+      if (!response.ok) throw new Error('Reaction request failed');
+      if (active) {
+        const refreshed = await fetch(`${config.chatRoutes.api}/${messageId}/reactions`);
+        reactions = { ...reactions, [messageId]: await refreshed.json() };
+      } else {
+        const payload = await response.json();
+        applyReactionUpdate({ message_id: messageId, ...payload.reaction });
+      }
+    } catch {
+      error = 'The reaction could not be updated.';
+    }
+  }
+
+  function refreshCsrfToken(response) {
+    const token = response.headers.get('X-CSRF-TOKEN');
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (token && meta) meta.setAttribute('content', token);
+  }
+
   $effect(() => {
     const usernames = [...new Set(messages.map((chatMessage) => chatMessage.user).filter(Boolean))];
     void loadProfiles(usernames);
+    void loadReactions(messages);
   });
 
   // ============================================================================
@@ -327,6 +404,10 @@
       }
       if (data.type === 'presence_state') {
         mergeProfiles(data.users || []);
+        return;
+      }
+      if (data.type === 'reaction') {
+        applyReactionUpdate(data);
         return;
       }
 
@@ -1290,7 +1371,7 @@
         tabindex="-1"
       >
         <a class="skip-link" href="#message-input">Skip to message composer</a>
-        {#each messages as msg, index (index)}
+        {#each messages as msg, index (msg.id || index)}
           <article class="message-item" aria-label={`Message from ${msg.user}`}>
             <div class="message-avatar" aria-hidden="true">
               {#if profileFor(msg.user).avatar_url}
@@ -1312,6 +1393,46 @@
               </div>
               <!-- Using {@html} is safe because formatMessage() escapes user input. -->
               <div class="message-content">{@html formatMessage(msg.msg)}</div>
+              {#if msg.id}
+                <div class="message-reactions">
+                  {#each reactionsFor(msg.id) as reaction (reaction.emoji)}
+                    <button
+                      type="button"
+                      class:active={reaction.users.includes(config.username)}
+                      class="reaction-badge"
+                      aria-pressed={reaction.users.includes(config.username)}
+                      aria-label={`${reaction.emoji} reaction from ${reaction.users.join(', ')}. ${reaction.count} total.`}
+                      title={reaction.users.join(', ')}
+                      onclick={() => toggleReaction(msg.id, reaction.emoji)}
+                    >
+                      <span aria-hidden="true">{reaction.emoji}</span> {reaction.count}
+                    </button>
+                  {/each}
+                  <button
+                    type="button"
+                    class="reaction-picker-toggle"
+                    aria-expanded={reactionPickerMessageId === Number(msg.id)}
+                    aria-label={`React to message from ${msg.user}`}
+                    onclick={() => { reactionPickerMessageId = reactionPickerMessageId === Number(msg.id) ? null : Number(msg.id); }}
+                  >
+                    +
+                  </button>
+                  {#if reactionPickerMessageId === Number(msg.id)}
+                    <fieldset class="reaction-picker">
+                      <legend class="sr-only">Choose a reaction</legend>
+                      {#each reactionEmojis as emoji}
+                        <button
+                          type="button"
+                          aria-label={`React with ${emoji}`}
+                          onclick={() => toggleReaction(msg.id, emoji)}
+                        >
+                          {emoji}
+                        </button>
+                      {/each}
+                    </fieldset>
+                  {/if}
+                </div>
+              {/if}
             </div>
           </article>
         {/each}

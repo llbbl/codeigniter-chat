@@ -23,6 +23,9 @@ with the message endpoints at `/api/v1/messages`.
 | `POST` | `/api/v1/messages` | Create a message |
 | `GET` | `/api/v1/messages/search` | Search messages by text, exact user, or Unix time range |
 | `GET` | `/api/v1/messages/xml` | Paginated XML messages |
+| `GET` | `/api/v1/messages/{id}/reactions` | List reactions grouped by emoji |
+| `POST` | `/api/v1/messages/{id}/reactions` | Add the current user's reaction |
+| `DELETE` | `/api/v1/messages/{id}/reactions/{emoji}` | Remove the current user's reaction |
 
 All endpoints use the existing session authentication and CSRF rules. The
 canonical payload and error envelopes are documented in

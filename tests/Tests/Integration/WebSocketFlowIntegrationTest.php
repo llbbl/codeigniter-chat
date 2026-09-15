@@ -5,6 +5,7 @@ namespace Tests\Integration;
 use App\Helpers\WebSocketTokenHelper;
 use App\Libraries\ChatWebSocketServer;
 use App\Models\ChatModel;
+use App\Models\MessageReactionModel;
 use App\Models\UserModel;
 use GuzzleHttp\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Group;
@@ -163,6 +164,50 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
         $this->assertNotNull($alice);
         $this->assertSame('offline', $alice['presence']);
         $this->assertNotNull($alice['last_seen_at']);
+    }
+
+    public function testAuthenticatedReactionIsPersistedAndBroadcastWithCurrentState(): void
+    {
+        $users = new UserModel();
+        $aliceId = $users->createUser('alice', 'alice-reaction@example.com', 'Password123!');
+        $bobId = $users->createUser('bob', 'bob-reaction@example.com', 'Password123!');
+        $this->assertIsInt($aliceId);
+        $this->assertIsInt($bobId);
+        $messageId = (new ChatModel())->insertMsg('alice', 'WebSocket reaction target', time());
+        $this->assertIsInt($messageId);
+
+        $aliceToken = WebSocketTokenHelper::generateToken($aliceId);
+        $bobToken = WebSocketTokenHelper::generateToken($bobId);
+        $alice = new RecordingConnection("/?token={$aliceToken}&user_id={$aliceId}");
+        $bob = new RecordingConnection("/?token={$bobToken}&user_id={$bobId}");
+        $reactions = new MessageReactionModel();
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), users: $users, reactions: $reactions);
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!/s');
+        $server->onOpen($alice);
+        $server->onOpen($bob);
+        $server->onMessage($alice, json_encode([
+            'type' => 'reaction_add',
+            'message_id' => $messageId,
+            'emoji' => '👍',
+        ], JSON_THROW_ON_ERROR));
+
+        $broadcast = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('reaction', $broadcast['type']);
+        $this->assertSame($messageId, $broadcast['message_id']);
+        $this->assertSame('👍', $broadcast['emoji']);
+        $this->assertSame(1, $broadcast['count']);
+        $this->assertSame(['alice'], $broadcast['users']);
+        $this->assertSame(1, $reactions->where('message_id', $messageId)->countAllResults());
+
+        $server->onMessage($alice, json_encode([
+            'type' => 'reaction_remove',
+            'message_id' => $messageId,
+            'emoji' => '👍',
+        ], JSON_THROW_ON_ERROR));
+        $broadcast = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(0, $broadcast['count']);
+        $this->assertSame([], $broadcast['users']);
     }
 }
 
