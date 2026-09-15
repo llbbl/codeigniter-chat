@@ -16,6 +16,7 @@ use App\Controllers\Auth;
 use App\Controllers\Chat;
 use App\Controllers\CspReport;
 use App\Controllers\Home;
+use App\Controllers\Profile;
 use App\Core\Application;
 use App\Libraries\ErrorHandler;
 use App\Models\AuditLogModel;
@@ -69,6 +70,7 @@ class Services extends BaseService
             MessagesController::class => new MessagesController(static::chatRepository(), static::chatFormatter()),
             PushSubscriptionsController::class => new PushSubscriptionsController(static::pushSubscriptionRepository()),
             Auth::class => new Auth(static::userRepository(), static::auditLogger()),
+            Profile::class => new Profile(static::userRepository()),
             CspReport::class => new CspReport(static::cspReportRepository()),
             AuditLog::class => new AuditLog(static::auditLogRepository()),
             default => throw new \InvalidArgumentException('Controller is not registered: ' . $controllerClass),

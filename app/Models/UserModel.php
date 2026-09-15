@@ -9,7 +9,19 @@ class UserModel extends Model implements UserRepository
 {
     protected $table = 'users';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['username', 'email', 'password', 'created_at', 'updated_at'];
+    protected $allowedFields = [
+        'username',
+        'email',
+        'password',
+        'display_name',
+        'avatar_path',
+        'theme',
+        'notification_prefs',
+        'presence',
+        'last_seen_at',
+        'created_at',
+        'updated_at',
+    ];
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
@@ -36,6 +48,12 @@ class UserModel extends Model implements UserRepository
     public function findUserByEmail(string $email): ?array
     {
         return $this->where('email', $email)->first();
+    }
+
+    /** @return array<string, mixed>|null */
+    public function findUserById(int $userId): ?array
+    {
+        return $this->find($userId);
     }
 
     /**
@@ -73,5 +91,36 @@ class UserModel extends Model implements UserRepository
         }
 
         return null;
+    }
+
+    /** @param array<string, mixed> $profile */
+    public function updateProfile(int $userId, array $profile): bool
+    {
+        return $this->update($userId, $profile);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function findPublicProfilesByUsernames(array $usernames): array
+    {
+        $usernames = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $username): mixed => is_string($username) ? trim($username) : $username, $usernames),
+            static fn (mixed $username): bool => is_string($username) && $username !== '',
+        )));
+
+        if ($usernames === []) {
+            return [];
+        }
+
+        return $this->select('id, username, display_name, avatar_path, presence, last_seen_at')
+            ->whereIn('username', $usernames)
+            ->findAll();
+    }
+
+    public function updatePresence(int $userId, string $presence, ?string $lastSeenAt): bool
+    {
+        return $this->update($userId, [
+            'presence' => $presence,
+            'last_seen_at' => $lastSeenAt,
+        ]);
     }
 }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?= esc(session()->get('theme') ?? 'system') ?>">
 <head>
     <title>CodeIgniter Chat - Vue.js Edition</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -33,7 +33,10 @@
         window.CHAT_ROUTES = {
             update: "<?= esc(site_url('api/v1/messages')) ?>",
             messagesApi: "<?= esc(site_url('api/v1/messages')) ?>",
-            pushSubscriptions: "<?= esc(site_url('api/v1/push-subscriptions')) ?>"
+            pushSubscriptions: "<?= esc(site_url('api/v1/push-subscriptions')) ?>",
+            profile: "<?= esc(site_url('api/v1/profile')) ?>",
+            profileAvatar: "<?= esc(site_url('api/v1/profile/avatar')) ?>",
+            profiles: "<?= esc(site_url('api/v1/profiles')) ?>"
         };
 
         // CSRF protection token name (CodeIgniter's built-in XSS protection)

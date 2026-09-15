@@ -18,6 +18,152 @@ $border-radius: 4px;
     --chat-safe-area-left: env(safe-area-inset-left, 0px);
 }
 
+html[data-theme="dark"] {
+    color-scheme: dark;
+
+    body {
+        background: #17212b;
+        color: #f4f7fa;
+    }
+
+    .chat-container,
+    .messages,
+    .message-form,
+    .search-panel,
+    .message-item {
+        background: #202c38;
+        color: #f4f7fa;
+    }
+
+    input,
+    textarea,
+    select {
+        background: #17212b;
+        color: #f4f7fa;
+        border-color: #7f91a3;
+    }
+}
+
+html[data-theme="light"] {
+    color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+    html[data-theme="system"] {
+        color-scheme: dark;
+
+        body {
+            background: #17212b;
+            color: #f4f7fa;
+        }
+
+        .chat-container,
+        .messages,
+        .message-form,
+        .search-panel,
+        .message-item {
+            background: #202c38;
+            color: #f4f7fa;
+        }
+    }
+}
+
+.profile-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-panel {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: min(22rem, calc(100vw - 2rem));
+    padding: 1rem;
+    border: 1px solid #9aa8b8;
+    border-radius: 0.5rem;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 25%);
+
+    h2 {
+        margin-top: 0;
+        font-size: 1.1rem;
+    }
+
+    form {
+        display: grid;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    input:not([type="checkbox"]),
+    select {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 0.45rem;
+    }
+}
+
+.profile-status {
+    color: #167343;
+}
+
+.message-item {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.message-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.message-avatar {
+    position: relative;
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 2.5rem;
+    place-items: center;
+    overflow: visible;
+    border-radius: 50%;
+    background: #3f6398;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+
+    img {
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        object-fit: cover;
+    }
+}
+
+.presence-dot {
+    position: absolute;
+    right: -0.1rem;
+    bottom: -0.1rem;
+    width: 0.65rem;
+    height: 0.65rem;
+    border: 2px solid Canvas;
+    border-radius: 50%;
+    background: #7b8794;
+}
+
+.presence-online {
+    background: #16883e;
+}
+
+.presence-away {
+    background: #d97706;
+}
+
+.presence-busy {
+    background: #c52835;
+}
+
 html,
 body {
     min-width: 0;

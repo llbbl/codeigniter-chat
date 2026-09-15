@@ -27,6 +27,9 @@ app.config.globalProperties.$chatRoutes = {
   update: window.CHAT_ROUTES.update,
   api: window.CHAT_ROUTES.messagesApi,
   pushSubscriptions: window.CHAT_ROUTES.pushSubscriptions,
+  profile: window.CHAT_ROUTES.profile,
+  profileAvatar: window.CHAT_ROUTES.profileAvatar,
+  profiles: window.CHAT_ROUTES.profiles,
 };
 
 // CSRF token name for form submissions

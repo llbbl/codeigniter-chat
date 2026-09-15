@@ -22,6 +22,11 @@ class UserHelper
             'user_id' => $user['id'],
             'username' => $user['username'],
             'email' => $user['email'],
+            'display_name' => $user['display_name'] ?? null,
+            'avatar_path' => $user['avatar_path'] ?? null,
+            'theme' => $user['theme'] ?? 'system',
+            'notification_prefs' => $user['notification_prefs'] ?? null,
+            'presence' => $user['presence'] ?? 'offline',
             'logged_in' => true,
         ];
 
@@ -35,6 +40,16 @@ class UserHelper
      */
     public static function clearUserSession(): void
     {
-        session()->remove(['user_id', 'username', 'email', 'logged_in']);
+        session()->remove([
+            'user_id',
+            'username',
+            'email',
+            'display_name',
+            'avatar_path',
+            'theme',
+            'notification_prefs',
+            'presence',
+            'logged_in',
+        ]);
     }
 }
