@@ -5,6 +5,7 @@ namespace Tests\Integration;
 use App\Helpers\WebSocketTokenHelper;
 use App\Libraries\ChatWebSocketServer;
 use App\Models\ChatModel;
+use App\Models\UserModel;
 use GuzzleHttp\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Group;
 use Ratchet\ConnectionInterface;
@@ -118,6 +119,50 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
         ], JSON_THROW_ON_ERROR));
         $stoppedState = json_decode($observer->sent[1], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame([], $stoppedState['users']);
+    }
+
+    public function testPresenceBroadcastsAndOnlyGoesOfflineAfterTheLastConnectionCloses(): void
+    {
+        $model = new UserModel();
+        $aliceId = $model->createUser('alice', 'alice@example.com', 'Password123!');
+        $bobId = $model->createUser('bob', 'bob@example.com', 'Password123!');
+        $this->assertIsInt($aliceId);
+        $this->assertIsInt($bobId);
+        $model->updateProfile($aliceId, ['display_name' => 'Alice A.', 'presence' => 'away']);
+
+        $aliceToken = WebSocketTokenHelper::generateToken($aliceId);
+        $bobToken = WebSocketTokenHelper::generateToken($bobId);
+        $aliceFirst = new RecordingConnection("/?token={$aliceToken}&user_id={$aliceId}");
+        $aliceSecond = new RecordingConnection("/?token={$aliceToken}&user_id={$aliceId}");
+        $bob = new RecordingConnection("/?token={$bobToken}&user_id={$bobId}");
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), users: $model);
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!.*New connection!.*has disconnected.*has disconnected/s');
+        $server->onOpen($aliceFirst);
+        $server->onOpen($aliceSecond);
+        $server->onOpen($bob);
+
+        $presence = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('presence_state', $presence['type']);
+        $this->assertSame(['Alice A.', 'bob'], array_column($presence['users'], 'display_name'));
+        $this->assertSame(['away', 'online'], array_column($presence['users'], 'presence'));
+
+        $server->onMessage($aliceFirst, json_encode(['type' => 'presence_update', 'presence' => 'busy'], JSON_THROW_ON_ERROR));
+        $presence = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('busy', $presence['users'][0]['presence']);
+
+        $bobMessagesBeforeClose = count($bob->sent);
+        $server->onClose($aliceFirst);
+        $this->assertSame($bobMessagesBeforeClose, count($bob->sent), 'Closing one tab must not mark the user offline.');
+
+        $server->onClose($aliceSecond);
+        $presence = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(['bob'], array_column($presence['users'], 'username'));
+
+        $alice = $model->findUserById($aliceId);
+        $this->assertNotNull($alice);
+        $this->assertSame('offline', $alice['presence']);
+        $this->assertNotNull($alice['last_seen_at']);
     }
 }
 

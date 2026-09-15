@@ -159,6 +159,7 @@ Start your web server and navigate to:
 See:
 
 - `docs/public-api.md` (HTTP + WebSocket + frontend entrypoints + reusable PHP APIs)
+- `docs/user-profiles.md` (profile settings, avatars, themes, and WebSocket presence)
 
 ## Troubleshooting
 

@@ -2,8 +2,10 @@
 
 namespace App\Libraries;
 
+use App\Contracts\UserRepository;
 use App\Helpers\WebSocketTokenHelper;
 use App\Models\ChatModel;
+use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use Exception;
 use Ratchet\ConnectionInterface;
@@ -70,6 +72,11 @@ class ChatWebSocketServer implements MessageComponentInterface
      */
     protected bool $requireAuth;
 
+    private readonly UserRepository $users;
+
+    /** @var array<int, array{user_id: int, username: string, display_name: string, avatar_url: ?string, presence: string, last_seen_at: ?string}> */
+    private array $presenceUsers = [];
+
     /**
      * Ephemeral typing state keyed by authenticated user ID.
      *
@@ -90,11 +97,13 @@ class ChatWebSocketServer implements MessageComponentInterface
     public function __construct(
         ?SplObjectStorage $clients = null,
         ?ChatModel $chatModel = null,
-        bool $requireAuth = true
+        bool $requireAuth = true,
+        ?UserRepository $users = null,
     ) {
         $this->clients = $clients ?? new SplObjectStorage();
         $this->chatModel = $chatModel ?? new ChatModel();
         $this->requireAuth = $requireAuth;
+        $this->users = $users ?? new UserModel();
 
         $this->logServerStart();
     }
@@ -141,6 +150,10 @@ class ChatWebSocketServer implements MessageComponentInterface
             'connected_at' => time(),
             'authenticated' => $this->requireAuth ? true : ($userId > 0),
         ]);
+
+        if ($this->requireAuth) {
+            $this->connectPresence($userId);
+        }
 
         // Log successful connection
         $authStatus = $this->requireAuth ? "(authenticated, user_id: {$userId})" : '(auth disabled)';
@@ -193,6 +206,10 @@ class ChatWebSocketServer implements MessageComponentInterface
             case 'typing_stop':
                 $this->handleTypingEvent($from, $data, $messageType);
                 break;
+
+            case 'presence_update':
+                $this->handlePresenceUpdate($from, $data);
+                break;
         }
     }
 
@@ -215,9 +232,15 @@ class ChatWebSocketServer implements MessageComponentInterface
         // Remove the connection from our storage
         $this->clients->detach($conn);
 
-        if (is_int($userId) && isset($this->typingUsers[$userId])) {
+        if (is_int($userId) && ! $this->isUserConnected($userId) && isset($this->typingUsers[$userId])) {
             unset($this->typingUsers[$userId]);
             $this->broadcastTypingState();
+        }
+
+        if (is_int($userId) && $userId > 0 && ! $this->isUserConnected($userId) && isset($this->presenceUsers[$userId])) {
+            unset($this->presenceUsers[$userId]);
+            $this->users->updatePresence($userId, 'offline', date('Y-m-d H:i:s'));
+            $this->broadcastPresenceState();
         }
 
         echo 'Connection ' . spl_object_id($conn) . " (user_id: {$userId}) has disconnected\n";
@@ -585,6 +608,71 @@ class ChatWebSocketServer implements MessageComponentInterface
 
             $client->send($payload);
         }
+    }
+
+    private function connectPresence(int $userId): void
+    {
+        $user = $this->users->findUserById($userId);
+        if ($user === null) {
+            return;
+        }
+
+        $presence = in_array($user['presence'] ?? null, ['away', 'busy'], true) ? $user['presence'] : 'online';
+        $this->users->updatePresence($userId, $presence, null);
+        $this->presenceUsers[$userId] = $this->presenceProfile($user, $presence, null);
+        $this->broadcastPresenceState();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function handlePresenceUpdate(ConnectionInterface $from, array $data): void
+    {
+        if (! $this->clients->contains($from)) {
+            return;
+        }
+
+        $connectionData = $this->clients[$from];
+        $userId = $connectionData['user_id'] ?? 0;
+        $presence = $data['presence'] ?? null;
+        if (($connectionData['authenticated'] ?? false) !== true || ! is_int($userId) || ! in_array($presence, ['online', 'away', 'busy'], true)) {
+            return;
+        }
+
+        $user = $this->users->findUserById($userId);
+        if ($user === null) {
+            return;
+        }
+
+        $this->users->updatePresence($userId, $presence, null);
+        $this->presenceUsers[$userId] = $this->presenceProfile($user, $presence, null);
+        $this->broadcastPresenceState();
+    }
+
+    private function broadcastPresenceState(): void
+    {
+        $users = array_values($this->presenceUsers);
+        usort($users, static fn (array $left, array $right): int => [$left['display_name'], $left['user_id']] <=> [$right['display_name'], $right['user_id']]);
+        $payload = json_encode(['type' => 'presence_state', 'users' => $users]);
+
+        foreach ($this->clients as $client) {
+            $client->send($payload);
+        }
+    }
+
+    /** @param array<string, mixed> $user
+     * @return array{user_id: int, username: string, display_name: string, avatar_url: ?string, presence: string, last_seen_at: ?string}
+     */
+    private function presenceProfile(array $user, string $presence, ?string $lastSeenAt): array
+    {
+        $userId = (int) $user['id'];
+
+        return [
+            'user_id' => $userId,
+            'username' => (string) $user['username'],
+            'display_name' => (string) ($user['display_name'] ?: $user['username']),
+            'avatar_url' => $user['avatar_path'] ? "/profile/avatar/{$userId}" : null,
+            'presence' => $presence,
+            'last_seen_at' => $lastSeenAt,
+        ];
     }
 
     /**

@@ -14,6 +14,12 @@ $routes->get('auth/login', 'Auth::login');
 $routes->post('auth/processLogin', 'Auth::processLogin', ['filter' => ['rate:auth', 'validate:login']]);
 $routes->get('auth/logout', 'Auth::logout');
 
+// Profile routes
+$routes->get('profile', 'Profile::index', ['filter' => 'auth']);
+$routes->post('profile', 'Profile::update', ['filter' => ['auth', 'rate:write']]);
+$routes->post('profile/avatar', 'Profile::uploadAvatar', ['filter' => ['auth', 'rate:write']]);
+$routes->get('profile/avatar/(:num)', 'Profile::avatar/$1', ['filter' => 'auth']);
+
 // Chat routes
 $routes->get('chat', 'Chat::index');
 $routes->post('chat/update', 'Chat::update', ['filter' => ['rate:write', 'validate:message']]);
@@ -32,6 +38,10 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     $routes->get('messages/xml', 'MessagesController::listXml', ['filter' => 'auth']);
     $routes->post('push-subscriptions', 'PushSubscriptionsController::create', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
     $routes->delete('push-subscriptions', 'PushSubscriptionsController::delete', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
+    $routes->get('profile', '\\App\\Controllers\\Profile::show', ['filter' => ['apiFormat', 'auth']]);
+    $routes->post('profile', '\\App\\Controllers\\Profile::update', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
+    $routes->post('profile/avatar', '\\App\\Controllers\\Profile::uploadAvatar', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
+    $routes->get('profiles', '\\App\\Controllers\\Profile::profiles', ['filter' => ['apiFormat', 'auth']]);
 });
 
 // Compatibility shims: same v1 implementation, with machine-readable sunset metadata.

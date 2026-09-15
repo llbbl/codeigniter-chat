@@ -41,6 +41,9 @@ const config = {
     update: window.CHAT_ROUTES?.update || '/api/v1/messages',
     api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages',
     pushSubscriptions: window.CHAT_ROUTES?.pushSubscriptions || '/api/v1/push-subscriptions',
+    profile: window.CHAT_ROUTES?.profile || '/api/v1/profile',
+    profileAvatar: window.CHAT_ROUTES?.profileAvatar || '/api/v1/profile/avatar',
+    profiles: window.CHAT_ROUTES?.profiles || '/api/v1/profiles',
   },
 
   // CSRF token name for secure form submissions

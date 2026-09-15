@@ -11,6 +11,8 @@
     },
     "require": {
         "php": "^8.4",
+        "ext-fileinfo": "*",
+        "ext-gd": "*",
         "ext-sockets": "*",
         "cboden/ratchet": "^0.4.4",
         "codeigniter4/framework": "^4.7",

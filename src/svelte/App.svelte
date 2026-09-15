@@ -45,6 +45,7 @@
     subscribePwa,
     userScopedMessagesUrl,
   } from '../js/pwa.js';
+  import ProfilePanel from './ProfilePanel.svelte';
 
   // ============================================================================
   // PROPS - Data passed from main.js
@@ -125,6 +126,61 @@
   let typingUsers = $state([]);
   let lastTypingSentAt = $state(0);
   let typingStopTimeout = null;
+  let displayName = $state('');
+  let profiles = $state({});
+  const requestedProfiles = new Set();
+
+  function handleOwnProfile(profile) {
+    displayName = profile.display_name || config.username;
+    mergeProfiles([profile]);
+    if (webSocketConnected) {
+      webSocket.send(JSON.stringify({ type: 'presence_update', presence: profile.presence }));
+    }
+  }
+
+  function profileFor(username) {
+    return profiles[username] || { username, display_name: username, avatar_url: null, presence: 'offline' };
+  }
+
+  function initials(name) {
+    return String(name || '?')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  }
+
+  function mergeProfiles(profileList) {
+    profiles = Object.fromEntries([
+      ...Object.entries(profiles),
+      ...profileList.map((profile) => [profile.username, profile]),
+    ]);
+  }
+
+  async function loadProfiles(usernames) {
+    usernames = usernames
+      .map((username) => String(username).trim())
+      .filter((username) => username && !requestedProfiles.has(username));
+    if (usernames.length === 0) return;
+    usernames.forEach((username) => {
+      requestedProfiles.add(username);
+    });
+    try {
+      const params = new URLSearchParams({ usernames: usernames.join(',') });
+      const response = await fetch(`${config.chatRoutes.profiles}?${params}`);
+      if (!response.ok) return;
+      mergeProfiles((await response.json()).profiles || []);
+    } catch {
+      // Fallback initials and usernames remain usable when profiles are unavailable.
+    }
+  }
+
+  $effect(() => {
+    const usernames = [...new Set(messages.map((chatMessage) => chatMessage.user).filter(Boolean))];
+    void loadProfiles(usernames);
+  });
 
   // ============================================================================
   // DERIVED STATE - Computed values
@@ -267,6 +323,10 @@
 
       if (data.type === 'typing_state') {
         typingUsers = Array.isArray(data.users) ? data.users : [];
+        return;
+      }
+      if (data.type === 'presence_state') {
+        mergeProfiles(data.users || []);
         return;
       }
 
@@ -1115,13 +1175,14 @@
   <header class="chat-header">
     <h1 id="chat-title" class="sr-only">CodeIgniter Chat</h1>
     <div class="user-info">
-      <span class="welcome-text">Welcome, <b>{config.username}</b>!</span>
+      <span class="welcome-text">Welcome, <b>{displayName || config.username}</b>!</span>
       {#if pwa.installAvailable}
         <button type="button" class="pwa-action" onclick={installApp}>Install app</button>
       {/if}
       {#if canEnableNotifications}
         <button type="button" class="pwa-action" onclick={enableNotifications}>Enable notifications</button>
       {/if}
+      <ProfilePanel routes={config.chatRoutes} onupdated={handleOwnProfile} />
       <a href="/auth/logout" class="logout-btn"> <i class="icon-logout" aria-hidden="true"></i> Logout </a>
     </div>
   </header>
@@ -1231,17 +1292,27 @@
         <a class="skip-link" href="#message-input">Skip to message composer</a>
         {#each messages as msg, index (index)}
           <article class="message-item" aria-label={`Message from ${msg.user}`}>
-            <div class="message-header">
-              <span class="username">{msg.user}</span>
-              {#if msg.timestamp}
-                <time class="timestamp" datetime={formatMachineTimestamp(msg.timestamp)}>
-                  {formatTimestamp(msg.timestamp)}
-                </time>
+            <div class="message-avatar" aria-hidden="true">
+              {#if profileFor(msg.user).avatar_url}
+                <img src={profileFor(msg.user).avatar_url} alt="">
+              {:else}
+                <span>{initials(profileFor(msg.user).display_name)}</span>
               {/if}
+              <i class={`presence-dot presence-${profileFor(msg.user).presence}`}></i>
             </div>
-            <!-- Using {@html} to render formatted message HTML -->
-            <!-- This is safe because we escape user input in formatMessage() -->
-            <div class="message-content">{@html formatMessage(msg.msg)}</div>
+            <div class="message-body">
+              <div class="message-header">
+                <span class="username">{profileFor(msg.user).display_name}</span>
+                <span class="sr-only">({profileFor(msg.user).presence})</span>
+                {#if msg.timestamp}
+                  <time class="timestamp" datetime={formatMachineTimestamp(msg.timestamp)}>
+                    {formatTimestamp(msg.timestamp)}
+                  </time>
+                {/if}
+              </div>
+              <!-- Using {@html} is safe because formatMessage() escapes user input. -->
+              <div class="message-content">{@html formatMessage(msg.msg)}</div>
+            </div>
           </article>
         {/each}
 

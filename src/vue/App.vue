@@ -4,11 +4,12 @@
     <header class="chat-header">
       <h1 id="chat-title" class="sr-only">CodeIgniter Chat</h1>
       <div class="user-info">
-        <span class="welcome-text">Welcome, <b>{{ username }}</b>!</span>
+        <span class="welcome-text">Welcome, <b>{{ displayName }}</b>!</span>
         <button v-if="pwa.installAvailable" type="button" class="pwa-action" @click="installApp">Install app</button>
         <button v-if="canEnableNotifications" type="button" class="pwa-action" @click="enableNotifications">
           Enable notifications
         </button>
+        <ProfilePanel @updated="handleOwnProfile" />
         <a href="/auth/logout" class="logout-btn"> <i class="icon-logout" aria-hidden="true"></i> Logout </a>
       </div>
     </header>
@@ -109,13 +110,21 @@
           class="message-item"
           :aria-label="`Message from ${message.user}`"
         >
-          <div class="message-header">
-            <span class="username">{{ message.user }}</span>
-            <time v-if="message.timestamp" class="timestamp" :datetime="formatMachineTimestamp(message.timestamp)">
-              {{ formatTimestamp(message.timestamp) }}
-            </time>
+          <div class="message-avatar" aria-hidden="true">
+            <img v-if="profileFor(message.user).avatar_url" :src="profileFor(message.user).avatar_url" alt="">
+            <span v-else>{{ initials(profileFor(message.user).display_name) }}</span>
+            <i :class="`presence-dot presence-${profileFor(message.user).presence}`"></i>
           </div>
-          <div class="message-content" v-html="formatMessage(message.msg)"></div>
+          <div class="message-body">
+            <div class="message-header">
+              <span class="username">{{ profileFor(message.user).display_name }}</span>
+              <span class="sr-only">({{ profileFor(message.user).presence }})</span>
+              <time v-if="message.timestamp" class="timestamp" :datetime="formatMachineTimestamp(message.timestamp)">
+                {{ formatTimestamp(message.timestamp) }}
+              </time>
+            </div>
+            <div class="message-content" v-html="formatMessage(message.msg)"></div>
+          </div>
         </article>
         <div v-if="messages.length === 0" class="no-messages">
           {{ searchActive ? 'No messages match your search.' : 'No messages yet. Be the first to send a message!' }}
@@ -193,12 +202,15 @@
     subscribePwa,
     userScopedMessagesUrl,
   } from '../js/pwa.js';
+  import ProfilePanel from './ProfilePanel.vue';
 
   export default {
+    components: { ProfilePanel },
     data() {
       return {
         // User information (from global properties set in main.js)
         username: this.$username,
+        displayName: this.$username,
         userId: this.$userId,
 
         // WebSocket authentication token (generated on login, validated by server)
@@ -255,7 +267,14 @@
         typingUsers: [],
         lastTypingSentAt: 0,
         typingStopTimeout: null,
+        profiles: {},
+        requestedProfiles: {},
       };
+    },
+    watch: {
+      messages() {
+        void this.loadProfiles();
+      },
     },
     computed: {
       canEnableNotifications() {
@@ -292,6 +311,56 @@
       this.unsubscribePwa?.();
     },
     methods: {
+      handleOwnProfile(profile) {
+        this.displayName = profile.display_name || this.username;
+        this.mergeProfiles([profile]);
+        if (this.webSocketConnected) {
+          this.webSocket.send(JSON.stringify({ type: 'presence_update', presence: profile.presence }));
+        }
+      },
+      profileFor(username) {
+        return (
+          this.profiles[username] || {
+            username,
+            display_name: username,
+            avatar_url: null,
+            presence: 'offline',
+          }
+        );
+      },
+      initials(name) {
+        return String(name || '?')
+          .trim()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join('')
+          .toUpperCase();
+      },
+      mergeProfiles(profiles) {
+        this.profiles = Object.fromEntries([
+          ...Object.entries(this.profiles),
+          ...profiles.map((profile) => [profile.username, profile]),
+        ]);
+      },
+      async loadProfiles() {
+        const usernames = [
+          ...new Set(this.messages.map((message) => String(message.user || '').trim()).filter(Boolean)),
+        ].filter((username) => this.requestedProfiles[username] !== true);
+        if (usernames.length === 0) return;
+        this.requestedProfiles = Object.fromEntries([
+          ...Object.entries(this.requestedProfiles),
+          ...usernames.map((username) => [username, true]),
+        ]);
+        try {
+          const params = new URLSearchParams({ usernames: usernames.join(',') });
+          const response = await fetch(`${this.$chatRoutes.profiles}?${params}`);
+          if (!response.ok) return;
+          this.mergeProfiles((await response.json()).profiles || []);
+        } catch {
+          // Fallback initials and usernames remain usable when profiles are unavailable.
+        }
+      },
       clearMessage() {
         this.stopTyping();
         this.message = '';
@@ -382,6 +451,10 @@
 
           if (data.type === 'typing_state') {
             this.typingUsers = Array.isArray(data.users) ? data.users : [];
+            return;
+          }
+          if (data.type === 'presence_state') {
+            this.mergeProfiles(data.users || []);
             return;
           }
 
