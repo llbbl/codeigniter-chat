@@ -35,6 +35,17 @@ final class ApiVersioningTest extends CIUnitTestCase
             ],
         ]);
         $this->repository->method('insertMsg')->willReturn(1);
+        $this->repository->method('searchMessages')->willReturn([
+            'messages' => [['id' => 2, 'user' => 'alice', 'msg' => 'Search result', 'time' => 1_700_000_001]],
+            'pagination' => [
+                'page' => 1,
+                'perPage' => 10,
+                'totalItems' => 1,
+                'totalPages' => 1,
+                'hasNext' => false,
+                'hasPrev' => false,
+            ],
+        ]);
 
         Services::injectMock('chatRepository', $this->repository);
     }
@@ -82,6 +93,56 @@ final class ApiVersioningTest extends CIUnitTestCase
 
         $result->assertOK();
         $this->assertSame(['success' => true], json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR));
+    }
+
+    public function testVersionedSearchReturnsFiltersAndPaginatedMessages(): void
+    {
+        $result = $this->authenticatedGet('/api/v1/messages/search?text=result&user=alice&from=1600000000&to=1800000000');
+
+        $result->assertOK();
+        $payload = json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('Search result', $payload['messages'][0]['msg']);
+        $this->assertSame([
+            'text' => 'result',
+            'user' => 'alice',
+            'from' => 1_600_000_000,
+            'to' => 1_800_000_000,
+        ], $payload['filters']);
+        $this->assertSame(1, $payload['pagination']['totalItems']);
+    }
+
+    public function testVersionedSearchRequiresAFilter(): void
+    {
+        $result = $this->authenticatedGet('/api/v1/messages/search');
+
+        $this->assertSame(400, $result->response()->getStatusCode());
+        $payload = json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('validation', $payload['error']['type']);
+    }
+
+    public function testVersionedSearchRejectsInvalidRangesAndPagination(): void
+    {
+        foreach ([
+            '/api/v1/messages/search?text=test&from=20&to=10',
+            '/api/v1/messages/search?text=test&page=0',
+            '/api/v1/messages/search?text=test&per_page=101',
+            '/api/v1/messages/search?text[]=test',
+        ] as $path) {
+            $result = $this->authenticatedGet($path);
+            $this->assertSame(400, $result->response()->getStatusCode(), $path);
+            $payload = json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame('validation', $payload['error']['type']);
+        }
+    }
+
+    public function testVersionedSearchRequiresAuthentication(): void
+    {
+        $result = $this->withHeaders(['Origin' => 'http://localhost'])
+            ->call('get', '/api/v1/messages/search?text=test');
+
+        $this->assertSame(401, $result->response()->getStatusCode());
+        $payload = json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('authentication', $payload['error']['type']);
     }
 
     public function testVersionedPostValidationFailureIsJsonWithoutClientHeaders(): void

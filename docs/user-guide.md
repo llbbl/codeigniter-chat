@@ -10,6 +10,7 @@ This user guide provides comprehensive instructions for using the CodeIgniter Ch
    - [JSON Chat](#json-chat)
    - [HTML Chat](#html-chat)
    - [Vue.js Chat](#vuejs-chat)
+   - [Svelte Chat](#svelte-chat)
 3. [User Account Management](#user-account-management)
    - [Registration](#registration)
    - [Login](#login)
@@ -17,6 +18,7 @@ This user guide provides comprehensive instructions for using the CodeIgniter Ch
 4. [Chat Features](#chat-features)
    - [Sending Messages](#sending-messages)
    - [Message Formatting](#message-formatting)
+   - [Searching Messages](#searching-messages)
    - [Loading Older Messages](#loading-older-messages)
    - [Real-time Updates](#real-time-updates)
 5. [Troubleshooting](#troubleshooting)
@@ -110,6 +112,7 @@ The Vue.js chat interface uses the Vue.js framework for a modern, reactive user 
 - Real-time updates using WebSockets
 - Modern, responsive design
 - Message formatting with Markdown
+- Search by message text, username, and date range
 - Lazy loading of older messages
 - Timestamps and user information
 
@@ -120,6 +123,19 @@ The Vue.js chat interface uses the Vue.js framework for a modern, reactive user 
 4. Use the formatting buttons to add formatting to your message
 5. Click "Send" or press Enter to send your message
 6. Messages will appear in the chat window in real-time
+
+### Svelte Chat
+
+**URL**: `/chat/svelte`
+
+The Svelte chat interface provides the same modern chat workflow as the Vue.js interface with a Svelte-based implementation.
+
+**Features**:
+- Real-time updates using WebSockets
+- Message formatting with Markdown
+- Search by message text, username, and date range
+- Lazy loading of older messages
+- Timestamps and user information
 
 ## User Account Management
 
@@ -172,6 +188,18 @@ The Vue.js chat interface supports message formatting using Markdown-like syntax
 - > Blockquote: Start a line with `>` followed by a space (`> quote`)
 
 You can also use the formatting buttons above the message input field to apply formatting to your selected text.
+
+### Searching Messages
+
+The Vue.js and Svelte chat interfaces include a search panel above the message list.
+
+1. Enter message text in the **Text** field, or narrow results by **User**, **From**, and **To**.
+2. Search runs automatically after a short pause while typing. You can also click **Search**.
+3. Matching text is highlighted in the filtered results.
+4. Click **Load More Messages** to paginate through additional filtered results.
+5. Click **Clear search** to return to the live chat history.
+
+While search filters are active, new live messages are not inserted into the filtered result list. Use **Refresh search** to rerun the same filters, or clear the search to return to the live feed.
 
 ### Loading Older Messages
 

@@ -12,5 +12,20 @@ interface ChatRepository
      */
     public function getMsgPaginated(int $page = 1, int $perPage = 10): array;
 
+    /**
+     * @return array{
+     *     messages: list<array<string, mixed>>,
+     *     pagination: array<string, int|bool|float>
+     * }
+     */
+    public function searchMessages(
+        ?string $text = null,
+        ?string $user = null,
+        ?int $from = null,
+        ?int $to = null,
+        int $page = 1,
+        int $perPage = 10,
+    ): array;
+
     public function insertMsg(string $name, string $message, int $current): int|bool;
 }

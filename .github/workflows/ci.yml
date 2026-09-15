@@ -77,3 +77,48 @@ jobs:
 
       - name: Run Composer audit
         run: composer audit
+
+  mysql-search:
+    name: MySQL 8 message search
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: codeigniter_chat_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --user=root --password=root"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      database.tests.hostname: 127.0.0.1
+      database.tests.username: root
+      database.tests.password: root
+      database.tests.database: codeigniter_chat_test
+      database.tests.DBDriver: MySQLi
+      database.tests.DBPrefix: db_
+      database.tests.port: 3306
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, curl, intl, json, mysqli, sockets
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run message search integration tests against MySQL
+        run: composer test:integration:mysql

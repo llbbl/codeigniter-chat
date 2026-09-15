@@ -39,6 +39,55 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
         $this->assertSame('socketuser', $broadcast['data']['user']);
         $this->assertSame('Broadcast integration message', $broadcast['data']['msg']);
     }
+
+    public function testGetMessagesSearchReturnsADistinguishableResult(): void
+    {
+        $this->hasInDatabase('messages', [
+            'user' => 'socketuser',
+            'msg' => 'A uniquely searchable websocket message',
+            'time' => 1_700_000_000,
+        ]);
+        $connection = new RecordingConnection('/');
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), requireAuth: false);
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!/s');
+        $server->onOpen($connection);
+        $server->onMessage($connection, json_encode([
+            'action' => 'getMessages',
+            'requestId' => 42,
+            'page' => 1,
+            'perPage' => 5,
+            'search' => [
+                'text' => 'uniquely searchable',
+                'user' => 'socketuser',
+                'from' => 1_600_000_000,
+                'to' => 1_800_000_000,
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        $response = json_decode($connection->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('searchResults', $response['action']);
+        $this->assertSame(42, $response['data']['requestId']);
+        $this->assertSame('A uniquely searchable websocket message', $response['data']['messages'][0]['msg']);
+        $this->assertSame('socketuser', $response['data']['filters']['user']);
+    }
+
+    public function testGetMessagesSearchRejectsAnInvalidRange(): void
+    {
+        $connection = new RecordingConnection('/');
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), requireAuth: false);
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!/s');
+        $server->onOpen($connection);
+        $server->onMessage($connection, json_encode([
+            'action' => 'getMessages',
+            'search' => ['from' => 20, 'to' => 10],
+        ], JSON_THROW_ON_ERROR));
+
+        $response = json_decode($connection->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('error', $response['action']);
+        $this->assertSame('INVALID_SEARCH', $response['data']['code']);
+    }
 }
 
 final class RecordingConnection implements ConnectionInterface
