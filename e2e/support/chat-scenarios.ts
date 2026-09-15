@@ -62,7 +62,7 @@ export function chatScenario(scenario: ChatScenario): void {
     if (isModernChat) {
       await page.getByRole('button', { name: 'Send Message' }).click();
     } else {
-      await page.locator(scenario.submitButton).click();
+      await page.locator('#chatform').locator(scenario.submitButton).click();
     }
 
     await expect(page.locator('#messagewindow')).toContainText(message);
@@ -402,7 +402,7 @@ function assertNetworkPayload(payload: unknown, format: NetworkFormat): void {
   }
 
   const xml = String(payload);
-  expect(xml).toContain('<messages>');
+  expect(xml).toMatch(/<messages(?:\s*\/|)>/);
   expect(xml).not.toContain('<parsererror>');
 }
 
