@@ -71,9 +71,12 @@ setupPwa(config.userId);
  * We pass our configuration as props, making them available
  * inside the App component via $props().
  */
+const target = document.getElementById('app');
+target.replaceChildren();
+
 const app = mount(App, {
   // The DOM element where the app will be rendered
-  target: document.getElementById('app'),
+  target,
 
   // Props passed to the root component
   // These are accessed in App.svelte using $props()
