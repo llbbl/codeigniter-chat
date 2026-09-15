@@ -11,6 +11,24 @@ $border-color: #ddd;
 $logout-color: #a52834;
 $border-radius: 4px;
 
+:root {
+    --chat-safe-area-top: env(safe-area-inset-top, 0px);
+    --chat-safe-area-right: env(safe-area-inset-right, 0px);
+    --chat-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --chat-safe-area-left: env(safe-area-inset-left, 0px);
+}
+
+html,
+body {
+    min-width: 0;
+    max-width: 100%;
+}
+
+body {
+    margin: 0;
+    overflow-x: hidden;
+}
+
 .skip-link {
     position: fixed;
     top: 0.5rem;
@@ -69,6 +87,8 @@ $border-radius: 4px;
 #wrapper {
     margin: auto;
     width: 438px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 // Error styles

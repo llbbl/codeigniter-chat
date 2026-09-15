@@ -770,6 +770,11 @@
     startTyping();
   }
 
+  function ensureComposerVisible(event) {
+    const composer = event.currentTarget.closest('.message-form-container');
+    requestAnimationFrame(() => composer?.scrollIntoView({ block: 'end' }));
+  }
+
   function startTyping() {
     if (!webSocketConnected) return;
 
@@ -1223,6 +1228,7 @@
         aria-relevant="additions text"
         tabindex="-1"
       >
+        <a class="skip-link" href="#message-input">Skip to message composer</a>
         {#each messages as msg, index (index)}
           <article class="message-item" aria-label={`Message from ${msg.user}`}>
             <div class="message-header">
@@ -1285,6 +1291,7 @@
             maxlength="500"
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'formatting-help message-error' : 'formatting-help'}
+            onfocus={ensureComposerVisible}
             oninput={handleTypingInput}
             onblur={stopTyping}
             onkeydown={handleKeydown}
@@ -1364,6 +1371,25 @@
     box-sizing: border-box;
   }
 
+  :global(button),
+  :global(input),
+  :global(textarea),
+  .logout-btn {
+    min-height: 44px;
+  }
+
+  :global(button),
+  .logout-btn {
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  :global(button:active:not(:disabled)),
+  .logout-btn:active {
+    filter: brightness(0.85);
+    transform: translateY(1px);
+  }
+
   /* Chat container - the main wrapper */
   .chat-container {
     max-width: 600px;
@@ -1393,6 +1419,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
   .welcome-text {
@@ -1400,6 +1428,9 @@
   }
 
   .logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: white;
     text-decoration: none;
     font-size: 14px;
@@ -1497,6 +1528,7 @@
   .message-container {
     position: relative;
     min-height: 300px;
+    min-width: 0;
   }
 
   /* Messages list */
@@ -1513,6 +1545,7 @@
 
   /* Individual message item */
   .message-item {
+    min-width: 0;
     margin-bottom: 15px;
     padding: 10px;
     background-color: white;
@@ -1528,23 +1561,30 @@
   .message-header {
     display: flex;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 5px;
     font-size: 14px;
   }
 
   .username {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-weight: bold;
     color: $primary-color;
   }
 
   .timestamp {
+    flex: 0 0 auto;
     color: $light-text-color;
     font-size: 12px;
   }
 
   .message-content {
+    min-width: 0;
+    max-width: 100%;
     line-height: 1.5;
     word-break: break-word;
+    overflow-wrap: anywhere;
 
     :global(a) {
       color: $primary-color;
@@ -1556,6 +1596,9 @@
     }
 
     :global(code) {
+      max-width: 100%;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
       background-color: $background-color;
       padding: 2px 4px;
       border-radius: 3px;
@@ -1564,10 +1607,18 @@
     }
 
     :global(blockquote) {
+      max-width: 100%;
       border-left: 3px solid $border-color;
       margin: 5px 0;
       padding-left: 10px;
       color: $secondary-color;
+    }
+
+    :global(pre) {
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     :global(mark) {
@@ -1716,6 +1767,7 @@
       font-family: inherit;
       font-size: 14px;
       resize: vertical;
+      overflow-wrap: anywhere;
 
       &:focus {
         border-color: $primary-color;
@@ -1819,12 +1871,42 @@
       box-shadow: none;
       margin: 0;
       height: 100vh;
+      height: 100dvh;
+      width: 100%;
+      max-width: 100%;
+      min-height: 0;
       display: flex;
       flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scroll-padding-bottom: calc(120px + var(--chat-safe-area-bottom));
+    }
+
+    .chat-header {
+      padding-top: calc(15px + var(--chat-safe-area-top));
+      padding-right: calc(15px + var(--chat-safe-area-right));
+      padding-left: calc(15px + var(--chat-safe-area-left));
+    }
+
+    .user-info {
+      flex-wrap: wrap;
+    }
+
+    .welcome-text {
+      flex: 1 1 100%;
+    }
+
+    .search-panel,
+    .messages,
+    .load-more-container,
+    .typing-indicator {
+      padding-right: calc(15px + var(--chat-safe-area-right));
+      padding-left: calc(15px + var(--chat-safe-area-left));
     }
 
     .message-container {
-      flex: 1;
+      flex: 1 0 180px;
+      min-height: 180px;
       overflow: hidden;
     }
 
@@ -1833,9 +1915,26 @@
     }
 
     .form-actions {
+      flex-wrap: wrap;
+
       button {
+        flex: 1 1 120px;
         padding: 12px 15px;
       }
+    }
+
+    .message-form-container {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      padding-right: calc(15px + var(--chat-safe-area-right));
+      padding-bottom: calc(15px + var(--chat-safe-area-bottom));
+      padding-left: calc(15px + var(--chat-safe-area-left));
+      background-color: white;
+    }
+
+    #message-input {
+      scroll-margin-bottom: calc(120px + var(--chat-safe-area-bottom));
     }
   }
 </style>

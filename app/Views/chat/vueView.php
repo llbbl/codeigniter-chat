@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <title>CodeIgniter Chat - Vue.js Edition</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#3f6398">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">

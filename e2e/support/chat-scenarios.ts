@@ -42,6 +42,7 @@ export function chatScenario(scenario: ChatScenario): void {
 
     await expect(page.locator(scenario.messageInput)).toBeVisible();
     if (isModernChat) {
+      await assertModernChatMobile(page, scenario.messageInput);
       await assertModernChatAccessibility(page, scenario.messageInput);
       await assertModernChatTyping(page, scenario.messageInput);
       await assertModernChatSearch(page);
@@ -67,6 +68,62 @@ export function chatScenario(scenario: ChatScenario): void {
     await expect(page.locator('#messagewindow')).toContainText(message);
     expect(browserErrors, browserErrors.join('\n')).toEqual([]);
   });
+}
+
+async function assertModernChatMobile(page: Page, messageInput: string): Promise<void> {
+  const originalViewport = page.viewportSize() ?? { width: 1280, height: 720 };
+  await page.setViewportSize({ width: 320, height: 568 });
+
+  const viewport = page.locator('meta[name="viewport"]');
+  await expect(viewport).toHaveAttribute('content', /viewport-fit=cover/);
+  await expect(viewport).not.toHaveAttribute('content', /user-scalable=no|maximum-scale=1/);
+
+  const widthMetrics = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+    chat: document.querySelector('.chat-container')?.scrollWidth ?? 0,
+    offenders: [...document.querySelectorAll('*')]
+      .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
+      .slice(0, 10)
+      .map((element) => ({
+        tag: element.tagName,
+        id: element.id,
+        className: typeof element.className === 'string' ? element.className : '',
+        right: Math.round(element.getBoundingClientRect().right),
+        scrollWidth: element.scrollWidth,
+      })),
+  }));
+  expect(widthMetrics.document, JSON.stringify(widthMetrics.offenders)).toBeLessThanOrEqual(widthMetrics.viewport);
+  expect(widthMetrics.body).toBeLessThanOrEqual(widthMetrics.viewport);
+  expect(widthMetrics.chat).toBeLessThanOrEqual(widthMetrics.viewport);
+
+  const longMessage = page.locator('.message-content').first();
+  await expect(longMessage).toContainText('mobile-overflow-check');
+  const messageWidths = await longMessage.evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }));
+  expect(messageWidths.scroll).toBeLessThanOrEqual(messageWidths.client);
+
+  const targets = page.locator('button:visible, input:visible, textarea:visible, a.logout-btn:visible');
+  for (let index = 0; index < (await targets.count()); index += 1) {
+    const target = targets.nth(index);
+    const box = await target.boundingBox();
+    expect(box, `Expected a box for interactive target ${index}`).not.toBeNull();
+    expect(box?.width, `Interactive target ${index} is narrower than 44px`).toBeGreaterThanOrEqual(44);
+    expect(box?.height, `Interactive target ${index} is shorter than 44px`).toBeGreaterThanOrEqual(44);
+  }
+
+  const input = page.locator(messageInput);
+  await input.focus();
+  const composer = page.locator('.message-form-container');
+  await expect(composer).toHaveCSS('position', 'sticky');
+  const composerBox = await composer.boundingBox();
+  expect(composerBox, 'Expected the focused mobile composer to be visible').not.toBeNull();
+  expect((composerBox?.y ?? 0) + (composerBox?.height ?? 0)).toBeLessThanOrEqual(569);
+
+  await page.setViewportSize(originalViewport);
 }
 
 async function assertModernChatTyping(page: Page, messageInput: string): Promise<void> {
@@ -293,7 +350,13 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
           response = {
             action: 'messages',
             data: {
-              messages: [],
+              messages: [
+                {
+                  user: 'mobile-overflow-check-user-with-a-very-long-name',
+                  msg: `mobile-overflow-check-${'x'.repeat(460)}`,
+                  timestamp: Math.floor(Date.now() / 1000) - 60,
+                },
+              ],
               pagination: { hasNext: false },
             },
           };
