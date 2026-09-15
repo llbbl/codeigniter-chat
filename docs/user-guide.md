@@ -21,6 +21,7 @@ This user guide provides comprehensive instructions for using the CodeIgniter Ch
    - [Searching Messages](#searching-messages)
    - [Loading Older Messages](#loading-older-messages)
    - [Real-time Updates](#real-time-updates)
+   - [Typing Indicators](#typing-indicators)
 5. [Troubleshooting](#troubleshooting)
 6. [FAQ](#faq)
 
@@ -114,6 +115,7 @@ The Vue.js chat interface uses the Vue.js framework for a modern, reactive user 
 - Message formatting with Markdown
 - Search by message text, username, and date range
 - Lazy loading of older messages
+- Live typing indicators
 - Timestamps and user information
 
 **Example Usage**:
@@ -135,6 +137,7 @@ The Svelte chat interface provides the same modern chat workflow as the Vue.js i
 - Message formatting with Markdown
 - Search by message text, username, and date range
 - Lazy loading of older messages
+- Live typing indicators
 - Timestamps and user information
 
 ## User Account Management
@@ -211,11 +214,22 @@ By default, the chat shows the most recent messages. To load older messages:
 
 ### Real-time Updates
 
-The Vue.js chat interface uses WebSockets for real-time communication. This means:
+The Vue.js and Svelte chat interfaces use WebSockets for real-time communication. This means:
 
 - New messages from other users appear instantly
 - No need to refresh the page
 - Efficient use of network resources
+
+### Typing Indicators
+
+While another user is entering a message in the Vue.js or Svelte chat, their
+name appears above the message composer. The indicator clears when they stop
+typing, leave the input, send the message, disconnect, or remain inactive for
+five seconds. Your own name is never shown in your typing indicator.
+
+The animated dots are disabled automatically when your device or browser has
+reduced-motion preferences enabled; the text status remains available to screen
+readers.
 
 ## Troubleshooting
 

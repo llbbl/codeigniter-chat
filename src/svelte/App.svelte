@@ -122,6 +122,9 @@
   let activeSearchKey = $state('');
   let searchRequestId = $state(0);
   let searchAbortController = null;
+  let typingUsers = $state([]);
+  let lastTypingSentAt = $state(0);
+  let typingStopTimeout = null;
 
   // ============================================================================
   // DERIVED STATE - Computed values
@@ -138,6 +141,15 @@
     Boolean(config.pushPublicKey && !notificationsEnabled && 'PushManager' in window),
   );
   let hasSearchFilters = $derived(Object.values(normalizedSearch()).some((value) => value !== ''));
+  let visibleTypingUsers = $derived(typingUsers.filter((user) => Number(user.user_id) !== Number(config.userId)));
+  let typingIndicatorText = $derived.by(() => {
+    const names = visibleTypingUsers.map((user) => user.username);
+    if (names.length === 0) return '';
+    if (names.length === 1) return `${names[0]} is typing`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are typing`;
+    if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing`;
+    return `${names.slice(0, 3).join(', ')}, and ${names.length - 3} others are typing`;
+  });
 
   // ============================================================================
   // LIFECYCLE - Component mount and cleanup
@@ -253,6 +265,11 @@
     webSocket.addEventListener('message', (event) => {
       const data = JSON.parse(event.data);
 
+      if (data.type === 'typing_state') {
+        typingUsers = Array.isArray(data.users) ? data.users : [];
+        return;
+      }
+
       // Handle different message types (actions) from the server
       switch (data.action) {
         case 'messages':
@@ -340,6 +357,8 @@
     webSocket.addEventListener('close', (event) => {
       console.log('WebSocket connection closed');
       webSocketConnected = false;
+      typingUsers = [];
+      lastTypingSentAt = 0;
 
       // Attempt to reconnect with exponential backoff
       if (!reconnectInterval) {
@@ -378,6 +397,7 @@
       clearTimeout(searchDebounce);
     }
     cancelSearchRequest();
+    stopTyping();
 
     if (webSocket) {
       webSocket.close();
@@ -741,6 +761,53 @@
     return `${config.chatRoutes.api.replace(/\/$/, '')}/search`;
   }
 
+  function handleTypingInput(event) {
+    if (!event.target.value.trim()) {
+      stopTyping();
+      return;
+    }
+
+    startTyping();
+  }
+
+  function startTyping() {
+    if (!webSocketConnected) return;
+
+    const now = Date.now();
+    if (now - lastTypingSentAt >= 3000) {
+      webSocket.send(
+        JSON.stringify({
+          type: 'typing_start',
+          user_id: Number(config.userId),
+          username: config.username,
+        }),
+      );
+      lastTypingSentAt = now;
+    }
+
+    if (typingStopTimeout) clearTimeout(typingStopTimeout);
+    typingStopTimeout = setTimeout(() => stopTyping(), 5000);
+  }
+
+  function stopTyping() {
+    if (typingStopTimeout) {
+      clearTimeout(typingStopTimeout);
+      typingStopTimeout = null;
+    }
+
+    if (webSocketConnected && lastTypingSentAt > 0) {
+      webSocket.send(
+        JSON.stringify({
+          type: 'typing_stop',
+          user_id: Number(config.userId),
+          username: config.username,
+        }),
+      );
+    }
+
+    lastTypingSentAt = 0;
+  }
+
   // ============================================================================
   // MESSAGE SENDING FUNCTIONS
   // ============================================================================
@@ -763,6 +830,8 @@
       error = 'Message cannot exceed 500 characters';
       return;
     }
+
+    stopTyping();
 
     sending = true;
 
@@ -865,6 +934,7 @@
   }
 
   function clearMessage() {
+    stopTyping();
     message = '';
     error = '';
     setTimeout(() => document.getElementById('message-input')?.focus(), 0);
@@ -1191,6 +1261,13 @@
     </div>
   {/if}
 
+  {#if typingIndicatorText}
+    <div class="typing-indicator" role="status" aria-live="polite">
+      <span>{typingIndicatorText}</span>
+      <span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+  {/if}
+
   <!-- Message input form -->
   <div class="message-form-container">
     <form onsubmit={(e) => { e.preventDefault(); sendMessage(); }} class="message-form">
@@ -1208,6 +1285,8 @@
             maxlength="500"
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'formatting-help message-error' : 'formatting-help'}
+            oninput={handleTypingInput}
+            onblur={stopTyping}
             onkeydown={handleKeydown}
           ></textarea>
 
@@ -1575,6 +1654,37 @@
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+  }
+
+  .typing-indicator {
+    min-height: 24px;
+    padding: 6px 15px;
+    color: $light-text-color;
+    font-size: 14px;
+  }
+
+  .typing-dots span {
+    display: inline-block;
+    animation: typing-dot 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
+
+  @keyframes typing-dot {
+    0%, 60%, 100% { opacity: 0.35; }
+    30% { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-dots span {
+      animation: none;
     }
   }
 
