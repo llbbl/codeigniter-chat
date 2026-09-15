@@ -26,6 +26,10 @@ class RateLimit extends BaseConfig
             'anonymous' => [10, 60],
             'authenticated' => [30, 60],
         ],
+        'react' => [
+            'anonymous' => [10, 60],
+            'authenticated' => [120, 60],
+        ],
     ];
 
     public function __construct()

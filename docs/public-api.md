@@ -340,6 +340,18 @@ curl -sS -b cookies.txt -c cookies.txt \
   "$BASE_URL/api/v1/messages" | python -m json.tool
 ```
 
+#### Message reactions
+
+Authenticated clients can list, add, and remove emoji reactions:
+
+- `GET /api/v1/messages/{messageId}/reactions`
+- `POST /api/v1/messages/{messageId}/reactions` with JSON `{ "emoji": "👍" }`
+- `DELETE /api/v1/messages/{messageId}/reactions/{emoji}`
+
+Write requests require CSRF protection and use the `react` rate-limit profile
+(120 requests per minute for authenticated users). See
+[`api.md`](api.md) for payloads, validation, and WebSocket events.
+
 ### CSP violation reporting
 
 #### `POST /csp-report`
@@ -509,8 +521,21 @@ backward compatible:
 ```json
 {
   "action": "newMessage",
-  "data": { "user": "alice", "msg": "Hello", "timestamp": 1700000000 }
+  "data": { "id": 42, "user": "alice", "msg": "Hello", "timestamp": 1700000000 }
 }
+```
+
+#### Client → server: reaction changes
+
+```json
+{ "type": "reaction_add", "message_id": 42, "emoji": "👍" }
+```
+
+Use `reaction_remove` to remove the authenticated user's reaction. The server
+validates and rate-limits the event, then broadcasts the aggregate state:
+
+```json
+{ "type": "reaction", "message_id": 42, "emoji": "👍", "count": 2, "users": ["alice", "bob"] }
 ```
 
 #### Client → server: typing events
