@@ -88,6 +88,37 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
         $this->assertSame('error', $response['action']);
         $this->assertSame('INVALID_SEARCH', $response['data']['code']);
     }
+
+    public function testAuthenticatedTypingEventsReachTheOtherClient(): void
+    {
+        $senderToken = WebSocketTokenHelper::generateToken(42);
+        $observerToken = WebSocketTokenHelper::generateToken(43);
+        $sender = new RecordingConnection("/?token={$senderToken}&user_id=42");
+        $observer = new RecordingConnection("/?token={$observerToken}&user_id=43");
+        $server = new ChatWebSocketServer(chatModel: new ChatModel());
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!/s');
+        $server->onOpen($sender);
+        $server->onOpen($observer);
+        $server->onMessage($sender, json_encode([
+            'type' => 'typing_start',
+            'user_id' => 42,
+            'username' => 'Alice',
+        ], JSON_THROW_ON_ERROR));
+
+        $this->assertSame([], $sender->sent);
+        $typingState = json_decode($observer->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('typing_state', $typingState['type']);
+        $this->assertSame([['user_id' => 42, 'username' => 'Alice']], $typingState['users']);
+
+        $server->onMessage($sender, json_encode([
+            'type' => 'typing_stop',
+            'user_id' => 42,
+            'username' => 'Alice',
+        ], JSON_THROW_ON_ERROR));
+        $stoppedState = json_decode($observer->sent[1], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame([], $stoppedState['users']);
+    }
 }
 
 final class RecordingConnection implements ConnectionInterface

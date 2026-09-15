@@ -451,7 +451,8 @@ The Vue client chooses `ws:` vs `wss:` based on the page protocol and uses port 
 
 ### Protocol (messages)
 
-All WebSocket messages are JSON with an `action` field.
+All WebSocket messages are JSON. Message-history events use an `action` field,
+while ephemeral typing events use a `type` field.
 
 #### Client → server: `getMessages`
 
@@ -511,6 +512,44 @@ backward compatible:
   "data": { "user": "alice", "msg": "Hello", "timestamp": 1700000000 }
 }
 ```
+
+#### Client → server: typing events
+
+The Vue and Svelte clients announce typing activity with the authenticated
+user's numeric ID and username:
+
+```json
+{ "type": "typing_start", "user_id": 42, "username": "alice" }
+```
+
+```json
+{ "type": "typing_stop", "user_id": 42, "username": "alice" }
+```
+
+The server ignores typing events from unauthenticated connections and events
+whose `user_id` does not match the authenticated connection. Repeated
+`typing_start` events refresh the user's activity without producing duplicate
+state broadcasts.
+
+#### Server → client: `typing_state`
+
+When the set of active typers changes, the server sends the complete current
+state to other connected clients:
+
+```json
+{
+  "type": "typing_state",
+  "users": [
+    { "user_id": 42, "username": "alice" },
+    { "user_id": 57, "username": "bob" }
+  ]
+}
+```
+
+Typing state is ephemeral and is not stored in the database. A user is removed
+when the client sends `typing_stop`, the connection closes, or no
+`typing_start` refresh arrives for five seconds. The client that originated a
+start or stop event is excluded from that event's broadcast.
 
 ### Browser example
 
@@ -579,13 +618,16 @@ The views load bundles using `vite_tags()` from `app/Helpers/vite_helper.php`.
 - **Realtime**:
   - Connects to WebSocket on port 8080 for realtime updates
   - Falls back to HTTP (`/api/v1/messages`) if WebSocket is not connected
+  - Sends debounced typing activity and renders other active users in an
+    accessible live status region
 
 ### Svelte — `src/svelte/main.js` + `src/svelte/App.svelte`
 
 - **Page**: `/chat/svelte` (`app/Views/chat/svelteView.php`)
 - **API**: reads and posts through `/api/v1/messages`
 - **Realtime**: uses the same WebSocket protocol as the Vue client and falls
-  back to the versioned HTTP API
+  back to the versioned HTTP API, including debounced typing activity and an
+  accessible live typing indicator
 
 ---
 

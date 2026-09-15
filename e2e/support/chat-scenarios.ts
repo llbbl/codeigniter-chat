@@ -43,6 +43,7 @@ export function chatScenario(scenario: ChatScenario): void {
     await expect(page.locator(scenario.messageInput)).toBeVisible();
     if (isModernChat) {
       await assertModernChatAccessibility(page, scenario.messageInput);
+      await assertModernChatTyping(page, scenario.messageInput);
       await assertModernChatSearch(page);
       await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
       await page.context().setOffline(true);
@@ -66,6 +67,46 @@ export function chatScenario(scenario: ChatScenario): void {
     await expect(page.locator('#messagewindow')).toContainText(message);
     expect(browserErrors, browserErrors.join('\n')).toEqual([]);
   });
+}
+
+async function assertModernChatTyping(page: Page, messageInput: string): Promise<void> {
+  await page.evaluate(() => {
+    window.__chatTypingRequests = [];
+  });
+
+  const input = page.locator(messageInput);
+  await input.fill('Draft in progress');
+
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () => window.__chatTypingRequests?.filter((request) => request.type === 'typing_start').length ?? 0,
+      ),
+    )
+    .toBe(1);
+  const typingStart = await page.evaluate(() =>
+    window.__chatTypingRequests?.find((request) => request.type === 'typing_start'),
+  );
+  expect(typingStart).toEqual({ type: 'typing_start', user_id: 1, username: 'e2euser' });
+  await expect(page.locator('.typing-indicator')).toContainText('Teammate is typing');
+  await expect(page.locator('.typing-indicator')).not.toContainText('e2euser');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.locator('.typing-dots span').first()).toHaveCSS('animation-name', 'none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+  await input.blur();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => window.__chatTypingRequests?.filter((request) => request.type === 'typing_stop').length ?? 0),
+    )
+    .toBe(1);
+  const typingStop = await page.evaluate(() =>
+    window.__chatTypingRequests?.find((request) => request.type === 'typing_stop'),
+  );
+  expect(typingStop).toEqual({ type: 'typing_stop', user_id: 1, username: 'e2euser' });
+  await expect(page.locator('.typing-indicator')).toBeHidden();
+  await input.fill('');
 }
 
 async function assertModernChatAccessibility(page: Page, messageInput: string): Promise<void> {
@@ -184,6 +225,7 @@ async function assertModernChatSearch(page: Page): Promise<void> {
 async function installModernChatWebSocket(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.__chatSearchRequests = [];
+    window.__chatTypingRequests = [];
     window.__expectedSearchDates = {
       from: Math.floor(new Date(2026, 8, 13, 0, 0, 0, 0).getTime() / 1000),
       to: Math.floor(new Date(2026, 8, 14, 23, 59, 59, 999).getTime() / 1000),
@@ -200,7 +242,13 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
         const request = JSON.parse(rawMessage);
         let response = null;
 
-        if (request.action === 'getMessages' && request.search) {
+        if (request.type === 'typing_start' || request.type === 'typing_stop') {
+          window.__chatTypingRequests.push(request);
+          response = {
+            type: 'typing_state',
+            users: request.type === 'typing_start' ? [{ user_id: 999, username: 'Teammate' }] : [],
+          };
+        } else if (request.action === 'getMessages' && request.search) {
           window.__chatSearchRequests.push(request);
           const page = request.page || 1;
           response =

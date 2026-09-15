@@ -129,6 +129,11 @@
       </button>
     </div>
 
+    <div v-if="typingIndicatorText" class="typing-indicator" role="status" aria-live="polite">
+      <span>{{ typingIndicatorText }}</span>
+      <span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+
     <div class="message-form-container">
       <form @submit.prevent="sendMessage" class="message-form">
         <h2 id="compose-title" class="sr-only">Compose a message</h2>
@@ -143,6 +148,8 @@
             maxlength="500"
             :aria-invalid="Boolean(error)"
             :aria-describedby="error ? 'formatting-help message-error' : 'formatting-help'"
+            @input="handleTypingInput"
+            @blur="stopTyping"
             @keydown.enter.exact.prevent="sendMessage"
             @keydown.esc.prevent="clearMessage"
           ></textarea>
@@ -243,6 +250,9 @@
         activeSearchKey: '',
         searchRequestId: 0,
         searchAbortController: null,
+        typingUsers: [],
+        lastTypingSentAt: 0,
+        typingStopTimeout: null,
       };
     },
     computed: {
@@ -251,6 +261,17 @@
       },
       hasSearchFilters() {
         return Object.values(this.normalizedSearch()).some((value) => value !== '');
+      },
+      visibleTypingUsers() {
+        return this.typingUsers.filter((user) => Number(user.user_id) !== Number(this.userId));
+      },
+      typingIndicatorText() {
+        const names = this.visibleTypingUsers.map((user) => user.username);
+        if (names.length === 0) return '';
+        if (names.length === 1) return `${names[0]} is typing`;
+        if (names.length === 2) return `${names[0]} and ${names[1]} are typing`;
+        if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing`;
+        return `${names.slice(0, 3).join(', ')}, and ${names.length - 3} others are typing`;
       },
     },
     mounted() {
@@ -270,6 +291,7 @@
     },
     methods: {
       clearMessage() {
+        this.stopTyping();
         this.message = '';
         this.error = '';
         this.$nextTick(() => document.getElementById('message-input')?.focus());
@@ -355,6 +377,11 @@
         // Listen for messages from the WebSocket server
         this.webSocket.addEventListener('message', (event) => {
           const data = JSON.parse(event.data);
+
+          if (data.type === 'typing_state') {
+            this.typingUsers = Array.isArray(data.users) ? data.users : [];
+            return;
+          }
 
           // Handle different message types (actions) from the server
           switch (data.action) {
@@ -449,6 +476,8 @@
         this.webSocket.addEventListener('close', () => {
           console.log('WebSocket connection closed');
           this.webSocketConnected = false;
+          this.typingUsers = [];
+          this.lastTypingSentAt = 0;
 
           // Attempt to reconnect
           if (!this.reconnectInterval) {
@@ -489,6 +518,7 @@
           clearTimeout(this.searchDebounce);
         }
         this.cancelSearchRequest();
+        this.stopTyping();
 
         if (this.webSocket) {
           this.webSocket.close();
@@ -839,6 +869,53 @@
         return `${this.$chatRoutes.api.replace(/\/$/, '')}/search`;
       },
 
+      handleTypingInput(event) {
+        if (!event.target.value.trim()) {
+          this.stopTyping();
+          return;
+        }
+
+        this.startTyping();
+      },
+
+      startTyping() {
+        if (!this.webSocketConnected) return;
+
+        const now = Date.now();
+        if (now - this.lastTypingSentAt >= 3000) {
+          this.webSocket.send(
+            JSON.stringify({
+              type: 'typing_start',
+              user_id: Number(this.userId),
+              username: this.username,
+            }),
+          );
+          this.lastTypingSentAt = now;
+        }
+
+        if (this.typingStopTimeout) clearTimeout(this.typingStopTimeout);
+        this.typingStopTimeout = setTimeout(() => this.stopTyping(), 5000);
+      },
+
+      stopTyping() {
+        if (this.typingStopTimeout) {
+          clearTimeout(this.typingStopTimeout);
+          this.typingStopTimeout = null;
+        }
+
+        if (this.webSocketConnected && this.lastTypingSentAt > 0) {
+          this.webSocket.send(
+            JSON.stringify({
+              type: 'typing_stop',
+              user_id: Number(this.userId),
+              username: this.username,
+            }),
+          );
+        }
+
+        this.lastTypingSentAt = 0;
+      },
+
       sendMessage() {
         // Clear previous errors
         this.error = '';
@@ -853,6 +930,8 @@
           this.error = 'Message cannot exceed 500 characters';
           return;
         }
+
+        this.stopTyping();
 
         this.sending = true;
 
@@ -1355,6 +1434,37 @@ $transition-speed: 0.2s;
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+.typing-indicator {
+  min-height: 24px;
+  padding: 6px 15px;
+  color: $light-text-color;
+  font-size: 14px;
+}
+
+.typing-dots span {
+  display: inline-block;
+  animation: typing-dot 1.2s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.35; }
+  30% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span {
+    animation: none;
   }
 }
 

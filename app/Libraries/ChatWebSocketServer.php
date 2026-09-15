@@ -41,6 +41,8 @@ use SplObjectStorage;
  */
 class ChatWebSocketServer implements MessageComponentInterface
 {
+    private const TYPING_TTL_SECONDS = 5;
+
     /**
      * Connected clients storage
      *
@@ -67,6 +69,13 @@ class ChatWebSocketServer implements MessageComponentInterface
      * @var bool
      */
     protected bool $requireAuth;
+
+    /**
+     * Ephemeral typing state keyed by authenticated user ID.
+     *
+     * @var array<int, array{user_id: int, username: string, last_typed_at: int}>
+     */
+    private array $typingUsers = [];
 
     /**
      * Constructor
@@ -160,7 +169,7 @@ class ChatWebSocketServer implements MessageComponentInterface
         $data = json_decode($msg, true);
 
         // Validate message format
-        if (!$data || !isset($data['action'])) {
+        if (! is_array($data) || (! isset($data['action']) && ! isset($data['type']))) {
             return;
         }
 
@@ -168,14 +177,21 @@ class ChatWebSocketServer implements MessageComponentInterface
         $connectionData = $this->clients[$from] ?? [];
         $userId = $connectionData['user_id'] ?? 0;
 
-        // Handle different actions
-        switch ($data['action']) {
+        // Typing events use `type`; existing chat operations keep `action`.
+        $messageType = $data['type'] ?? $data['action'];
+
+        switch ($messageType) {
             case 'getMessages':
                 $this->handleGetMessages($from, $data);
                 break;
 
             case 'sendMessage':
                 $this->handleSendMessage($from, $data, $userId);
+                break;
+
+            case 'typing_start':
+            case 'typing_stop':
+                $this->handleTypingEvent($from, $data, $messageType);
                 break;
         }
     }
@@ -198,6 +214,11 @@ class ChatWebSocketServer implements MessageComponentInterface
 
         // Remove the connection from our storage
         $this->clients->detach($conn);
+
+        if (is_int($userId) && isset($this->typingUsers[$userId])) {
+            unset($this->typingUsers[$userId]);
+            $this->broadcastTypingState();
+        }
 
         echo 'Connection ' . spl_object_id($conn) . " (user_id: {$userId}) has disconnected\n";
     }
@@ -248,6 +269,31 @@ class ChatWebSocketServer implements MessageComponentInterface
             }
         }
         return false;
+    }
+
+    /**
+     * Remove typing entries that have not been refreshed recently.
+     *
+     * The React event loop calls this once per second. The optional timestamp
+     * keeps the expiry behavior deterministic in tests.
+     */
+    public function pruneInactiveTypers(?int $now = null): void
+    {
+        $now ??= time();
+        $changed = false;
+
+        foreach ($this->typingUsers as $userId => $typingUser) {
+            if ($now - $typingUser['last_typed_at'] < self::TYPING_TTL_SECONDS) {
+                continue;
+            }
+
+            unset($this->typingUsers[$userId]);
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->broadcastTypingState();
+        }
     }
 
     /**
@@ -467,6 +513,78 @@ class ChatWebSocketServer implements MessageComponentInterface
                 'code' => 'INVALID_SEARCH',
             ],
         ]));
+    }
+
+    /** @param array<string, mixed> $data */
+    private function handleTypingEvent(ConnectionInterface $from, array $data, string $messageType): void
+    {
+        if (! $this->clients->contains($from)) {
+            return;
+        }
+
+        $connectionData = $this->clients[$from];
+        $authenticatedUserId = $connectionData['user_id'] ?? 0;
+        $claimedUserId = $data['user_id'] ?? null;
+        $username = $data['username'] ?? null;
+
+        if (
+            ($connectionData['authenticated'] ?? false) !== true
+            || ! is_int($authenticatedUserId)
+            || $authenticatedUserId <= 0
+            || ! is_int($claimedUserId)
+            || $claimedUserId !== $authenticatedUserId
+            || ! is_string($username)
+            || trim($username) === ''
+            || mb_strlen($username) > 255
+        ) {
+            return;
+        }
+
+        if ($messageType === 'typing_stop') {
+            if (! isset($this->typingUsers[$authenticatedUserId])) {
+                return;
+            }
+
+            unset($this->typingUsers[$authenticatedUserId]);
+            $this->broadcastTypingState($from);
+
+            return;
+        }
+
+        $username = trim($username);
+        $changed = ! isset($this->typingUsers[$authenticatedUserId])
+            || $this->typingUsers[$authenticatedUserId]['username'] !== $username;
+        $this->typingUsers[$authenticatedUserId] = [
+            'user_id' => $authenticatedUserId,
+            'username' => $username,
+            'last_typed_at' => time(),
+        ];
+
+        if ($changed) {
+            $this->broadcastTypingState($from);
+        }
+    }
+
+    private function broadcastTypingState(?ConnectionInterface $except = null): void
+    {
+        $users = array_values(array_map(
+            static fn (array $typingUser): array => [
+                'user_id' => $typingUser['user_id'],
+                'username' => $typingUser['username'],
+            ],
+            $this->typingUsers,
+        ));
+
+        usort($users, static fn (array $left, array $right): int => [$left['username'], $left['user_id']] <=> [$right['username'], $right['user_id']]);
+        $payload = json_encode(['type' => 'typing_state', 'users' => $users]);
+
+        foreach ($this->clients as $client) {
+            if ($except !== null && $client === $except) {
+                continue;
+            }
+
+            $client->send($payload);
+        }
     }
 
     /**

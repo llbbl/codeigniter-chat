@@ -77,11 +77,15 @@ class ChatWebSocketServer extends BaseCommand
 
         $loop = Factory::create();
         $socket = new SocketServer('0.0.0.0:' . $port, [], $loop);
+        $chatServer = new ChatServer();
+        $loop->addPeriodicTimer(1.0, static function () use ($chatServer): void {
+            $chatServer->pruneInactiveTypers();
+        });
 
         $server = new IoServer(
             new HttpServer(
                 new WsServer(
-                    new ChatServer()
+                    $chatServer
                 )
             ),
             $socket,
