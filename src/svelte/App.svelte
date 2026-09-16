@@ -132,6 +132,107 @@
   const requestedProfiles = new Set();
   let reactions = $state({});
   let reactionPickerMessageId = $state(null);
+  let channels = $state([]);
+  let activeChannelId = $state(null);
+  let dmUsername = $state('');
+
+  async function initializeChat() {
+    await loadChannels();
+    if (activeChannelId === null) return;
+    connectWebSocket();
+  }
+
+  async function loadChannels() {
+    try {
+      const response = await fetch(config.chatRoutes.channels);
+      if (!response.ok) throw new Error('Channel request failed');
+      channels = (await response.json()).channels || [];
+      const requestedSlug = new URL(window.location.href).searchParams.get('channel');
+      const requested = channels.find((channel) => channel.slug === requestedSlug);
+      const selected =
+        (requested?.is_member ? requested : null) ||
+        channels.find((channel) => channel.slug === 'general') ||
+        channels[0];
+      if (selected && activeChannelId === null) {
+        activeChannelId = Number(selected.id);
+        const url = new URL(window.location.href);
+        url.searchParams.set('channel', selected.slug);
+        window.history.replaceState({}, '', url);
+      }
+    } catch {
+      error = 'Channels could not be loaded.';
+    }
+  }
+
+  function dmLabel(channel) {
+    return (channel.members || []).find((member) => member !== config.username) || 'Direct message';
+  }
+
+  async function selectChannel(channel) {
+    if (Number(channel.id) === Number(activeChannelId)) return;
+    if (!channel.is_member) {
+      try {
+        const response = await fetch(`${config.chatRoutes.channels}/${channel.id}/join`, {
+          method: 'POST',
+          headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' },
+        });
+        refreshCsrfToken(response);
+        if (!response.ok) throw new Error('Channel join failed');
+        channel.is_member = true;
+      } catch {
+        error = 'The channel could not be joined.';
+        return;
+      }
+    }
+    stopTyping();
+    activeChannelId = Number(channel.id);
+    channel.unread_count = 0;
+    messages = [];
+    currentPage = 1;
+    loading = true;
+    clearSearchState();
+    const url = new URL(window.location.href);
+    url.searchParams.set('channel', channel.slug);
+    window.history.replaceState({}, '', url);
+    if (webSocketConnected) {
+      webSocket.send(JSON.stringify({ type: 'channel_subscribe', channel_id: activeChannelId }));
+    }
+    loadMessages();
+  }
+
+  function clearSearchState() {
+    cancelSearchRequest();
+    search = { text: '', user: '', from: '', to: '' };
+    searchActive = false;
+    searchLoading = false;
+    searchHasLiveUpdates = false;
+    searchError = '';
+    activeSearchKey = '';
+  }
+
+  async function createDm() {
+    const username = dmUsername.trim();
+    if (!username) return;
+    try {
+      const response = await fetch(config.chatRoutes.dms, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({ username }),
+      });
+      refreshCsrfToken(response);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error?.message || 'Direct message failed');
+      dmUsername = '';
+      await loadChannels();
+      const channel = channels.find((item) => Number(item.id) === Number(payload.channel.id));
+      if (channel) selectChannel(channel);
+    } catch (err) {
+      error = err.message || 'The direct message could not be opened.';
+    }
+  }
 
   function handleOwnProfile(profile) {
     displayName = profile.display_name || config.username;
@@ -299,7 +400,7 @@
     unsubscribePwa = subscribePwa((state) => {
       pwa = state;
     });
-    connectWebSocket();
+    void initializeChat();
 
     // Add cleanup listener for page unload
     window.addEventListener('beforeunload', cleanUp);
@@ -389,6 +490,10 @@
         reconnectInterval = null;
       }
 
+      if (activeChannelId !== null) {
+        webSocket.send(JSON.stringify({ type: 'channel_subscribe', channel_id: activeChannelId }));
+      }
+
       // Load initial messages once connected
       loadMessages();
       warmMessagesCache();
@@ -410,10 +515,16 @@
         applyReactionUpdate(data);
         return;
       }
+      if (data.type === 'channel_unread') {
+        const channel = channels.find((item) => Number(item.id) === Number(data.channel_id));
+        if (channel) channel.unread_count = Number(channel.unread_count || 0) + 1;
+        return;
+      }
 
       // Handle different message types (actions) from the server
       switch (data.action) {
         case 'messages':
+          if (Number(data.data.channel_id) !== Number(activeChannelId)) break;
           if (searchActive) {
             break;
           }
@@ -432,6 +543,7 @@
           break;
 
         case 'newMessage':
+          if (Number(data.data.channel_id) !== Number(activeChannelId)) break;
           // Handle new message broadcast from another user
           if (searchActive) {
             searchHasLiveUpdates = true;
@@ -559,6 +671,11 @@
    * Load messages - prefers WebSocket, falls back to HTTP.
    */
   function loadMessages() {
+    if (activeChannelId === null) {
+      loading = false;
+      return;
+    }
+
     searchActive = false;
     searchHasLiveUpdates = false;
     searchLoading = false;
@@ -580,6 +697,7 @@
         action: 'getMessages',
         page: currentPage,
         perPage: 10,
+        channel_id: activeChannelId,
       }),
     );
   }
@@ -589,9 +707,17 @@
    * Used when WebSocket is not available.
    */
   async function loadMessagesHttp() {
+    if (activeChannelId === null) {
+      loading = false;
+      return false;
+    }
+
     try {
       const response = await fetch(
-        userScopedMessagesUrl(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`, config.userId),
+        userScopedMessagesUrl(
+          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=${currentPage}&per_page=10`,
+          config.userId,
+        ),
       );
       const data = await response.json();
       if (!response.ok) throw new Error('Message request failed');
@@ -613,8 +739,15 @@
   }
 
   async function warmMessagesCache() {
+    if (activeChannelId === null) return;
+
     try {
-      await fetch(userScopedMessagesUrl(`${config.chatRoutes.api}?page=1&per_page=10`, config.userId));
+      await fetch(
+        userScopedMessagesUrl(
+          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=1&per_page=10`,
+          config.userId,
+        ),
+      );
     } catch {
       // The live WebSocket remains authoritative; cache warming is best effort.
     }
@@ -624,6 +757,7 @@
    * Load more messages (pagination).
    */
   function loadMoreMessages() {
+    if (activeChannelId === null) return;
     if (loadingMore) return;
 
     loadingMore = true;
@@ -646,6 +780,7 @@
         action: 'getMessages',
         page: currentPage,
         perPage: 10,
+        channel_id: activeChannelId,
       }),
     );
 
@@ -661,9 +796,17 @@
    * HTTP fallback for loading more messages.
    */
   async function loadMoreMessagesHttp() {
+    if (activeChannelId === null) {
+      loadingMore = false;
+      return;
+    }
+
     try {
       const response = await fetch(
-        userScopedMessagesUrl(`${config.chatRoutes.api}?page=${currentPage}&per_page=10`, config.userId),
+        userScopedMessagesUrl(
+          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=${currentPage}&per_page=10`,
+          config.userId,
+        ),
       );
       const data = await response.json();
 
@@ -733,6 +876,8 @@
   }
 
   function executeSearch(page = 1, append = false) {
+    if (activeChannelId === null) return;
+
     const filters = normalizedSearch();
     if (!Object.values(filters).some((value) => value !== '')) {
       clearSearch();
@@ -775,6 +920,7 @@
         page,
         perPage: 10,
         search: compactSearch(filters),
+        channel_id: activeChannelId,
       }),
     );
 
@@ -899,7 +1045,7 @@
   }
 
   function searchEndpoint() {
-    return `${config.chatRoutes.api.replace(/\/$/, '')}/search`;
+    return `${config.chatRoutes.channels}/${activeChannelId}/messages/search`;
   }
 
   function handleTypingInput(event) {
@@ -966,6 +1112,11 @@
     // Clear previous errors
     error = '';
 
+    if (activeChannelId === null) {
+      error = 'Choose a conversation before sending a message.';
+      return;
+    }
+
     // Validate message
     if (!message.trim()) {
       error = 'Message is required';
@@ -988,6 +1139,7 @@
           action: 'sendMessage',
           username: config.username,
           message: message,
+          channel_id: activeChannelId,
         }),
       );
 
@@ -1004,25 +1156,22 @@
    * HTTP fallback for sending messages.
    */
   async function sendMessageHttp() {
+    if (activeChannelId === null) {
+      sending = false;
+      return;
+    }
+
     let fetchCompleted = false;
     try {
-      const formData = new FormData();
-      formData.append('message', message);
-      formData.append('action', 'postmsg');
-
-      // Get CSRF token from meta tag
-      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      if (csrfMeta) {
-        formData.append(config.csrfTokenName, csrfMeta.getAttribute('content'));
-      }
-
-      const response = await fetch(config.chatRoutes.update, {
+      const response = await fetch(`${config.chatRoutes.channels}/${activeChannelId}/messages`, {
         method: 'POST',
-        body: formData,
         headers: {
-          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
         },
+        body: JSON.stringify({ message }),
       });
+      refreshCsrfToken(response);
       fetchCompleted = true;
 
       const data = await response.json();
@@ -1285,6 +1434,44 @@
     </div>
   {/if}
 
+  <nav class="channel-sidebar" aria-label="Channels and direct messages">
+    <h2>Conversations</h2>
+    {#each channels as channel (channel.id)}
+      <button
+        type="button"
+        class:active={Number(channel.id) === Number(activeChannelId)}
+        class="channel-link"
+        aria-current={Number(channel.id) === Number(activeChannelId) ? 'page' : undefined}
+        onclick={() => selectChannel(channel)}
+      >
+        <span>{channel.channel_type === 'dm' ? `@ ${dmLabel(channel)}` : `# ${channel.name}`}</span>
+        {#if channel.unread_count}
+          <span class="channel-unread">{channel.unread_count}<span class="sr-only"> unread</span></span>
+        {/if}
+      </button>
+    {/each}
+    <form
+      class="dm-form"
+      onsubmit={(event) => {
+        event.preventDefault();
+        createDm();
+      }}
+    >
+      <label for="svelte-dm-username">Start a direct message</label>
+      <div>
+        <input
+          id="svelte-dm-username"
+          bind:value={dmUsername}
+          type="text"
+          maxlength="50"
+          autocomplete="off"
+          placeholder="Username"
+        >
+        <button type="submit" disabled={!dmUsername.trim()}>Open</button>
+      </div>
+    </form>
+  </nav>
+
   <section class="search-panel" aria-labelledby="message-search-title">
     <div class="search-panel-header">
       <h2 id="message-search-title">Search messages</h2>
@@ -1543,6 +1730,65 @@
 
 <style lang="scss">
   @use "sass:color";
+
+  .channel-sidebar {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 0.75rem;
+    background: var(--surface-color, #fff);
+
+    h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+    }
+  }
+
+  .channel-link {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &.active {
+      border-color: #3f6398;
+      background: color-mix(in srgb, #3f6398 12%, transparent);
+      font-weight: 700;
+    }
+  }
+
+  .channel-unread {
+    min-width: 1.5rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: #3f6398;
+    color: #fff;
+    text-align: center;
+  }
+
+  .dm-form {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+
+    div {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    input {
+      min-width: 0;
+      flex: 1;
+    }
+  }
 
   /* Variables for consistent theming */
   $primary-color: #3f6398;

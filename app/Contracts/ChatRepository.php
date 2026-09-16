@@ -10,7 +10,7 @@ interface ChatRepository
      *     pagination: array<string, int|bool|float>
      * }
      */
-    public function getMsgPaginated(int $page = 1, int $perPage = 10): array;
+    public function getMsgPaginated(int $page = 1, int $perPage = 10, ?int $channelId = null): array;
 
     /**
      * @return array{
@@ -25,7 +25,8 @@ interface ChatRepository
         ?int $to = null,
         int $page = 1,
         int $perPage = 10,
+        ?int $channelId = null,
     ): array;
 
-    public function insertMsg(string $name, string $message, int $current): int|bool;
+    public function insertMsg(string $name, string $message, int $current, ?int $channelId = null): int|bool;
 }

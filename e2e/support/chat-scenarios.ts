@@ -47,6 +47,10 @@ export function chatScenario(scenario: ChatScenario): void {
       await assertModernChatTyping(page, scenario.messageInput);
       await assertModernChatSearch(page);
       await assertModernChatReactions(page);
+      await expect(page.getByRole('navigation', { name: 'Channels and direct messages' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '# General' })).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByLabel('Start a direct message')).toBeVisible();
+      await expect(page).toHaveURL(/channel=general/);
       await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
       await page.context().setOffline(true);
       await expect(page.getByText('You’re offline.')).toBeVisible();
@@ -394,6 +398,7 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
                 },
               ],
               pagination: { hasNext: false },
+              channel_id: request.channel_id,
             },
           };
         } else if (request.action === 'sendMessage') {
@@ -404,6 +409,7 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
               user: request.username,
               msg: request.message,
               timestamp: Math.floor(Date.now() / 1000),
+              channel_id: request.channel_id,
             },
           };
         }

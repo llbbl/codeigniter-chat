@@ -26,6 +26,8 @@ const app = createApp(App);
 app.config.globalProperties.$chatRoutes = {
   update: window.CHAT_ROUTES.update,
   api: window.CHAT_ROUTES.messagesApi,
+  channels: window.CHAT_ROUTES.channels,
+  dms: window.CHAT_ROUTES.dms,
   pushSubscriptions: window.CHAT_ROUTES.pushSubscriptions,
   profile: window.CHAT_ROUTES.profile,
   profileAvatar: window.CHAT_ROUTES.profileAvatar,

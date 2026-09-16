@@ -2,9 +2,11 @@
 
 namespace App\Libraries;
 
+use App\Contracts\ChannelRepository;
 use App\Contracts\ReactionRepository;
 use App\Contracts\UserRepository;
 use App\Helpers\WebSocketTokenHelper;
+use App\Models\ChannelModel;
 use App\Models\ChatModel;
 use App\Models\MessageReactionModel;
 use App\Models\UserModel;
@@ -78,6 +80,8 @@ class ChatWebSocketServer implements MessageComponentInterface
 
     private readonly ReactionRepository $reactions;
 
+    private readonly ChannelRepository $channels;
+
     /** @var array<int, list<int>> */
     private array $reactionHistory = [];
 
@@ -87,7 +91,7 @@ class ChatWebSocketServer implements MessageComponentInterface
     /**
      * Ephemeral typing state keyed by authenticated user ID.
      *
-     * @var array<int, array{user_id: int, username: string, last_typed_at: int}>
+     * @var array<int, array{user_id: int, username: string, channel_id: int, last_typed_at: int}>
      */
     private array $typingUsers = [];
 
@@ -107,12 +111,14 @@ class ChatWebSocketServer implements MessageComponentInterface
         bool $requireAuth = true,
         ?UserRepository $users = null,
         ?ReactionRepository $reactions = null,
+        ?ChannelRepository $channels = null,
     ) {
         $this->clients = $clients ?? new SplObjectStorage();
         $this->chatModel = $chatModel ?? new ChatModel();
         $this->requireAuth = $requireAuth;
         $this->users = $users ?? new UserModel();
         $this->reactions = $reactions ?? new MessageReactionModel();
+        $this->channels = $channels ?? new ChannelModel();
 
         $this->logServerStart();
     }
@@ -154,10 +160,12 @@ class ChatWebSocketServer implements MessageComponentInterface
 
         // Store the connection with metadata
         // We use SplObjectStorage->attach() to associate data with the connection
+        $channelId = $userId > 0 ? $this->channels->ensureGeneralMembership($userId) : $this->channels->generalChannelId();
         $this->clients->attach($conn, [
             'user_id'      => $userId,
             'connected_at' => time(),
             'authenticated' => $this->requireAuth ? true : ($userId > 0),
+            'channel_id' => $channelId,
         ]);
 
         if ($this->requireAuth) {
@@ -203,6 +211,10 @@ class ChatWebSocketServer implements MessageComponentInterface
         $messageType = $data['type'] ?? $data['action'];
 
         switch ($messageType) {
+            case 'channel_subscribe':
+                $this->handleChannelSubscribe($from, $data);
+                break;
+
             case 'getMessages':
                 $this->handleGetMessages($from, $data);
                 break;
@@ -247,8 +259,9 @@ class ChatWebSocketServer implements MessageComponentInterface
         $this->clients->detach($conn);
 
         if (is_int($userId) && ! $this->isUserConnected($userId) && isset($this->typingUsers[$userId])) {
+            $channelId = $this->typingUsers[$userId]['channel_id'];
             unset($this->typingUsers[$userId]);
-            $this->broadcastTypingState();
+            $this->broadcastTypingState(channelId: $channelId);
         }
 
         if (is_int($userId) && $userId > 0 && ! $this->isUserConnected($userId) && isset($this->presenceUsers[$userId])) {
@@ -317,7 +330,7 @@ class ChatWebSocketServer implements MessageComponentInterface
     public function pruneInactiveTypers(?int $now = null): void
     {
         $now ??= time();
-        $changed = false;
+        $changedChannels = [];
 
         foreach ($this->typingUsers as $userId => $typingUser) {
             if ($now - $typingUser['last_typed_at'] < self::TYPING_TTL_SECONDS) {
@@ -325,11 +338,11 @@ class ChatWebSocketServer implements MessageComponentInterface
             }
 
             unset($this->typingUsers[$userId]);
-            $changed = true;
+            $changedChannels[$typingUser['channel_id']] = true;
         }
 
-        if ($changed) {
-            $this->broadcastTypingState();
+        foreach (array_keys($changedChannels) as $channelId) {
+            $this->broadcastTypingState(channelId: $channelId);
         }
     }
 
@@ -447,6 +460,12 @@ class ChatWebSocketServer implements MessageComponentInterface
         $page = $data['page'] ?? 1;
         $perPage = $data['perPage'] ?? 10;
         $requestId = isset($data['requestId']) && is_int($data['requestId']) ? $data['requestId'] : null;
+        $channelId = $this->authorizedChannelId($from, $data['channel_id'] ?? null);
+        if ($channelId === null) {
+            $this->sendChannelError($from, 'CHANNEL_ACCESS_DENIED', 'Channel membership is required.');
+
+            return;
+        }
 
         if (isset($data['search'])) {
             if (! is_array($data['search'])) {
@@ -469,6 +488,7 @@ class ChatWebSocketServer implements MessageComponentInterface
                 $search['filters']['to'],
                 is_int($page) ? max(1, $page) : 1,
                 is_int($perPage) ? min(100, max(1, $perPage)) : 10,
+                $channelId,
             );
 
             $from->send(json_encode([
@@ -478,6 +498,7 @@ class ChatWebSocketServer implements MessageComponentInterface
                     'messages' => $result['messages'],
                     'pagination' => $result['pagination'],
                     'filters' => $search['filters'],
+                    'channel_id' => $channelId,
                 ],
             ]));
 
@@ -485,7 +506,16 @@ class ChatWebSocketServer implements MessageComponentInterface
         }
 
         // Fetch messages from the database
-        $result = $this->chatModel->getMsgPaginated($page, $perPage);
+        $result = $this->chatModel->getMsgPaginated(
+            is_int($page) ? max(1, $page) : 1,
+            is_int($perPage) ? min(100, max(1, $perPage)) : 10,
+            $channelId,
+        );
+        $connectionData = $this->clients[$from] ?? [];
+        $userId = $connectionData['user_id'] ?? 0;
+        if (is_int($userId) && $userId > 0) {
+            $this->channels->markRead($channelId, $userId);
+        }
 
         // Send messages back to the client
         $from->send(json_encode([
@@ -493,6 +523,7 @@ class ChatWebSocketServer implements MessageComponentInterface
             'data' => [
                 'messages'   => $result['messages'],
                 'pagination' => $result['pagination'],
+                'channel_id' => $channelId,
             ],
         ]));
     }
@@ -563,6 +594,7 @@ class ChatWebSocketServer implements MessageComponentInterface
         $authenticatedUserId = $connectionData['user_id'] ?? 0;
         $claimedUserId = $data['user_id'] ?? null;
         $username = $data['username'] ?? null;
+        $channelId = $connectionData['channel_id'] ?? 0;
 
         if (
             ($connectionData['authenticated'] ?? false) !== true
@@ -573,6 +605,8 @@ class ChatWebSocketServer implements MessageComponentInterface
             || ! is_string($username)
             || trim($username) === ''
             || mb_strlen($username) > 255
+            || ! is_int($channelId)
+            || ! $this->channels->isMember($channelId, $authenticatedUserId)
         ) {
             return;
         }
@@ -583,7 +617,7 @@ class ChatWebSocketServer implements MessageComponentInterface
             }
 
             unset($this->typingUsers[$authenticatedUserId]);
-            $this->broadcastTypingState($from);
+            $this->broadcastTypingState($from, $channelId);
 
             return;
         }
@@ -594,22 +628,29 @@ class ChatWebSocketServer implements MessageComponentInterface
         $this->typingUsers[$authenticatedUserId] = [
             'user_id' => $authenticatedUserId,
             'username' => $username,
+            'channel_id' => $channelId,
             'last_typed_at' => time(),
         ];
 
         if ($changed) {
-            $this->broadcastTypingState($from);
+            $this->broadcastTypingState($from, $channelId);
         }
     }
 
-    private function broadcastTypingState(?ConnectionInterface $except = null): void
+    private function broadcastTypingState(?ConnectionInterface $except = null, ?int $channelId = null): void
     {
+        if ($channelId === null && $except !== null && $this->clients->contains($except)) {
+            $channelId = $this->clients[$except]['channel_id'] ?? null;
+        }
         $users = array_values(array_map(
             static fn (array $typingUser): array => [
                 'user_id' => $typingUser['user_id'],
                 'username' => $typingUser['username'],
             ],
-            $this->typingUsers,
+            array_filter(
+                $this->typingUsers,
+                static fn (array $typingUser): bool => $channelId === null || $typingUser['channel_id'] === $channelId,
+            ),
         ));
 
         usort($users, static fn (array $left, array $right): int => [$left['username'], $left['user_id']] <=> [$right['username'], $right['user_id']]);
@@ -617,6 +658,9 @@ class ChatWebSocketServer implements MessageComponentInterface
 
         foreach ($this->clients as $client) {
             if ($except !== null && $client === $except) {
+                continue;
+            }
+            if ($channelId !== null && ($this->clients[$client]['channel_id'] ?? null) !== $channelId) {
                 continue;
             }
 
@@ -703,17 +747,32 @@ class ChatWebSocketServer implements MessageComponentInterface
      */
     private function handleSendMessage(ConnectionInterface $from, array $data, int $userId): void
     {
-        // Validate required fields
-        if (!isset($data['message']) || !isset($data['username'])) {
+        if (! $this->clients->contains($from)) {
             return;
         }
 
-        $username = $data['username'];
-        $message = $data['message'];
+        $connectionData = $this->clients[$from];
+        $channelId = $this->authorizedChannelId($from, $data['channel_id'] ?? null);
+        $message = $data['message'] ?? null;
+        $user = $this->users->findUserById($userId);
+        if (
+            ($connectionData['authenticated'] ?? false) !== true
+            || $channelId === null
+            || $user === null
+            || ! is_string($message)
+            || trim($message) === ''
+            || mb_strlen($message) > 500
+        ) {
+            $this->sendChannelError($from, 'INVALID_MESSAGE', 'An authenticated channel member and a valid message are required.');
+
+            return;
+        }
+
+        $username = (string) $user['username'];
+        $message = trim($message);
         $timestamp = Time::now()->getTimestamp();
 
-        // Insert message into database
-        $messageId = $this->chatModel->insertMsg($username, $message, $timestamp);
+        $messageId = $this->chatModel->insertMsg($username, $message, $timestamp, $channelId);
 
         // Prepare the message data for broadcasting
         $messageData = [
@@ -723,13 +782,27 @@ class ChatWebSocketServer implements MessageComponentInterface
                 'user'      => $username,
                 'msg'       => $message,
                 'timestamp' => $timestamp,
+                'channel_id' => $channelId,
             ],
         ];
 
-        // Broadcast the message to ALL connected clients
-        // This is what makes the chat "real-time" - everyone sees new messages instantly
+        $memberIds = $this->channels->memberIds($channelId);
+        $readBy = [];
         foreach ($this->clients as $client) {
-            $client->send(json_encode($messageData));
+            $clientData = $this->clients[$client];
+            $clientUserId = $clientData['user_id'] ?? 0;
+            if (! is_int($clientUserId) || ! in_array($clientUserId, $memberIds, true)) {
+                continue;
+            }
+            if (($clientData['channel_id'] ?? null) === $channelId) {
+                $client->send(json_encode($messageData));
+                $readBy[$clientUserId] = true;
+            } else {
+                $client->send(json_encode(['type' => 'channel_unread', 'channel_id' => $channelId]));
+            }
+        }
+        foreach (array_keys($readBy) as $readUserId) {
+            $this->channels->markRead($channelId, $readUserId);
         }
     }
 
@@ -744,6 +817,7 @@ class ChatWebSocketServer implements MessageComponentInterface
         $userId = $connectionData['user_id'] ?? 0;
         $messageId = $data['message_id'] ?? 0;
         $emoji = $this->validReactionEmoji($data['emoji'] ?? null);
+        $channelId = is_int($messageId) ? $this->channels->messageChannelId($messageId) : null;
         if (
             ($connectionData['authenticated'] ?? false) !== true
             || ! is_int($userId)
@@ -752,6 +826,8 @@ class ChatWebSocketServer implements MessageComponentInterface
             || $messageId <= 0
             || $emoji === null
             || ! $this->reactions->messageExists($messageId)
+            || $channelId === null
+            || ! $this->channels->isMember($channelId, $userId)
         ) {
             $this->sendReactionError($from, 'INVALID_REACTION', 'The reaction request is invalid.');
 
@@ -785,11 +861,71 @@ class ChatWebSocketServer implements MessageComponentInterface
         $payload = json_encode([
             'type' => 'reaction',
             'message_id' => $messageId,
+            'channel_id' => $channelId,
             ...$reaction,
         ], JSON_UNESCAPED_UNICODE);
         foreach ($this->clients as $client) {
-            $client->send($payload);
+            $clientData = $this->clients[$client];
+            if (($clientData['channel_id'] ?? null) === $channelId) {
+                $client->send($payload);
+            }
         }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function handleChannelSubscribe(ConnectionInterface $from, array $data): void
+    {
+        $channelId = $data['channel_id'] ?? null;
+        if (! is_int($channelId) || ! $this->clients->contains($from)) {
+            $this->sendChannelError($from, 'INVALID_CHANNEL', 'A numeric channel_id is required.');
+
+            return;
+        }
+
+        $connectionData = $this->clients[$from];
+        $userId = $connectionData['user_id'] ?? 0;
+        if (
+            ($connectionData['authenticated'] ?? false) !== true
+            || ! is_int($userId)
+            || ! $this->channels->isMember($channelId, $userId)
+        ) {
+            $this->sendChannelError($from, 'CHANNEL_ACCESS_DENIED', 'Channel membership is required.');
+
+            return;
+        }
+
+        $connectionData['channel_id'] = $channelId;
+        $this->clients[$from] = $connectionData;
+        $this->channels->markRead($channelId, $userId);
+        $from->send(json_encode(['type' => 'channel_subscribed', 'channel_id' => $channelId]));
+    }
+
+    private function authorizedChannelId(ConnectionInterface $from, mixed $requestedChannelId): ?int
+    {
+        if (! $this->clients->contains($from)) {
+            return null;
+        }
+
+        $connectionData = $this->clients[$from];
+        $channelId = is_int($requestedChannelId) ? $requestedChannelId : ($connectionData['channel_id'] ?? null);
+        if (! is_int($channelId)) {
+            return null;
+        }
+
+        $userId = $connectionData['user_id'] ?? 0;
+        if (($connectionData['authenticated'] ?? false) === true) {
+            return is_int($userId) && $this->channels->isMember($channelId, $userId) ? $channelId : null;
+        }
+
+        return $channelId === $this->channels->generalChannelId() ? $channelId : null;
+    }
+
+    private function sendChannelError(ConnectionInterface $connection, string $code, string $message): void
+    {
+        $connection->send(json_encode([
+            'action' => 'error',
+            'data' => ['code' => $code, 'message' => $message],
+        ]));
     }
 
     private function allowReaction(int $userId): bool

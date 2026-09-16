@@ -102,11 +102,13 @@ final class ChatModelTest extends CIUnitTestCase
         $reflection = new \ReflectionMethod($this->chatModel, 'getMsgPaginated');
         $params = $reflection->getParameters();
 
-        $this->assertCount(2, $params);
+        $this->assertCount(3, $params);
         $this->assertEquals('page', $params[0]->getName());
         $this->assertEquals('perPage', $params[1]->getName());
         $this->assertEquals(1, $params[0]->getDefaultValue());
         $this->assertEquals(10, $params[1]->getDefaultValue());
+        $this->assertEquals('channelId', $params[2]->getName());
+        $this->assertNull($params[2]->getDefaultValue());
     }
 
     public function testInsertMsgMethodExists(): void
@@ -116,10 +118,12 @@ final class ChatModelTest extends CIUnitTestCase
         $reflection = new \ReflectionMethod($this->chatModel, 'insertMsg');
         $params = $reflection->getParameters();
 
-        $this->assertCount(3, $params);
+        $this->assertCount(4, $params);
         $this->assertEquals('name', $params[0]->getName());
         $this->assertEquals('message', $params[1]->getName());
         $this->assertEquals('current', $params[2]->getName());
+        $this->assertEquals('channelId', $params[3]->getName());
+        $this->assertNull($params[3]->getDefaultValue());
     }
 
     public function testInvalidateCacheMethodExists(): void

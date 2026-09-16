@@ -33,6 +33,8 @@
         window.CHAT_ROUTES = {
             update: "<?= esc(site_url('api/v1/messages')) ?>",
             messagesApi: "<?= esc(site_url('api/v1/messages')) ?>",
+            channels: "<?= esc(site_url('api/v1/channels')) ?>",
+            dms: "<?= esc(site_url('api/v1/dms')) ?>",
             pushSubscriptions: "<?= esc(site_url('api/v1/push-subscriptions')) ?>",
             profile: "<?= esc(site_url('api/v1/profile')) ?>",
             profileAvatar: "<?= esc(site_url('api/v1/profile/avatar')) ?>",

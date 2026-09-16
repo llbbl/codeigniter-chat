@@ -2,19 +2,22 @@
 
 namespace App\Controllers\Api\V1;
 
+use App\Contracts\ChannelRepository;
 use App\Contracts\ReactionRepository;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 
 final class ReactionsController extends BaseController
 {
-    public function __construct(private readonly ReactionRepository $reactions)
-    {
+    public function __construct(
+        private readonly ReactionRepository $reactions,
+        private readonly ChannelRepository $channels,
+    ) {
     }
 
     public function list(int $messageId): ResponseInterface
     {
-        if (! $this->reactions->messageExists($messageId)) {
+        if (! $this->canAccessMessage($messageId)) {
             return $this->notFound();
         }
 
@@ -23,7 +26,7 @@ final class ReactionsController extends BaseController
 
     public function create(int $messageId): ResponseInterface
     {
-        if (! $this->reactions->messageExists($messageId)) {
+        if (! $this->canAccessMessage($messageId)) {
             return $this->notFound();
         }
 
@@ -45,7 +48,7 @@ final class ReactionsController extends BaseController
 
     public function delete(int $messageId, string $emoji): ResponseInterface
     {
-        if (! $this->reactions->messageExists($messageId)) {
+        if (! $this->canAccessMessage($messageId)) {
             return $this->notFound();
         }
 
@@ -100,6 +103,25 @@ final class ReactionsController extends BaseController
     private function currentUserId(): int
     {
         return (int) $this->session->get('user_id');
+    }
+
+    private function canAccessMessage(int $messageId): bool
+    {
+        if (! $this->reactions->messageExists($messageId)) {
+            return false;
+        }
+
+        $channelId = $this->channels->messageChannelId($messageId);
+        if ($channelId === null) {
+            return false;
+        }
+
+        $userId = $this->currentUserId();
+        if ($channelId === $this->channels->generalChannelId()) {
+            $this->channels->ensureGeneralMembership($userId);
+        }
+
+        return $this->channels->isMember($channelId, $userId);
     }
 
     private function notFound(): ResponseInterface

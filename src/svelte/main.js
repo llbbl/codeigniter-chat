@@ -40,6 +40,8 @@ const config = {
   chatRoutes: {
     update: window.CHAT_ROUTES?.update || '/api/v1/messages',
     api: window.CHAT_ROUTES?.messagesApi || '/api/v1/messages',
+    channels: window.CHAT_ROUTES?.channels || '/api/v1/channels',
+    dms: window.CHAT_ROUTES?.dms || '/api/v1/dms',
     pushSubscriptions: window.CHAT_ROUTES?.pushSubscriptions || '/api/v1/push-subscriptions',
     profile: window.CHAT_ROUTES?.profile || '/api/v1/profile',
     profileAvatar: window.CHAT_ROUTES?.profileAvatar || '/api/v1/profile/avatar',
