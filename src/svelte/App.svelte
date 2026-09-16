@@ -37,7 +37,7 @@
 -->
 
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { reactionEmojis } from '../config/reactions.ts';
   import {
     dismissFailedMessages,
@@ -93,6 +93,10 @@
   // Pagination state
   let currentPage = $state(1);
   let hasMoreMessages = $state(false);
+  let historyBefore = $state(null);
+  let historyObserver = null;
+  let messageWindow = $state(null);
+  let historySentinel = $state(null);
 
   // WebSocket connection state
   let webSocket = $state(null);
@@ -189,6 +193,9 @@
     channel.unread_count = 0;
     messages = [];
     currentPage = 1;
+    historyBefore = null;
+    historyObserver?.disconnect();
+    loadingMore = false;
     loading = true;
     clearSearchState();
     const url = new URL(window.location.href);
@@ -551,8 +558,7 @@
           }
 
           if (!lastMessageTime || data.data.timestamp > lastMessageTime) {
-            // Add new message to the beginning of our list
-            messages = [data.data, ...messages];
+            messages = [...messages, data.data];
             lastMessageTime = data.data.timestamp;
           }
           break;
@@ -660,6 +666,8 @@
       clearInterval(reconnectInterval);
     }
 
+    historyObserver?.disconnect();
+
     window.removeEventListener('beforeunload', cleanUp);
   }
 
@@ -683,23 +691,8 @@
     searchError = '';
     activeSearchKey = '';
 
-    if (!webSocketConnected) {
-      console.log('WebSocket not connected, using HTTP fallback');
-      loadMessagesHttp();
-      return;
-    }
-
     loading = true;
-
-    // Request messages via WebSocket
-    webSocket.send(
-      JSON.stringify({
-        action: 'getMessages',
-        page: currentPage,
-        perPage: 10,
-        channel_id: activeChannelId,
-      }),
-    );
+    loadMessagesHttp();
   }
 
   /**
@@ -712,24 +705,28 @@
       return false;
     }
 
+    const channelId = activeChannelId;
     try {
       const response = await fetch(
-        userScopedMessagesUrl(
-          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=${currentPage}&per_page=10`,
-          config.userId,
-        ),
+        userScopedMessagesUrl(`${config.chatRoutes.channels}/${channelId}/messages?limit=25`, config.userId),
       );
       const data = await response.json();
       if (!response.ok) throw new Error('Message request failed');
+      if (Number(channelId) !== Number(activeChannelId) || searchActive) return false;
 
-      messages = data.messages || [];
-      hasMoreMessages = data.pagination?.hasNext || false;
+      messages = [...(data.messages || [])].reverse().map(normalizeMessage);
+      hasMoreMessages = Boolean(data.pagination?.hasMore);
+      historyBefore = data.pagination?.nextBefore || null;
       loading = false;
 
       // Store timestamp of newest message for refresh comparison
-      if (messages.length > 0 && messages[0].timestamp) {
-        lastMessageTime = messages[0].timestamp;
+      const newestMessage = messages[messages.length - 1];
+      if (newestMessage?.timestamp) {
+        lastMessageTime = newestMessage.timestamp;
       }
+      await tick();
+      if (messageWindow) messageWindow.scrollTop = messageWindow.scrollHeight;
+      observeHistorySentinel();
       return true;
     } catch (err) {
       console.error('Error loading messages:', err);
@@ -743,10 +740,7 @@
 
     try {
       await fetch(
-        userScopedMessagesUrl(
-          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=1&per_page=10`,
-          config.userId,
-        ),
+        userScopedMessagesUrl(`${config.chatRoutes.channels}/${activeChannelId}/messages?limit=25`, config.userId),
       );
     } catch {
       // The live WebSocket remains authoritative; cache warming is best effort.
@@ -760,67 +754,69 @@
     if (activeChannelId === null) return;
     if (loadingMore) return;
 
-    loadingMore = true;
-    currentPage++;
-
     if (searchActive) {
+      loadingMore = true;
+      currentPage++;
       executeSearch(currentPage, true);
       return;
     }
 
-    if (!webSocketConnected) {
-      console.log('WebSocket not connected, using HTTP fallback');
-      loadMoreMessagesHttp();
-      return;
-    }
-
-    // Request more messages via WebSocket
-    webSocket.send(
-      JSON.stringify({
-        action: 'getMessages',
-        page: currentPage,
-        perPage: 10,
-        channel_id: activeChannelId,
-      }),
-    );
-
-    // Fallback timeout to reset loading state
-    setTimeout(() => {
-      if (loadingMore) {
-        loadingMore = false;
-      }
-    }, 5000);
+    void loadOlderMessages();
   }
 
-  /**
-   * HTTP fallback for loading more messages.
-   */
-  async function loadMoreMessagesHttp() {
-    if (activeChannelId === null) {
-      loadingMore = false;
-      return;
-    }
+  async function loadOlderMessages() {
+    if (loadingMore || searchActive || activeChannelId === null || !hasMoreMessages || historyBefore === null) return;
 
+    loadingMore = true;
+    const channelId = activeChannelId;
+    const cursor = historyBefore;
+    const previousHeight = messageWindow?.scrollHeight || 0;
+    const previousTop = messageWindow?.scrollTop || 0;
     try {
       const response = await fetch(
         userScopedMessagesUrl(
-          `${config.chatRoutes.channels}/${activeChannelId}/messages?page=${currentPage}&per_page=10`,
+          `${config.chatRoutes.channels}/${channelId}/messages?before=${cursor}&limit=25`,
           config.userId,
         ),
       );
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Message history request failed');
+      }
+      if (Number(channelId) !== Number(activeChannelId) || Number(cursor) !== Number(historyBefore) || searchActive)
+        return;
 
       if (data.messages && data.messages.length > 0) {
-        messages = [...messages, ...data.messages];
+        messages = [...data.messages].reverse().map(normalizeMessage).concat(messages);
       }
-
-      hasMoreMessages = data.pagination?.hasNext || false;
+      hasMoreMessages = Boolean(data.pagination?.hasMore);
+      historyBefore = data.pagination?.nextBefore || null;
+      await tick();
+      if (messageWindow) {
+        messageWindow.scrollTop = previousTop + (messageWindow.scrollHeight - previousHeight);
+      }
     } catch (err) {
-      console.error('Error loading more messages:', err);
-      currentPage--; // Revert page increment on failure
+      console.error('Error loading older messages:', err);
     } finally {
       loadingMore = false;
     }
+  }
+
+  function observeHistorySentinel() {
+    historyObserver?.disconnect();
+    if (!messageWindow || !historySentinel || !hasMoreMessages || searchActive) return;
+
+    historyObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadOlderMessages();
+      },
+      { root: messageWindow, threshold: 0.1 },
+    );
+    historyObserver.observe(historySentinel);
+  }
+
+  function normalizeMessage(item) {
+    return { ...item, timestamp: item.timestamp ?? item.time };
   }
 
   function scheduleSearch() {
@@ -1182,14 +1178,13 @@
         if (searchActive) {
           searchHasLiveUpdates = true;
         } else {
-          // Add message to the beginning of the list
           messages = [
+            ...messages,
             {
               user: config.username,
               msg: message,
               timestamp: Math.floor(Date.now() / 1000),
             },
-            ...messages,
           ];
         }
 
@@ -1550,6 +1545,7 @@
       <!-- Message list -->
       <div
         id="messagewindow"
+        bind:this={messageWindow}
         class="messages"
         role="log"
         aria-label="Chat messages"
@@ -1558,6 +1554,18 @@
         tabindex="-1"
       >
         <a class="skip-link" href="#message-input">Skip to message composer</a>
+        {#if !searchActive && !hasMoreMessages && messages.length}
+          <div class="history-boundary" role="status">Beginning of channel</div>
+        {/if}
+        {#if !searchActive && hasMoreMessages}
+          <div bind:this={historySentinel} class="history-sentinel" aria-hidden="true"></div>
+        {/if}
+        {#if !searchActive && loadingMore}
+          <div class="history-loading" role="status" aria-live="polite">
+            <span class="spinner-small" aria-hidden="true"></span>
+            Loading older messages…
+          </div>
+        {/if}
         {#each messages as msg, index (msg.id || index)}
           <article class="message-item" aria-label={`Message from ${msg.user}`}>
             <div class="message-avatar" aria-hidden="true">
@@ -1580,7 +1588,7 @@
               </div>
               <!-- Using {@html} is safe because formatMessage() escapes user input. -->
               <div class="message-content">{@html formatMessage(msg.msg)}</div>
-              {#if msg.id}
+              {#if msg.id && !Number(msg.archived)}
                 <div class="message-reactions">
                   {#each reactionsFor(msg.id) as reaction (reaction.emoji)}
                     <button
@@ -1635,7 +1643,7 @@
   </div>
 
   <!-- Load more button -->
-  {#if !loading && hasMoreMessages}
+  {#if !loading && searchActive && hasMoreMessages}
     <div class="load-more-container">
       <button type="button" class="load-more-btn" onclick={loadMoreMessages} disabled={loadingMore}>
         {#if loadingMore}
@@ -1973,12 +1981,24 @@
   .messages {
     height: 350px;
     overflow-y: auto;
+    overflow-anchor: none;
     padding: 15px;
     background-color: $background-color;
 
     @media (max-width: 640px) {
       height: 300px;
     }
+  }
+
+  .history-boundary,
+  .history-loading {
+    margin: 0 0 12px;
+    color: $light-text-color;
+    text-align: center;
+  }
+
+  .history-sentinel {
+    height: 1px;
   }
 
   /* Individual message item */

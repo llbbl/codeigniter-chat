@@ -12,6 +12,8 @@ to `#general`; they do not need to send a channel identifier.
 - `channel_members` stores membership and the last-read message identifier used
   for unread counts.
 - `messages.channel_id` is required and indexed with message time and ID.
+- `archived_messages` preserves original message IDs after old rows leave the
+  live table. Cursor reads combine both tables; archived rows are read-only.
 - The migration creates `#general`, enrolls existing users, and assigns every
   existing message to it. New users are enrolled when they first use a channel
   endpoint or open an authenticated WebSocket connection.
@@ -33,9 +35,11 @@ normal CSRF token and write-rate limit.
 | `POST` | `/api/v1/channels/{id}/join` | Join an active public channel |
 | `POST` | `/api/v1/channels/{id}/leave` | Leave a public channel other than `#general` |
 | `POST` | `/api/v1/dms` | Find or create an idempotent two-person DM by user ID |
-| `GET` | `/api/v1/channels/{id}/messages?page=1&per_page=10` | Read member-scoped messages and mark them read |
+| `GET` | `/api/v1/channels/{id}/messages?limit=25&before={id}` | Read cursor-paginated live and archived messages and mark the channel read |
 | `POST` | `/api/v1/channels/{id}/messages` | Post a member-scoped message |
 | `GET` | `/api/v1/channels/{id}/messages/search` | Search messages within one member-scoped channel |
+| `GET` | `/api/v1/channels/{id}/export?format=json|csv` | Download a member-scoped channel history |
+| `GET` | `/api/v1/users/me/export?format=json|csv` | Download all messages authored by the current user |
 
 Create a public channel:
 

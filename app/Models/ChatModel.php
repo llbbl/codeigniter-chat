@@ -135,6 +135,54 @@ class ChatModel extends Model implements ChatRepository
     }
 
     /**
+     * Read stable channel history across the live and archive tables.
+     *
+     * @return array{
+     *     messages: list<array<string, mixed>>,
+     *     pagination: array{limit: int, nextBefore: ?int, hasMore: bool}
+     * }
+     */
+    public function getMessageHistory(int $channelId, ?int $before = null, int $limit = 25): array
+    {
+        $limit = max(1, min(100, $limit));
+        $messages = $this->db->prefixTable('messages');
+        $archived = $this->db->prefixTable('archived_messages');
+        $cursor = $before === null ? '' : ' AND id < ?';
+        $bindings = [$channelId];
+        if ($before !== null) {
+            $bindings[] = $before;
+        }
+        $bindings[] = $channelId;
+        if ($before !== null) {
+            $bindings[] = $before;
+        }
+        $bindings[] = $limit + 1;
+
+        $rows = $this->db->query(
+            "SELECT id, channel_id, user, msg, time, archived FROM (
+                SELECT id, channel_id, user, msg, time, 0 AS archived FROM {$messages} WHERE channel_id = ?{$cursor}
+                UNION ALL
+                SELECT id, channel_id, user, msg, time, 1 AS archived FROM {$archived} WHERE channel_id = ?{$cursor}
+            ) AS channel_history ORDER BY id DESC LIMIT ?",
+            $bindings,
+        )->getResultArray();
+
+        $hasMore = count($rows) > $limit;
+        if ($hasMore) {
+            array_pop($rows);
+        }
+
+        return [
+            'messages' => $rows,
+            'pagination' => [
+                'limit' => $limit,
+                'nextBefore' => $hasMore && $rows !== [] ? (int) $rows[array_key_last($rows)]['id'] : null,
+                'hasMore' => $hasMore,
+            ],
+        ];
+    }
+
+    /**
      * Search messages using each supported database's native full-text index.
      *
      * Exact-user and time filters are intentionally applied to the messages
@@ -248,6 +296,80 @@ class ChatModel extends Model implements ChatRepository
         }
 
         return $result;
+    }
+
+    public function archiveMessagesBefore(int $timestamp, ?int $channelId = null, int $batchSize = 1_000): int
+    {
+        $batchSize = max(1, min(10_000, $batchSize));
+        $archivedCount = 0;
+
+        do {
+            $builder = $this->db->table('messages')->where('time <', $timestamp)->orderBy('id')->limit($batchSize);
+            if ($channelId !== null) {
+                $builder->where('channel_id', $channelId);
+            }
+            $rows = $builder->get()->getResultArray();
+            if ($rows === []) {
+                break;
+            }
+
+            $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
+            $archivedAt = date('Y-m-d H:i:s');
+            $archiveRows = array_map(static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'channel_id' => (int) $row['channel_id'],
+                'user' => (string) $row['user'],
+                'msg' => (string) $row['msg'],
+                'time' => (int) $row['time'],
+                'archived_at' => $archivedAt,
+            ], $rows);
+
+            $this->db->transException(true)->transStart();
+            $this->db->table('archived_messages')->insertBatch($archiveRows);
+            $this->db->table('messages')->whereIn('id', $ids)->delete();
+            $this->db->transComplete();
+
+            $archivedCount += count($rows);
+            $this->invalidateCache();
+        } while (count($rows) === $batchSize);
+
+        return $archivedCount;
+    }
+
+    public function exportMessages(?int $channelId = null, ?string $username = null, int $batchSize = 500): iterable
+    {
+        $batchSize = max(1, min(5_000, $batchSize));
+        $messages = $this->db->prefixTable('messages');
+        $archived = $this->db->prefixTable('archived_messages');
+        $after = 0;
+
+        do {
+            $where = ['id > ?'];
+            $tableBindings = [$after];
+            if ($channelId !== null) {
+                $where[] = 'channel_id = ?';
+                $tableBindings[] = $channelId;
+            }
+            if ($username !== null) {
+                $where[] = 'user = ?';
+                $tableBindings[] = $username;
+            }
+            $condition = implode(' AND ', $where);
+            $bindings = [...$tableBindings, ...$tableBindings, $batchSize];
+            $rows = $this->db->query(
+                "SELECT id, channel_id, user, msg, time, archived FROM (
+                    SELECT id, channel_id, user, msg, time, 0 AS archived FROM {$messages} WHERE {$condition}
+                    UNION ALL
+                    SELECT id, channel_id, user, msg, time, 1 AS archived FROM {$archived} WHERE {$condition}
+                ) AS message_export ORDER BY id ASC LIMIT ?",
+                $bindings,
+            )->getResultArray();
+
+            foreach ($rows as $row) {
+                $after = (int) $row['id'];
+                yield $row;
+            }
+        } while (count($rows) === $batchSize);
     }
 
     /**
