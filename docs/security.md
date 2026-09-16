@@ -8,4 +8,4 @@ CSP reports are retained for 30 days; the report endpoint prunes older rows when
 
 ## Audit event taxonomy
 
-Authentication events use `auth.register`, `auth.login.success`, `auth.login.failure`, and `auth.logout`. Audit rows retain IP and user agent for 90 days by default; run `audit:prune --older-than=90d` to enforce retention.
+Authentication events use `auth.register`, `auth.login.success`, `auth.login.failure`, and `auth.logout`. The scheduled `retention:apply` policy keeps audit rows for 365 days by default. For an ad hoc, shorter cleanup, `audit:prune --older-than=90d` removes rows older than 90 days.
