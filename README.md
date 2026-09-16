@@ -162,6 +162,7 @@ See:
 - `docs/api.md` (message reaction HTTP and WebSocket contracts)
 - `docs/user-profiles.md` (profile settings, avatars, themes, and WebSocket presence)
 - `docs/channels.md` (public channels, private DMs, APIs, WebSocket routing, and migration operations)
+- `docs/operations.md` (message archiving schedules, batching, and export storage)
 
 ## Troubleshooting
 

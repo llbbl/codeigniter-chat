@@ -128,6 +128,7 @@
       <div
         v-else
         id="messagewindow"
+        ref="messageWindow"
         class="messages"
         role="log"
         aria-label="Chat messages"
@@ -136,6 +137,19 @@
         tabindex="-1"
       >
         <a class="skip-link" href="#message-input">Skip to message composer</a>
+        <div v-if="!searchActive && !hasMoreMessages && messages.length" class="history-boundary" role="status">
+          Beginning of channel
+        </div>
+        <div
+          v-if="!searchActive && hasMoreMessages"
+          ref="historySentinel"
+          class="history-sentinel"
+          aria-hidden="true"
+        ></div>
+        <div v-if="!searchActive && loadingMore" class="history-loading" role="status" aria-live="polite">
+          <span class="spinner-small" aria-hidden="true"></span>
+          Loading older messages…
+        </div>
         <article
           v-for="(message, index) in messages"
           :key="message.id || index"
@@ -156,7 +170,7 @@
               </time>
             </div>
             <div class="message-content" v-html="formatMessage(message.msg)"></div>
-            <div v-if="message.id" class="message-reactions">
+            <div v-if="message.id && !Number(message.archived)" class="message-reactions">
               <button
                 v-for="reaction in reactionsFor(message.id)"
                 :key="reaction.emoji"
@@ -200,7 +214,7 @@
       </div>
     </div>
 
-    <div class="load-more-container" v-if="!loading && hasMoreMessages">
+    <div class="load-more-container" v-if="!loading && searchActive && hasMoreMessages">
       <button type="button" class="load-more-btn" @click="loadMoreMessages" :disabled="loadingMore">
         <span v-if="loadingMore" class="spinner-small" aria-hidden="true"></span>
         <span>{{ loadingMore ? 'Loading...' : 'Load More Messages' }}</span>
@@ -298,6 +312,8 @@
         // Pagination
         currentPage: 1,
         hasMoreMessages: false,
+        historyBefore: null,
+        historyObserver: null,
 
         // WebSocket connection state
         webSocket: null,
@@ -441,6 +457,9 @@
         channel.unread_count = 0;
         this.messages = [];
         this.currentPage = 1;
+        this.historyBefore = null;
+        this.historyObserver?.disconnect();
+        this.loadingMore = false;
         this.loading = true;
         this.clearSearchState();
         const url = new URL(window.location.href);
@@ -673,8 +692,7 @@
               }
 
               if (!this.lastMessageTime || data.data.timestamp > this.lastMessageTime) {
-                // Add new message to the beginning of our list
-                this.messages.unshift(data.data);
+                this.messages.push(data.data);
                 this.lastMessageTime = data.data.timestamp;
               }
               break;
@@ -790,6 +808,8 @@
           clearInterval(this.reconnectInterval);
         }
 
+        this.historyObserver?.disconnect();
+
         window.removeEventListener('beforeunload', this.cleanUp);
       },
 
@@ -806,23 +826,8 @@
         this.searchError = '';
         this.activeSearchKey = '';
 
-        if (!this.webSocketConnected) {
-          console.log('WebSocket not connected, using HTTP fallback');
-          this.loadMessagesHttp();
-          return;
-        }
-
         this.loading = true;
-
-        // Request messages via WebSocket
-        this.webSocket.send(
-          JSON.stringify({
-            action: 'getMessages',
-            page: this.currentPage,
-            perPage: 10,
-            channel_id: this.activeChannelId,
-          }),
-        );
+        this.loadMessagesHttp();
       },
 
       // HTTP fallback for loading messages
@@ -832,24 +837,29 @@
           return false;
         }
 
+        const channelId = this.activeChannelId;
         try {
           const response = await fetch(
-            userScopedMessagesUrl(
-              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=${this.currentPage}&per_page=10`,
-              this.userId,
-            ),
+            userScopedMessagesUrl(`${this.$chatRoutes.channels}/${channelId}/messages?limit=25`, this.userId),
           );
           const data = await response.json();
           if (!response.ok) throw new Error('Message request failed');
+          if (Number(channelId) !== Number(this.activeChannelId) || this.searchActive) return false;
 
-          this.messages = data.messages || [];
-          this.hasMoreMessages = data.pagination?.hasNext || false;
+          this.messages = [...(data.messages || [])].reverse().map(this.normalizeMessage);
+          this.hasMoreMessages = Boolean(data.pagination?.hasMore);
+          this.historyBefore = data.pagination?.nextBefore || null;
           this.loading = false;
 
           // Store timestamp of the newest message for refresh comparison
-          if (this.messages.length > 0 && this.messages[0].timestamp) {
-            this.lastMessageTime = this.messages[0].timestamp;
+          const newestMessage = this.messages[this.messages.length - 1];
+          if (newestMessage?.timestamp) {
+            this.lastMessageTime = newestMessage.timestamp;
           }
+          await this.$nextTick();
+          const messageWindow = this.$refs.messageWindow;
+          if (messageWindow) messageWindow.scrollTop = messageWindow.scrollHeight;
+          this.observeHistorySentinel();
           return true;
         } catch (error) {
           console.error('Error loading messages:', error);
@@ -863,7 +873,7 @@
         try {
           await fetch(
             userScopedMessagesUrl(
-              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=1&per_page=10`,
+              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?limit=25`,
               this.userId,
             ),
           );
@@ -951,67 +961,83 @@
         if (this.activeChannelId === null) return;
         if (this.loadingMore) return;
 
-        this.loadingMore = true;
-        this.currentPage++;
-
         if (this.searchActive) {
+          this.loadingMore = true;
+          this.currentPage++;
           this.executeSearch(this.currentPage, true);
           return;
         }
 
-        if (!this.webSocketConnected) {
-          console.log('WebSocket not connected, using HTTP fallback');
-          this.loadMoreMessagesHttp();
-          return;
-        }
-
-        // Request more messages via WebSocket
-        this.webSocket.send(
-          JSON.stringify({
-            action: 'getMessages',
-            page: this.currentPage,
-            perPage: 10,
-            channel_id: this.activeChannelId,
-          }),
-        );
-
-        // The response will be handled by the message event listener
-        // We'll need to update the loadingMore state there
-        setTimeout(() => {
-          // Fallback to reset loading state if no response
-          if (this.loadingMore) {
-            this.loadingMore = false;
-          }
-        }, 5000);
+        void this.loadOlderMessages();
       },
 
-      // HTTP fallback for loading more messages
-      async loadMoreMessagesHttp() {
-        if (this.activeChannelId === null) {
-          this.loadingMore = false;
+      async loadOlderMessages() {
+        if (
+          this.loadingMore ||
+          this.searchActive ||
+          this.activeChannelId === null ||
+          !this.hasMoreMessages ||
+          this.historyBefore === null
+        )
           return;
-        }
 
+        this.loadingMore = true;
+        const channelId = this.activeChannelId;
+        const cursor = this.historyBefore;
+        const messageWindow = this.$refs.messageWindow;
+        const previousHeight = messageWindow?.scrollHeight || 0;
+        const previousTop = messageWindow?.scrollTop || 0;
         try {
           const response = await fetch(
             userScopedMessagesUrl(
-              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=${this.currentPage}&per_page=10`,
+              `${this.$chatRoutes.channels}/${channelId}/messages?before=${cursor}&limit=25`,
               this.userId,
             ),
           );
           const data = await response.json();
+          if (!response.ok) {
+            throw new Error('Message history request failed');
+          }
+          if (
+            Number(channelId) !== Number(this.activeChannelId) ||
+            Number(cursor) !== Number(this.historyBefore) ||
+            this.searchActive
+          )
+            return;
 
           if (data.messages && data.messages.length > 0) {
-            this.messages = [...this.messages, ...data.messages];
+            this.messages = [...data.messages].reverse().map(this.normalizeMessage).concat(this.messages);
           }
-
-          this.hasMoreMessages = data.pagination?.hasNext || false;
+          this.hasMoreMessages = Boolean(data.pagination?.hasMore);
+          this.historyBefore = data.pagination?.nextBefore || null;
+          await this.$nextTick();
+          if (messageWindow) {
+            messageWindow.scrollTop = previousTop + (messageWindow.scrollHeight - previousHeight);
+          }
         } catch (error) {
-          console.error('Error loading more messages:', error);
-          this.currentPage--; // Revert page increment on failure
+          console.error('Error loading older messages:', error);
         } finally {
           this.loadingMore = false;
         }
+      },
+
+      observeHistorySentinel() {
+        this.historyObserver?.disconnect();
+        const root = this.$refs.messageWindow;
+        const sentinel = this.$refs.historySentinel;
+        if (!root || !sentinel || !this.hasMoreMessages || this.searchActive) return;
+
+        this.historyObserver = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) void this.loadOlderMessages();
+          },
+          { root, threshold: 0.1 },
+        );
+        this.historyObserver.observe(sentinel);
+      },
+
+      normalizeMessage(message) {
+        return { ...message, timestamp: message.timestamp ?? message.time };
       },
 
       scheduleSearch() {
@@ -1364,8 +1390,7 @@
             if (this.searchActive) {
               this.searchHasLiveUpdates = true;
             } else {
-              // Add message to the beginning of the list
-              this.messages.unshift({
+              this.messages.push({
                 user: this.username,
                 msg: this.message,
                 timestamp: Math.floor(Date.now() / 1000), // Current timestamp in seconds
@@ -1753,12 +1778,24 @@ button:active:not(:disabled),
 .messages {
   height: 350px;
   overflow-y: auto;
+  overflow-anchor: none;
   padding: 15px;
   background-color: $background-color;
 
   @media (max-width: 640px) {
     height: 300px;
   }
+}
+
+.history-boundary,
+.history-loading {
+  margin: 0 0 12px;
+  color: $light-text-color;
+  text-align: center;
+}
+
+.history-sentinel {
+  height: 1px;
 }
 
 .message-item {

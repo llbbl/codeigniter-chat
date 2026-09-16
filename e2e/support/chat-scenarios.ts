@@ -47,6 +47,7 @@ export function chatScenario(scenario: ChatScenario): void {
       await assertModernChatTyping(page, scenario.messageInput);
       await assertModernChatSearch(page);
       await assertModernChatReactions(page);
+      await assertModernChatHistory(page);
       await expect(page.getByRole('navigation', { name: 'Channels and direct messages' })).toBeVisible();
       await expect(page.getByRole('button', { name: '# General' })).toHaveAttribute('aria-current', 'page');
       await expect(page.getByLabel('Start a direct message')).toBeVisible();
@@ -300,12 +301,58 @@ async function assertModernChatReactions(page: Page): Promise<void> {
   await expect
     .poll(async () => page.evaluate(() => window.__chatReactionRequests))
     .toEqual([
-      { type: 'reaction_add', message_id: 1, emoji: '👍' },
-      { type: 'reaction_remove', message_id: 1, emoji: '👍' },
+      { type: 'reaction_add', message_id: 19, emoji: '👍' },
+      { type: 'reaction_remove', message_id: 19, emoji: '👍' },
     ]);
 }
 
+async function assertModernChatHistory(page: Page): Promise<void> {
+  const messageLog = page.getByRole('log', { name: 'Chat messages' });
+  await messageLog.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(messageLog).toContainText('Archived boundary message');
+  await expect.poll(async () => messageLog.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await messageLog.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(page.getByText('Beginning of channel')).toBeVisible();
+}
+
 async function installModernChatWebSocket(page: Page): Promise<void> {
+  await page.route(/\/api\/v1\/channels\/\d+\/messages(?:\?.*)?$/, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== 'GET' || !url.searchParams.has('limit')) {
+      await route.continue();
+      return;
+    }
+
+    const before = url.searchParams.get('before');
+    const now = Math.floor(Date.now() / 1000);
+    const messages = before
+      ? [
+          { id: 18, channel_id: 1, user: 'e2euser', msg: 'Older live message', time: now - 7200 },
+          { id: 17, channel_id: 1, user: 'e2euser', msg: 'Archived boundary message', time: now - 10800 },
+        ]
+      : Array.from({ length: 12 }, (_, index) => ({
+          id: 30 - index,
+          channel_id: 1,
+          user: 'mobile-overflow-check-user-with-a-very-long-name',
+          msg: `mobile-overflow-check-${'x'.repeat(460)}`,
+          time: now - index * 60,
+        }));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        messages,
+        pagination: before
+          ? { limit: 25, nextBefore: null, hasMore: false }
+          : { limit: 25, nextBefore: 19, hasMore: true },
+      }),
+    });
+  });
   await page.route(/\/api\/v1\/messages\/\d+\/reactions$/, async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });

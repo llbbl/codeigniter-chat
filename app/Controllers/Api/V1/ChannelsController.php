@@ -6,6 +6,7 @@ use App\Contracts\ChannelRepository;
 use App\Contracts\ChatRepository;
 use App\Contracts\UserRepository;
 use App\Controllers\BaseController;
+use CodeIgniter\HTTP\DownloadResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Throwable;
 
@@ -174,13 +175,21 @@ final class ChannelsController extends BaseController
             return $membershipError;
         }
 
-        $page = $this->positiveIntegerQuery('page', 1, PHP_INT_MAX);
-        $perPage = $this->positiveIntegerQuery('per_page', 10, 100);
-        if (is_string($page) || is_string($perPage)) {
-            return $this->error('validation', is_string($page) ? $page : $perPage, 400);
+        if ($this->request->getGet('before') !== null || $this->request->getGet('limit') !== null) {
+            $before = $this->optionalPositiveIntegerQuery('before');
+            $limit = $this->positiveIntegerQuery('limit', 25, 100);
+            if (is_string($before) || is_string($limit)) {
+                return $this->error('validation', is_string($before) ? $before : $limit, 400);
+            }
+            $result = $this->messages->getMessageHistory($channelId, $before, $limit);
+        } else {
+            $page = $this->positiveIntegerQuery('page', 1, PHP_INT_MAX);
+            $perPage = $this->positiveIntegerQuery('per_page', 10, 100);
+            if (is_string($page) || is_string($perPage)) {
+                return $this->error('validation', is_string($page) ? $page : $perPage, 400);
+            }
+            $result = $this->messages->getMsgPaginated($page, $perPage, $channelId);
         }
-
-        $result = $this->messages->getMsgPaginated($page, $perPage, $channelId);
         $this->channels->markRead($channelId, $this->userId());
 
         return $this->channelJson($result);
@@ -254,6 +263,27 @@ final class ChannelsController extends BaseController
         ]);
     }
 
+    public function exportChannel(int $channelId): ResponseInterface
+    {
+        $membershipError = $this->memberChannel($channelId);
+        if ($membershipError instanceof ResponseInterface) {
+            return $membershipError;
+        }
+
+        return $this->exportResponse(
+            $this->messages->exportMessages(channelId: $channelId),
+            'channel-' . $channelId . '-messages',
+        );
+    }
+
+    public function exportMine(): ResponseInterface
+    {
+        return $this->exportResponse(
+            $this->messages->exportMessages(username: (string) $this->getCurrentUsername()),
+            'my-messages',
+        );
+    }
+
     private function memberChannel(int $channelId): ?ResponseInterface
     {
         $channel = $this->channels->findChannel($channelId);
@@ -322,6 +352,19 @@ final class ChannelsController extends BaseController
         return (int) $value;
     }
 
+    private function optionalPositiveIntegerQuery(string $name): int|string|null
+    {
+        $value = $this->request->getGet($name);
+        if ($value === null) {
+            return null;
+        }
+        if (! is_string($value) || preg_match('/^[1-9]\d*$/', $value) !== 1 || (float) $value > PHP_INT_MAX) {
+            return "The {$name} parameter must be a positive integer.";
+        }
+
+        return (int) $value;
+    }
+
     /** @return array{value: ?string, error: ?string} */
     private function optionalQueryString(string $name, int $maximum): array
     {
@@ -363,5 +406,66 @@ final class ChannelsController extends BaseController
     private function channelJson(mixed $data, int $status = 200): ResponseInterface
     {
         return $this->respondWithJson($data, $status)->setHeader('X-CSRF-TOKEN', csrf_hash());
+    }
+
+    /** @param iterable<array{id: int|string, channel_id: int|string, user: string, msg: string, time: int|string, archived: int|string}> $messages */
+    private function exportResponse(iterable $messages, string $basename): ResponseInterface
+    {
+        $format = strtolower((string) ($this->request->getGet('format') ?? 'json'));
+        if (! in_array($format, ['json', 'csv'], true)) {
+            return $this->error('validation', 'The format parameter must be json or csv.', 400);
+        }
+
+        $path = tempnam(WRITEPATH . 'cache', 'chat-export-');
+        if ($path === false) {
+            return $this->error('export', 'The export could not be prepared.', 500);
+        }
+        $handle = fopen($path, 'wb');
+        if ($handle === false) {
+            @unlink($path);
+
+            return $this->error('export', 'The export could not be prepared.', 500);
+        }
+
+        if ($format === 'csv') {
+            fputcsv($handle, ['id', 'channel_id', 'user', 'msg', 'time', 'archived'], escape: '');
+            foreach ($messages as $message) {
+                fputcsv($handle, [
+                    $message['id'],
+                    $message['channel_id'],
+                    $message['user'],
+                    $message['msg'],
+                    $message['time'],
+                    $message['archived'],
+                ], escape: '');
+            }
+        } else {
+            fwrite($handle, '[');
+            $first = true;
+            foreach ($messages as $message) {
+                if (! $first) {
+                    fwrite($handle, ',');
+                }
+                fwrite($handle, json_encode($message, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE));
+                $first = false;
+            }
+            fwrite($handle, ']');
+        }
+        fclose($handle);
+        register_shutdown_function(static function () use ($path): void {
+            @unlink($path);
+        });
+
+        $response = $this->response->download($path, null, true);
+        if (! $response instanceof DownloadResponse) {
+            @unlink($path);
+
+            return $this->error('export', 'The export could not be prepared.', 500);
+        }
+
+        return $response
+            ->setFileName($basename . '.' . $format)
+            ->setContentType($format === 'csv' ? 'text/csv' : 'application/json')
+            ->setHeader('X-CSRF-TOKEN', csrf_hash());
     }
 }
