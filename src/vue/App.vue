@@ -106,7 +106,7 @@
         <a class="skip-link" href="#message-input">Skip to message composer</a>
         <article
           v-for="(message, index) in messages"
-          :key="index"
+          :key="message.id || index"
           class="message-item"
           :aria-label="`Message from ${message.user}`"
         >
@@ -124,6 +124,42 @@
               </time>
             </div>
             <div class="message-content" v-html="formatMessage(message.msg)"></div>
+            <div v-if="message.id" class="message-reactions">
+              <button
+                v-for="reaction in reactionsFor(message.id)"
+                :key="reaction.emoji"
+                type="button"
+                class="reaction-badge"
+                :class="{ active: reaction.users.includes(username) }"
+                :aria-pressed="reaction.users.includes(username)"
+                :aria-label="`${reaction.emoji} reaction from ${reaction.users.join(', ')}. ${reaction.count} total.`"
+                :title="reaction.users.join(', ')"
+                @click="toggleReaction(message.id, reaction.emoji)"
+              >
+                <span aria-hidden="true">{{ reaction.emoji }}</span> {{ reaction.count }}
+              </button>
+              <button
+                type="button"
+                class="reaction-picker-toggle"
+                :aria-expanded="reactionPickerMessageId === Number(message.id)"
+                :aria-label="`React to message from ${message.user}`"
+                @click="toggleReactionPicker(message.id)"
+              >
+                +
+              </button>
+              <fieldset v-if="reactionPickerMessageId === Number(message.id)" class="reaction-picker">
+                <legend class="sr-only">Choose a reaction</legend>
+                <button
+                  v-for="emoji in reactionEmojis"
+                  :key="emoji"
+                  type="button"
+                  :aria-label="`React with ${emoji}`"
+                  @click="toggleReaction(message.id, emoji)"
+                >
+                  {{ emoji }}
+                </button>
+              </fieldset>
+            </div>
           </div>
         </article>
         <div v-if="messages.length === 0" class="no-messages">
@@ -195,6 +231,7 @@
 </template>
 
 <script>
+  import { reactionEmojis } from '../config/reactions.ts';
   import {
     dismissFailedMessages,
     enablePushNotifications,
@@ -269,11 +306,15 @@
         typingStopTimeout: null,
         profiles: {},
         requestedProfiles: {},
+        reactions: {},
+        reactionPickerMessageId: null,
+        reactionEmojis,
       };
     },
     watch: {
       messages() {
         void this.loadProfiles();
+        void this.loadReactions();
       },
     },
     computed: {
@@ -455,6 +496,10 @@
           }
           if (data.type === 'presence_state') {
             this.mergeProfiles(data.users || []);
+            return;
+          }
+          if (data.type === 'reaction') {
+            this.applyReactionUpdate(data);
             return;
           }
 
@@ -662,6 +707,81 @@
         } catch {
           // The live WebSocket remains authoritative; cache warming is best effort.
         }
+      },
+      reactionsFor(messageId) {
+        return this.reactions[messageId] || [];
+      },
+      toggleReactionPicker(messageId) {
+        const id = Number(messageId);
+        this.reactionPickerMessageId = this.reactionPickerMessageId === id ? null : id;
+      },
+      applyReactionUpdate(update) {
+        const messageId = Number(update.message_id);
+        const existing = this.reactionsFor(messageId).filter((reaction) => reaction.emoji !== update.emoji);
+        const next =
+          Number(update.count) > 0
+            ? [...existing, { emoji: update.emoji, count: Number(update.count), users: update.users || [] }]
+            : existing;
+        this.reactions = { ...this.reactions, [messageId]: next };
+      },
+      async loadReactions() {
+        const messageIds = [...new Set(this.messages.map((item) => Number(item.id)).filter((id) => id > 0))];
+        await Promise.all(
+          messageIds.map(async (messageId) => {
+            try {
+              const response = await fetch(`${this.$chatRoutes.api}/${messageId}/reactions`);
+              if (!response.ok) return;
+              this.reactions = { ...this.reactions, [messageId]: await response.json() };
+            } catch {
+              // Reactions are additive; message reading remains available if this request fails.
+            }
+          }),
+        );
+      },
+      async toggleReaction(messageId, emoji) {
+        const active = this.reactionsFor(messageId).some(
+          (reaction) => reaction.emoji === emoji && reaction.users.includes(this.username),
+        );
+        this.reactionPickerMessageId = null;
+        if (this.webSocketConnected) {
+          this.webSocket.send(
+            JSON.stringify({
+              type: active ? 'reaction_remove' : 'reaction_add',
+              message_id: Number(messageId),
+              emoji,
+            }),
+          );
+          return;
+        }
+
+        try {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+          const endpoint = `${this.$chatRoutes.api}/${messageId}/reactions${active ? `/${encodeURIComponent(emoji)}` : ''}`;
+          const response = await fetch(endpoint, {
+            method: active ? 'DELETE' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+            },
+            body: active ? undefined : JSON.stringify({ emoji }),
+          });
+          this.refreshCsrfToken(response);
+          if (!response.ok) throw new Error('Reaction request failed');
+          if (active) {
+            const refreshed = await fetch(`${this.$chatRoutes.api}/${messageId}/reactions`);
+            this.reactions = { ...this.reactions, [messageId]: await refreshed.json() };
+          } else {
+            const payload = await response.json();
+            this.applyReactionUpdate({ message_id: messageId, ...payload.reaction });
+          }
+        } catch {
+          this.error = 'The reaction could not be updated.';
+        }
+      },
+      refreshCsrfToken(response) {
+        const token = response.headers.get('X-CSRF-TOKEN');
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (token && meta) meta.setAttribute('content', token);
       },
 
       loadMoreMessages() {

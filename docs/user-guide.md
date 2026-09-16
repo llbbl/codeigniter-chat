@@ -204,6 +204,13 @@ The Vue.js and Svelte chat interfaces include a search panel above the message l
 
 While search filters are active, new live messages are not inserted into the filtered result list. Use **Refresh search** to rerun the same filters, or clear the search to return to the live feed.
 
+### Reacting to Messages
+
+In the Vue.js and Svelte chats, select the **React to message** button beneath a
+message and choose an emoji. Reaction badges show the total and identify the
+people who reacted to assistive technology. Select an active badge to remove
+your own reaction. Changes appear live for connected users.
+
 ### Loading Older Messages
 
 By default, the chat shows the most recent messages. To load older messages:

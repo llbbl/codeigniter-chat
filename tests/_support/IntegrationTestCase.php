@@ -68,7 +68,7 @@ abstract class IntegrationTestCase extends CIUnitTestCase
 
     private function resetApplicationServices(): void
     {
-        foreach (['userRepository', 'chatRepository', 'chatFormatter', 'pushSubscriptionRepository', 'auditLogger', 'response', 'security'] as $service) {
+        foreach (['userRepository', 'chatRepository', 'chatFormatter', 'pushSubscriptionRepository', 'reactionRepository', 'auditLogger', 'response', 'security'] as $service) {
             Services::resetSingle($service);
         }
     }

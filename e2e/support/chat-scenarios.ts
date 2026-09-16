@@ -46,6 +46,7 @@ export function chatScenario(scenario: ChatScenario): void {
       await assertModernChatAccessibility(page, scenario.messageInput);
       await assertModernChatTyping(page, scenario.messageInput);
       await assertModernChatSearch(page);
+      await assertModernChatReactions(page);
       await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
       await page.context().setOffline(true);
       await expect(page.getByText('You’re offline.')).toBeVisible();
@@ -279,10 +280,35 @@ async function assertModernChatSearch(page: Page): Promise<void> {
   await expect(page.getByRole('alert')).toBeHidden();
 }
 
+async function assertModernChatReactions(page: Page): Promise<void> {
+  const message = page.locator('.message-item').first();
+  await message.hover();
+  await message.getByRole('button', { name: /React to message from/ }).click();
+  const picker = page.getByRole('group', { name: 'Choose a reaction' });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: 'React with 👍' }).click();
+
+  const badge = page.getByRole('button', { name: /👍 reaction from e2euser\. 1 total\./ });
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveAttribute('aria-pressed', 'true');
+  await badge.click();
+  await expect(badge).toBeHidden();
+  await expect
+    .poll(async () => page.evaluate(() => window.__chatReactionRequests))
+    .toEqual([
+      { type: 'reaction_add', message_id: 1, emoji: '👍' },
+      { type: 'reaction_remove', message_id: 1, emoji: '👍' },
+    ]);
+}
+
 async function installModernChatWebSocket(page: Page): Promise<void> {
+  await page.route(/\/api\/v1\/messages\/\d+\/reactions$/, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
   await page.addInitScript(() => {
     window.__chatSearchRequests = [];
     window.__chatTypingRequests = [];
+    window.__chatReactionRequests = [];
     window.__expectedSearchDates = {
       from: Math.floor(new Date(2026, 8, 13, 0, 0, 0, 0).getTime() / 1000),
       to: Math.floor(new Date(2026, 8, 14, 23, 59, 59, 999).getTime() / 1000),
@@ -304,6 +330,15 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
           response = {
             type: 'typing_state',
             users: request.type === 'typing_start' ? [{ user_id: 999, username: 'Teammate' }] : [],
+          };
+        } else if (request.type === 'reaction_add' || request.type === 'reaction_remove') {
+          window.__chatReactionRequests.push(request);
+          response = {
+            type: 'reaction',
+            message_id: request.message_id,
+            emoji: request.emoji,
+            count: request.type === 'reaction_add' ? 1 : 0,
+            users: request.type === 'reaction_add' ? ['e2euser'] : [],
           };
         } else if (request.action === 'getMessages' && request.search) {
           window.__chatSearchRequests.push(request);
@@ -352,6 +387,7 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
             data: {
               messages: [
                 {
+                  id: 1,
                   user: 'mobile-overflow-check-user-with-a-very-long-name',
                   msg: `mobile-overflow-check-${'x'.repeat(460)}`,
                   timestamp: Math.floor(Date.now() / 1000) - 60,
@@ -364,6 +400,7 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
           response = {
             action: 'newMessage',
             data: {
+              id: 2,
               user: request.username,
               msg: request.message,
               timestamp: Math.floor(Date.now() / 1000),

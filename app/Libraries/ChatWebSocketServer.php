@@ -2,9 +2,11 @@
 
 namespace App\Libraries;
 
+use App\Contracts\ReactionRepository;
 use App\Contracts\UserRepository;
 use App\Helpers\WebSocketTokenHelper;
 use App\Models\ChatModel;
+use App\Models\MessageReactionModel;
 use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use Exception;
@@ -74,6 +76,11 @@ class ChatWebSocketServer implements MessageComponentInterface
 
     private readonly UserRepository $users;
 
+    private readonly ReactionRepository $reactions;
+
+    /** @var array<int, list<int>> */
+    private array $reactionHistory = [];
+
     /** @var array<int, array{user_id: int, username: string, display_name: string, avatar_url: ?string, presence: string, last_seen_at: ?string}> */
     private array $presenceUsers = [];
 
@@ -99,11 +106,13 @@ class ChatWebSocketServer implements MessageComponentInterface
         ?ChatModel $chatModel = null,
         bool $requireAuth = true,
         ?UserRepository $users = null,
+        ?ReactionRepository $reactions = null,
     ) {
         $this->clients = $clients ?? new SplObjectStorage();
         $this->chatModel = $chatModel ?? new ChatModel();
         $this->requireAuth = $requireAuth;
         $this->users = $users ?? new UserModel();
+        $this->reactions = $reactions ?? new MessageReactionModel();
 
         $this->logServerStart();
     }
@@ -209,6 +218,11 @@ class ChatWebSocketServer implements MessageComponentInterface
 
             case 'presence_update':
                 $this->handlePresenceUpdate($from, $data);
+                break;
+
+            case 'reaction_add':
+            case 'reaction_remove':
+                $this->handleReaction($from, $data, $messageType);
                 break;
         }
     }
@@ -699,12 +713,13 @@ class ChatWebSocketServer implements MessageComponentInterface
         $timestamp = Time::now()->getTimestamp();
 
         // Insert message into database
-        $this->chatModel->insertMsg($username, $message, $timestamp);
+        $messageId = $this->chatModel->insertMsg($username, $message, $timestamp);
 
         // Prepare the message data for broadcasting
         $messageData = [
             'action' => 'newMessage',
             'data' => [
+                'id'        => $messageId,
                 'user'      => $username,
                 'msg'       => $message,
                 'timestamp' => $timestamp,
@@ -716,5 +731,111 @@ class ChatWebSocketServer implements MessageComponentInterface
         foreach ($this->clients as $client) {
             $client->send(json_encode($messageData));
         }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function handleReaction(ConnectionInterface $from, array $data, string $messageType): void
+    {
+        if (! $this->clients->contains($from)) {
+            return;
+        }
+
+        $connectionData = $this->clients[$from];
+        $userId = $connectionData['user_id'] ?? 0;
+        $messageId = $data['message_id'] ?? 0;
+        $emoji = $this->validReactionEmoji($data['emoji'] ?? null);
+        if (
+            ($connectionData['authenticated'] ?? false) !== true
+            || ! is_int($userId)
+            || $userId <= 0
+            || ! is_int($messageId)
+            || $messageId <= 0
+            || $emoji === null
+            || ! $this->reactions->messageExists($messageId)
+        ) {
+            $this->sendReactionError($from, 'INVALID_REACTION', 'The reaction request is invalid.');
+
+            return;
+        }
+
+        if (! $this->allowReaction($userId)) {
+            $this->sendReactionError($from, 'REACTION_RATE_LIMITED', 'Too many reactions. Please try again later.');
+
+            return;
+        }
+
+        if ($messageType === 'reaction_add') {
+            $this->reactions->add($messageId, $userId, $emoji);
+        } else {
+            $this->reactions->remove($messageId, $userId, $emoji);
+        }
+
+        $reaction = ['emoji' => $emoji, 'count' => 0, 'users' => []];
+        foreach ($this->reactions->forMessage($messageId) as $state) {
+            if ($state['emoji'] === $emoji) {
+                $reaction = [
+                    'emoji' => $state['emoji'],
+                    'count' => $state['count'],
+                    'users' => $state['users'],
+                ];
+                break;
+            }
+        }
+
+        $payload = json_encode([
+            'type' => 'reaction',
+            'message_id' => $messageId,
+            ...$reaction,
+        ], JSON_UNESCAPED_UNICODE);
+        foreach ($this->clients as $client) {
+            $client->send($payload);
+        }
+    }
+
+    private function allowReaction(int $userId): bool
+    {
+        $now = time();
+        $history = array_values(array_filter(
+            $this->reactionHistory[$userId] ?? [],
+            static fn (int $timestamp): bool => $timestamp > $now - 60,
+        ));
+        if (count($history) >= 120) {
+            $this->reactionHistory[$userId] = $history;
+
+            return false;
+        }
+
+        $history[] = $now;
+        $this->reactionHistory[$userId] = $history;
+
+        return true;
+    }
+
+    private function validReactionEmoji(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if (
+            $value === ''
+            || mb_strlen($value) > 10
+            || strlen($value) > 64
+            || preg_match('/[\p{C}\p{Z}]/u', $value) === 1
+            || preg_match('/\p{Extended_Pictographic}/u', $value) !== 1
+        ) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function sendReactionError(ConnectionInterface $connection, string $code, string $message): void
+    {
+        $connection->send(json_encode([
+            'action' => 'error',
+            'data' => ['code' => $code, 'message' => $message],
+        ]));
     }
 }
