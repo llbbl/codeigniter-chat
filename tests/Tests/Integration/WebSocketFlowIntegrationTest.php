@@ -4,6 +4,7 @@ namespace Tests\Integration;
 
 use App\Helpers\WebSocketTokenHelper;
 use App\Libraries\ChatWebSocketServer;
+use App\Models\ChannelModel;
 use App\Models\ChatModel;
 use App\Models\MessageReactionModel;
 use App\Models\UserModel;
@@ -15,28 +16,86 @@ use Tests\Support\IntegrationTestCase;
 #[Group('integration-websocket')]
 final class WebSocketFlowIntegrationTest extends IntegrationTestCase
 {
+    public function testChannelSubscriptionsDeliverMessagesOnlyToMembersAndSignalUnread(): void
+    {
+        $users = new UserModel();
+        $aliceId = $users->createUser('alice', 'alice-channels@example.com', 'Password123!');
+        $bobId = $users->createUser('bob', 'bob-channels@example.com', 'Password123!');
+        $malloryId = $users->createUser('mallory', 'mallory-channels@example.com', 'Password123!');
+        $this->assertIsInt($aliceId);
+        $this->assertIsInt($bobId);
+        $this->assertIsInt($malloryId);
+
+        $channels = new ChannelModel();
+        $channelId = $channels->createPublic('Members', 'members-only', null, $aliceId);
+        $this->assertIsInt($channelId);
+        $channels->join($channelId, $bobId);
+
+        $alice = new RecordingConnection('/?token=' . WebSocketTokenHelper::generateToken($aliceId) . "&user_id={$aliceId}");
+        $bob = new RecordingConnection('/?token=' . WebSocketTokenHelper::generateToken($bobId) . "&user_id={$bobId}");
+        $mallory = new RecordingConnection('/?token=' . WebSocketTokenHelper::generateToken($malloryId) . "&user_id={$malloryId}");
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), users: $users, channels: $channels);
+
+        $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!.*New connection!/s');
+        $server->onOpen($alice);
+        $server->onOpen($bob);
+        $server->onOpen($mallory);
+        $server->onMessage($alice, json_encode(['type' => 'channel_subscribe', 'channel_id' => $channelId], JSON_THROW_ON_ERROR));
+        $server->onMessage($mallory, json_encode(['type' => 'channel_subscribe', 'channel_id' => $channelId], JSON_THROW_ON_ERROR));
+
+        $alice->sent = [];
+        $bob->sent = [];
+        $malloryDenied = json_decode($mallory->sent[array_key_last($mallory->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('CHANNEL_ACCESS_DENIED', $malloryDenied['data']['code']);
+        $mallory->sent = [];
+
+        $server->onMessage($alice, json_encode([
+            'action' => 'sendMessage',
+            'username' => 'mallory',
+            'message' => 'Members can see this',
+            'channel_id' => $channelId,
+        ], JSON_THROW_ON_ERROR));
+
+        $aliceMessage = json_decode($alice->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('newMessage', $aliceMessage['action']);
+        $this->assertSame('alice', $aliceMessage['data']['user']);
+        $this->assertSame($channelId, $aliceMessage['data']['channel_id']);
+        $bobUnread = json_decode($bob->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(['type' => 'channel_unread', 'channel_id' => $channelId], $bobUnread);
+        $this->assertSame([], $mallory->sent);
+
+        $server->onMessage($bob, json_encode(['type' => 'channel_subscribe', 'channel_id' => $channelId], JSON_THROW_ON_ERROR));
+        $server->onMessage($bob, json_encode(['action' => 'getMessages', 'channel_id' => $channelId], JSON_THROW_ON_ERROR));
+        $messages = json_decode($bob->sent[array_key_last($bob->sent)], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($channelId, $messages['data']['channel_id']);
+        $this->assertSame('Members can see this', $messages['data']['messages'][0]['msg']);
+    }
+
     public function testAuthenticatedConnectionPersistsAndBroadcastsAMessage(): void
     {
-        $token = WebSocketTokenHelper::generateToken(42);
-        $sender = new RecordingConnection("/?token={$token}&user_id=42");
-        $observer = new RecordingConnection("/?token={$token}&user_id=42");
-        $server = new ChatWebSocketServer(chatModel: new ChatModel());
+        $users = new UserModel();
+        $userId = $users->createUser('socketuser', 'socketuser@example.com', 'Password123!');
+        $this->assertIsInt($userId);
+        $token = WebSocketTokenHelper::generateToken($userId);
+        $sender = new RecordingConnection("/?token={$token}&user_id={$userId}");
+        $observer = new RecordingConnection("/?token={$token}&user_id={$userId}");
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), users: $users);
 
         $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!/s');
         $server->onOpen($sender);
         $server->onOpen($observer);
         $server->onMessage($sender, json_encode([
             'action' => 'sendMessage',
-            'username' => 'socketuser',
+            'username' => 'spoofed-user',
             'message' => 'Broadcast integration message',
         ], JSON_THROW_ON_ERROR));
 
         $this->assertSame(2, $server->getClientCount());
-        $this->assertTrue($server->isUserConnected(42));
+        $this->assertTrue($server->isUserConnected($userId));
         $this->assertFalse($sender->closed);
         $this->assertMessageInDatabase('socketuser', 'Broadcast integration message');
 
-        $broadcast = json_decode($observer->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $broadcast = json_decode($observer->sent[array_key_last($observer->sent)], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('newMessage', $broadcast['action']);
         $this->assertSame('socketuser', $broadcast['data']['user']);
         $this->assertSame('Broadcast integration message', $broadcast['data']['msg']);
@@ -93,32 +152,36 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
 
     public function testAuthenticatedTypingEventsReachTheOtherClient(): void
     {
-        $senderToken = WebSocketTokenHelper::generateToken(42);
-        $observerToken = WebSocketTokenHelper::generateToken(43);
-        $sender = new RecordingConnection("/?token={$senderToken}&user_id=42");
-        $observer = new RecordingConnection("/?token={$observerToken}&user_id=43");
-        $server = new ChatWebSocketServer(chatModel: new ChatModel());
+        $users = new UserModel();
+        $senderId = $users->createUser('alice', 'alice-typing@example.com', 'Password123!');
+        $observerId = $users->createUser('bob', 'bob-typing@example.com', 'Password123!');
+        $this->assertIsInt($senderId);
+        $this->assertIsInt($observerId);
+        $senderToken = WebSocketTokenHelper::generateToken($senderId);
+        $observerToken = WebSocketTokenHelper::generateToken($observerId);
+        $sender = new RecordingConnection("/?token={$senderToken}&user_id={$senderId}");
+        $observer = new RecordingConnection("/?token={$observerToken}&user_id={$observerId}");
+        $server = new ChatWebSocketServer(chatModel: new ChatModel(), users: $users);
 
         $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!/s');
         $server->onOpen($sender);
         $server->onOpen($observer);
         $server->onMessage($sender, json_encode([
             'type' => 'typing_start',
-            'user_id' => 42,
+            'user_id' => $senderId,
             'username' => 'Alice',
         ], JSON_THROW_ON_ERROR));
 
-        $this->assertSame([], $sender->sent);
-        $typingState = json_decode($observer->sent[0], true, flags: JSON_THROW_ON_ERROR);
+        $typingState = json_decode($observer->sent[array_key_last($observer->sent)], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('typing_state', $typingState['type']);
-        $this->assertSame([['user_id' => 42, 'username' => 'Alice']], $typingState['users']);
+        $this->assertSame([['user_id' => $senderId, 'username' => 'Alice']], $typingState['users']);
 
         $server->onMessage($sender, json_encode([
             'type' => 'typing_stop',
-            'user_id' => 42,
+            'user_id' => $senderId,
             'username' => 'Alice',
         ], JSON_THROW_ON_ERROR));
-        $stoppedState = json_decode($observer->sent[1], true, flags: JSON_THROW_ON_ERROR);
+        $stoppedState = json_decode($observer->sent[array_key_last($observer->sent)], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame([], $stoppedState['users']);
     }
 

@@ -6,6 +6,7 @@ use App\Contracts\AuditLogger;
 use App\Contracts\AuditLogRepository;
 use App\Contracts\ChatFormatter;
 use App\Contracts\ChatRepository;
+use App\Contracts\ChannelRepository;
 use App\Contracts\CspReportRepository;
 use App\Contracts\UserRepository;
 use App\Controllers\AuditLog;
@@ -27,6 +28,7 @@ final class DependencyInjectionTest extends CIUnitTestCase
     public function testServicesBindContractsToImplementations(): void
     {
         $this->assertInstanceOf(ChatRepository::class, Services::chatRepository(false));
+        $this->assertInstanceOf(ChannelRepository::class, Services::channelRepository(false));
         $this->assertInstanceOf(UserRepository::class, Services::userRepository(false));
         $this->assertInstanceOf(CspReportRepository::class, Services::cspReportRepository(false));
         $this->assertInstanceOf(AuditLogRepository::class, Services::auditLogRepository(false));

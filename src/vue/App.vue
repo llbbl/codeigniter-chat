@@ -32,6 +32,38 @@
       <button type="button" class="status-dismiss" @click="dismissDeliveryFailures">Dismiss</button>
     </div>
 
+    <nav class="channel-sidebar" aria-label="Channels and direct messages">
+      <h2>Conversations</h2>
+      <button
+        v-for="channel in channels"
+        :key="channel.id"
+        type="button"
+        class="channel-link"
+        :class="{ active: Number(channel.id) === Number(activeChannelId) }"
+        :aria-current="Number(channel.id) === Number(activeChannelId) ? 'page' : undefined"
+        @click="selectChannel(channel)"
+      >
+        <span>{{ channel.channel_type === 'dm' ? `@ ${dmLabel(channel)}` : `# ${channel.name}` }}</span>
+        <span v-if="channel.unread_count" class="channel-unread">
+          {{ channel.unread_count }}<span class="sr-only"> unread</span>
+        </span>
+      </button>
+      <form class="dm-form" @submit.prevent="createDm">
+        <label for="vue-dm-username">Start a direct message</label>
+        <div>
+          <input
+            id="vue-dm-username"
+            v-model="dmUsername"
+            type="text"
+            maxlength="50"
+            autocomplete="off"
+            placeholder="Username"
+          >
+          <button type="submit" :disabled="!dmUsername.trim()">Open</button>
+        </div>
+      </form>
+    </nav>
+
     <section class="search-panel" aria-labelledby="message-search-title">
       <div class="search-panel-header">
         <h2 id="message-search-title">Search messages</h2>
@@ -309,6 +341,9 @@
         reactions: {},
         reactionPickerMessageId: null,
         reactionEmojis,
+        channels: [],
+        activeChannelId: null,
+        dmUsername: '',
       };
     },
     watch: {
@@ -340,7 +375,7 @@
       this.unsubscribePwa = subscribePwa((state) => {
         this.pwa = state;
       });
-      this.connectWebSocket();
+      void this.initializeChat();
 
       // Clean up when component is destroyed
       this.$nextTick(() => {
@@ -352,6 +387,102 @@
       this.unsubscribePwa?.();
     },
     methods: {
+      async initializeChat() {
+        await this.loadChannels();
+        if (this.activeChannelId === null) {
+          return;
+        }
+        this.connectWebSocket();
+      },
+      async loadChannels() {
+        try {
+          const response = await fetch(this.$chatRoutes.channels);
+          if (!response.ok) throw new Error('Channel request failed');
+          this.channels = (await response.json()).channels || [];
+          const requestedSlug = new URL(window.location.href).searchParams.get('channel');
+          const requested = this.channels.find((channel) => channel.slug === requestedSlug);
+          const selected =
+            (requested?.is_member ? requested : null) ||
+            this.channels.find((channel) => channel.slug === 'general') ||
+            this.channels[0];
+          if (selected && this.activeChannelId === null) {
+            this.activeChannelId = Number(selected.id);
+            const url = new URL(window.location.href);
+            url.searchParams.set('channel', selected.slug);
+            window.history.replaceState({}, '', url);
+          }
+        } catch {
+          this.error = 'Channels could not be loaded.';
+        }
+      },
+      dmLabel(channel) {
+        return (channel.members || []).find((member) => member !== this.username) || 'Direct message';
+      },
+      async selectChannel(channel) {
+        if (Number(channel.id) === Number(this.activeChannelId)) return;
+        if (!channel.is_member) {
+          try {
+            const response = await fetch(`${this.$chatRoutes.channels}/${channel.id}/join`, {
+              method: 'POST',
+              headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+              },
+            });
+            this.refreshCsrfToken(response);
+            if (!response.ok) throw new Error('Channel join failed');
+            channel.is_member = true;
+          } catch {
+            this.error = 'The channel could not be joined.';
+            return;
+          }
+        }
+        this.stopTyping();
+        this.activeChannelId = Number(channel.id);
+        channel.unread_count = 0;
+        this.messages = [];
+        this.currentPage = 1;
+        this.loading = true;
+        this.clearSearchState();
+        const url = new URL(window.location.href);
+        url.searchParams.set('channel', channel.slug);
+        window.history.replaceState({}, '', url);
+        if (this.webSocketConnected) {
+          this.webSocket.send(JSON.stringify({ type: 'channel_subscribe', channel_id: this.activeChannelId }));
+        }
+        this.loadMessages();
+      },
+      clearSearchState() {
+        this.cancelSearchRequest();
+        this.search = { text: '', user: '', from: '', to: '' };
+        this.searchActive = false;
+        this.searchLoading = false;
+        this.searchHasLiveUpdates = false;
+        this.searchError = '';
+        this.activeSearchKey = '';
+      },
+      async createDm() {
+        const username = this.dmUsername.trim();
+        if (!username) return;
+        try {
+          const response = await fetch(this.$chatRoutes.dms, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            },
+            body: JSON.stringify({ username }),
+          });
+          this.refreshCsrfToken(response);
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error?.message || 'Direct message failed');
+          this.dmUsername = '';
+          await this.loadChannels();
+          const channel = this.channels.find((item) => Number(item.id) === Number(payload.channel.id));
+          if (channel) this.selectChannel(channel);
+        } catch (error) {
+          this.error = error.message || 'The direct message could not be opened.';
+        }
+      },
       handleOwnProfile(profile) {
         this.displayName = profile.display_name || this.username;
         this.mergeProfiles([profile]);
@@ -481,6 +612,10 @@
             this.reconnectInterval = null;
           }
 
+          if (this.activeChannelId !== null) {
+            this.webSocket.send(JSON.stringify({ type: 'channel_subscribe', channel_id: this.activeChannelId }));
+          }
+
           // Load initial messages
           this.loadMessages();
           this.warmMessagesCache();
@@ -502,10 +637,16 @@
             this.applyReactionUpdate(data);
             return;
           }
+          if (data.type === 'channel_unread') {
+            const channel = this.channels.find((item) => Number(item.id) === Number(data.channel_id));
+            if (channel) channel.unread_count = Number(channel.unread_count || 0) + 1;
+            return;
+          }
 
           // Handle different message types (actions) from the server
           switch (data.action) {
             case 'messages':
+              if (Number(data.data.channel_id) !== Number(this.activeChannelId)) break;
               if (this.searchActive) {
                 break;
               }
@@ -524,6 +665,7 @@
               break;
 
             case 'newMessage':
+              if (Number(data.data.channel_id) !== Number(this.activeChannelId)) break;
               // Handle new message broadcast from another user
               if (this.searchActive) {
                 this.searchHasLiveUpdates = true;
@@ -652,6 +794,11 @@
       },
 
       loadMessages() {
+        if (this.activeChannelId === null) {
+          this.loading = false;
+          return;
+        }
+
         this.searchActive = false;
         this.searchHasLiveUpdates = false;
         this.searchLoading = false;
@@ -673,15 +820,24 @@
             action: 'getMessages',
             page: this.currentPage,
             perPage: 10,
+            channel_id: this.activeChannelId,
           }),
         );
       },
 
       // HTTP fallback for loading messages
       async loadMessagesHttp() {
+        if (this.activeChannelId === null) {
+          this.loading = false;
+          return false;
+        }
+
         try {
           const response = await fetch(
-            userScopedMessagesUrl(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`, this.userId),
+            userScopedMessagesUrl(
+              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=${this.currentPage}&per_page=10`,
+              this.userId,
+            ),
           );
           const data = await response.json();
           if (!response.ok) throw new Error('Message request failed');
@@ -702,8 +858,15 @@
         }
       },
       async warmMessagesCache() {
+        if (this.activeChannelId === null) return;
+
         try {
-          await fetch(userScopedMessagesUrl(`${this.$chatRoutes.api}?page=1&per_page=10`, this.userId));
+          await fetch(
+            userScopedMessagesUrl(
+              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=1&per_page=10`,
+              this.userId,
+            ),
+          );
         } catch {
           // The live WebSocket remains authoritative; cache warming is best effort.
         }
@@ -785,6 +948,7 @@
       },
 
       loadMoreMessages() {
+        if (this.activeChannelId === null) return;
         if (this.loadingMore) return;
 
         this.loadingMore = true;
@@ -807,6 +971,7 @@
             action: 'getMessages',
             page: this.currentPage,
             perPage: 10,
+            channel_id: this.activeChannelId,
           }),
         );
 
@@ -822,9 +987,17 @@
 
       // HTTP fallback for loading more messages
       async loadMoreMessagesHttp() {
+        if (this.activeChannelId === null) {
+          this.loadingMore = false;
+          return;
+        }
+
         try {
           const response = await fetch(
-            userScopedMessagesUrl(`${this.$chatRoutes.api}?page=${this.currentPage}&per_page=10`, this.userId),
+            userScopedMessagesUrl(
+              `${this.$chatRoutes.channels}/${this.activeChannelId}/messages?page=${this.currentPage}&per_page=10`,
+              this.userId,
+            ),
           );
           const data = await response.json();
 
@@ -894,6 +1067,8 @@
       },
 
       executeSearch(page = 1, append = false) {
+        if (this.activeChannelId === null) return;
+
         const filters = this.normalizedSearch();
         if (!Object.values(filters).some((value) => value !== '')) {
           this.clearSearch();
@@ -936,6 +1111,7 @@
             page,
             perPage: 10,
             search: this.compactSearch(filters),
+            channel_id: this.activeChannelId,
           }),
         );
 
@@ -1061,7 +1237,7 @@
       },
 
       searchEndpoint() {
-        return `${this.$chatRoutes.api.replace(/\/$/, '')}/search`;
+        return `${this.$chatRoutes.channels}/${this.activeChannelId}/messages/search`;
       },
 
       handleTypingInput(event) {
@@ -1120,6 +1296,11 @@
         // Clear previous errors
         this.error = '';
 
+        if (this.activeChannelId === null) {
+          this.error = 'Choose a conversation before sending a message.';
+          return;
+        }
+
         // Validate message
         if (!this.message.trim()) {
           this.error = 'Message is required';
@@ -1142,6 +1323,7 @@
               action: 'sendMessage',
               username: this.username,
               message: this.message,
+              channel_id: this.activeChannelId,
             }),
           );
 
@@ -1156,20 +1338,22 @@
 
       // HTTP fallback for sending messages
       async sendMessageHttp() {
+        if (this.activeChannelId === null) {
+          this.sending = false;
+          return;
+        }
+
         let fetchCompleted = false;
         try {
-          const formData = new FormData();
-          formData.append('message', this.message);
-          formData.append('action', 'postmsg');
-          formData.append(this.$csrfToken, document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-
-          const response = await fetch(this.$chatRoutes.update, {
+          const response = await fetch(`${this.$chatRoutes.channels}/${this.activeChannelId}/messages`, {
             method: 'POST',
-            body: formData,
             headers: {
-              'X-Requested-With': 'XMLHttpRequest',
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
+            body: JSON.stringify({ message: this.message }),
           });
+          this.refreshCsrfToken(response);
           fetchCompleted = true;
 
           const data = await response.json();
@@ -1326,6 +1510,65 @@
 
 <style lang="scss">
 @use "sass:color";
+
+.channel-sidebar {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 0.75rem;
+  background: var(--surface-color, #fff);
+
+  h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+  }
+}
+
+.channel-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &.active {
+    border-color: #3f6398;
+    background: color-mix(in srgb, #3f6398 12%, transparent);
+    font-weight: 700;
+  }
+}
+
+.channel-unread {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #3f6398;
+  color: #fff;
+  text-align: center;
+}
+
+.dm-form {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+
+  div {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  input {
+    min-width: 0;
+    flex: 1;
+  }
+}
 
 // Variables
 $primary-color: #3f6398;

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Contracts\ChannelRepository;
 use App\Libraries\ChatWebSocketServer;
 use App\Models\ChatModel;
 use GuzzleHttp\Psr7\ServerRequest;
@@ -16,7 +17,11 @@ final class ChatWebSocketTypingTest extends TestCase
         $sender = new TypingRecordingConnection('/?user_id=42');
         $observer = new TypingRecordingConnection('/?user_id=43');
         $unauthenticated = new TypingRecordingConnection('/');
-        $server = new ChatWebSocketServer(chatModel: $this->createStub(ChatModel::class), requireAuth: false);
+        $server = new ChatWebSocketServer(
+            chatModel: $this->createStub(ChatModel::class),
+            requireAuth: false,
+            channels: $this->channelRepository(),
+        );
 
         $server->onOpen($sender);
         $server->onOpen($observer);
@@ -40,7 +45,11 @@ final class ChatWebSocketTypingTest extends TestCase
         $this->expectOutputRegex('/Chat WebSocket Server started.*New connection!.*New connection!.*has disconnected/s');
         $sender = new TypingRecordingConnection('/?user_id=42');
         $observer = new TypingRecordingConnection('/?user_id=43');
-        $server = new ChatWebSocketServer(chatModel: $this->createStub(ChatModel::class), requireAuth: false);
+        $server = new ChatWebSocketServer(
+            chatModel: $this->createStub(ChatModel::class),
+            requireAuth: false,
+            channels: $this->channelRepository(),
+        );
 
         $server->onOpen($sender);
         $server->onOpen($observer);
@@ -57,6 +66,16 @@ final class ChatWebSocketTypingTest extends TestCase
             'user_id' => $userId,
             'username' => $username,
         ], JSON_THROW_ON_ERROR);
+    }
+
+    private function channelRepository(): ChannelRepository
+    {
+        $channels = $this->createStub(ChannelRepository::class);
+        $channels->method('generalChannelId')->willReturn(1);
+        $channels->method('ensureGeneralMembership')->willReturn(1);
+        $channels->method('isMember')->willReturn(true);
+
+        return $channels;
     }
 
     /** @return list<array{user_id: int, username: string}> */

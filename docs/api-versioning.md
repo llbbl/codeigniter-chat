@@ -31,6 +31,10 @@ All endpoints use the existing session authentication and CSRF rules. The
 canonical payload and error envelopes are documented in
 [`public-api.md`](public-api.md).
 
+Version 1 also includes authenticated channel and direct-message endpoints.
+Their validation, membership rules, and WebSocket events are documented in
+[`channels.md`](channels.md).
+
 ## Current deprecations
 
 `/chat/jsonBackend`, `/chat/vueApi`, and `/chat/svelteApi` are compatibility

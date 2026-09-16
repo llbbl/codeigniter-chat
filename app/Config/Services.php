@@ -4,12 +4,14 @@ namespace Config;
 
 use App\Contracts\AuditLogger as AuditLoggerContract;
 use App\Contracts\AuditLogRepository;
+use App\Contracts\ChannelRepository;
 use App\Contracts\ChatFormatter as ChatFormatterContract;
 use App\Contracts\ChatRepository;
 use App\Contracts\CspReportRepository;
 use App\Contracts\PushSubscriptionRepository;
 use App\Contracts\ReactionRepository;
 use App\Contracts\UserRepository;
+use App\Controllers\Api\V1\ChannelsController;
 use App\Controllers\Api\V1\MessagesController;
 use App\Controllers\Api\V1\PushSubscriptionsController;
 use App\Controllers\Api\V1\ReactionsController;
@@ -22,6 +24,7 @@ use App\Controllers\Profile;
 use App\Core\Application;
 use App\Libraries\ErrorHandler;
 use App\Models\AuditLogModel;
+use App\Models\ChannelModel;
 use App\Models\ChatModel;
 use App\Models\CspReportModel;
 use App\Models\MessageReactionModel;
@@ -71,8 +74,9 @@ class Services extends BaseService
             Home::class => new Home(),
             Chat::class => new Chat(static::chatRepository(), static::chatFormatter()),
             MessagesController::class => new MessagesController(static::chatRepository(), static::chatFormatter()),
+            ChannelsController::class => new ChannelsController(static::channelRepository(), static::chatRepository(), static::userRepository()),
             PushSubscriptionsController::class => new PushSubscriptionsController(static::pushSubscriptionRepository()),
-            ReactionsController::class => new ReactionsController(static::reactionRepository()),
+            ReactionsController::class => new ReactionsController(static::reactionRepository(), static::channelRepository()),
             Auth::class => new Auth(static::userRepository(), static::auditLogger()),
             Profile::class => new Profile(static::userRepository()),
             CspReport::class => new CspReport(static::cspReportRepository()),
@@ -88,6 +92,15 @@ class Services extends BaseService
         }
 
         return new ChatModel();
+    }
+
+    public static function channelRepository(bool $getShared = true): ChannelRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('channelRepository');
+        }
+
+        return new ChannelModel();
     }
 
     public static function userRepository(bool $getShared = true): UserRepository

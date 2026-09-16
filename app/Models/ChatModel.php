@@ -22,7 +22,7 @@ class ChatModel extends Model implements ChatRepository
 {
     protected $table = 'messages';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['user', 'msg', 'time'];
+    protected $allowedFields = ['user', 'msg', 'time', 'channel_id'];
 
     /**
      * Cache key for messages
@@ -57,7 +57,7 @@ class ChatModel extends Model implements ChatRepository
      *
      * @return array
      */
-    public function getMsgPaginated(int $page = 1, int $perPage = 10): array
+    public function getMsgPaginated(int $page = 1, int $perPage = 10, ?int $channelId = null): array
     {
         // Ensure page is at least 1
         $page = max(1, (int)$page);
@@ -66,7 +66,8 @@ class ChatModel extends Model implements ChatRepository
         $offset = ($page - 1) * $perPage;
 
         // Create a unique cache key based on the pagination parameters
-        $cacheKey = $this->cacheKey . '_page_' . $page . '_' . $perPage;
+        $cacheChannel = $channelId ?? 'general';
+        $cacheKey = $this->cacheKey . '_channel_' . $cacheChannel . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
         $cache = $this->cache;
@@ -76,12 +77,14 @@ class ChatModel extends Model implements ChatRepository
 
         // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
+            $channelId ??= $this->generalChannelId();
             // Get total count for pagination
-            $totalCount = $this->countAllResults();
+            $totalCount = $this->where('channel_id', $channelId)->countAllResults();
 
             // Use time index for ordering instead of id
             // This is more efficient for chat applications where time-based ordering is natural
-            $messages = $this->orderBy('time', 'DESC')
+            $messages = $this->where('channel_id', $channelId)
+                            ->orderBy('time', 'DESC')
                             ->limit($perPage, $offset)
                             ->get()
                             ->getResultArray();
@@ -149,6 +152,7 @@ class ChatModel extends Model implements ChatRepository
         ?int $to = null,
         int $page = 1,
         int $perPage = 10,
+        ?int $channelId = null,
     ): array {
         $page = max(1, $page);
         $perPage = max(1, $perPage);
@@ -159,6 +163,9 @@ class ChatModel extends Model implements ChatRepository
         $messagesTable = $this->db->prefixTable($this->table);
         $bindings = [];
         $conditions = [];
+        $channelId ??= $this->generalChannelId();
+        $conditions[] = 'messages.channel_id = ?';
+        $bindings[] = $channelId;
 
         if ($this->db->getPlatform() === 'SQLite3' && $text !== null && $text !== '') {
             $searchTable = $this->db->prefixTable('messages_fts');
@@ -225,12 +232,13 @@ class ChatModel extends Model implements ChatRepository
      *
      * @return int|bool The insert ID if the insert was successful, or false on failure
      */
-    public function insertMsg(string $name, string $message, int $current): int|bool
+    public function insertMsg(string $name, string $message, int $current, ?int $channelId = null): int|bool
     {
         $result = $this->insert([
             'user' => $name,
             'msg' => $message,
             'time' => $current,
+            'channel_id' => $channelId ?? $this->generalChannelId(),
         ]);
 
         // If insert was successful, invalidate the cache
@@ -259,8 +267,10 @@ class ChatModel extends Model implements ChatRepository
         // Calculate offset
         $offset = ($page - 1) * $perPage;
 
+        $channelId = $this->generalChannelId();
+
         // Create a unique cache key based on the username and pagination parameters
-        $cacheKey = $this->cacheKey . '_user_' . md5($username) . '_page_' . $page . '_' . $perPage;
+        $cacheKey = $this->cacheKey . '_channel_' . $channelId . '_user_' . md5($username) . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
         $cache = $this->cache;
@@ -271,10 +281,11 @@ class ChatModel extends Model implements ChatRepository
         // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
-            $totalCount = $this->where('user', $username)->countAllResults();
+            $totalCount = $this->where('channel_id', $channelId)->where('user', $username)->countAllResults();
 
             // Use user index for filtering and time index for ordering
-            $messages = $this->where('user', $username)
+            $messages = $this->where('channel_id', $channelId)
+                            ->where('user', $username)
                             ->orderBy('time', 'DESC')
                             ->limit($perPage, $offset)
                             ->get()
@@ -344,8 +355,10 @@ class ChatModel extends Model implements ChatRepository
         // Calculate offset
         $offset = ($page - 1) * $perPage;
 
+        $channelId = $this->generalChannelId();
+
         // Create a unique cache key based on the time range and pagination parameters
-        $cacheKey = $this->cacheKey . '_time_' . $startTime . '_' . $endTime . '_page_' . $page . '_' . $perPage;
+        $cacheKey = $this->cacheKey . '_channel_' . $channelId . '_time_' . $startTime . '_' . $endTime . '_page_' . $page . '_' . $perPage;
 
         // Get the cache service
         $cache = $this->cache;
@@ -356,12 +369,14 @@ class ChatModel extends Model implements ChatRepository
         // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
-            $totalCount = $this->where('time >=', $startTime)
+            $totalCount = $this->where('channel_id', $channelId)
+                               ->where('time >=', $startTime)
                                ->where('time <=', $endTime)
                                ->countAllResults();
 
             // Use time index for filtering and ordering
-            $messages = $this->where('time >=', $startTime)
+            $messages = $this->where('channel_id', $channelId)
+                            ->where('time >=', $startTime)
                             ->where('time <=', $endTime)
                             ->orderBy('time', 'DESC')
                             ->limit($perPage, $offset)
@@ -439,5 +454,15 @@ class ChatModel extends Model implements ChatRepository
     {
         // A quoted phrase treats user input as text rather than FTS5 syntax.
         return '"' . str_replace('"', '""', $text) . '"';
+    }
+
+    private function generalChannelId(): int
+    {
+        $row = $this->db->table('channels')->select('id')->where('slug', 'general')->get()->getRowArray();
+        if (! is_array($row)) {
+            throw new \LogicException('The #general channel is missing. Run database migrations.');
+        }
+
+        return (int) $row['id'];
     }
 }
