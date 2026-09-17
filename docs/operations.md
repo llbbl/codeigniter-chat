@@ -1,5 +1,64 @@
 # Operations
 
+## Data retention
+
+The `retention:apply` Spark command is the normal entry point for scheduled
+cleanup. It reads the policies in `app/Config/Retention.php` and applies every
+configured lifecycle rule:
+
+| Policy | Age | Action |
+| --- | ---: | --- |
+| `messages` | 90 days | Move live rows to `archived_messages` |
+| `archived_messages` | 730 days | Permanently delete archive rows |
+| `csp_reports` | 30 days | Permanently delete CSP reports |
+| `audit_log` | 365 days | Permanently delete audit events |
+
+Start with a dry run. It counts eligible rows without changing the database:
+
+```bash
+php spark retention:apply --dry-run
+```
+
+Run every policy, or select one policy for a one-off cleanup:
+
+```bash
+php spark retention:apply
+php spark retention:apply --policy=csp_reports
+```
+
+Delete actions select primary keys and remove at most 5,000 rows per
+transaction. Archive actions delegate to `messages:archive`, which performs the
+live-to-archive move transactionally. Use `--batch-size` to reduce lock and
+transaction-log pressure on busy MySQL installations; valid values are 1 to
+10,000. Completed batches no longer match their policy, so interrupted and
+completed runs are both safe to repeat.
+
+`archived_messages` is a hot-cold tier, not a permanent record. Channel history
+and exports can read it, but rows older than two years are deleted because the
+database backup is the recovery layer. Take and verify a backup before enabling
+hard-delete policies, and make sure the backup retention window matches the
+organization's recovery expectations.
+
+### Scheduling retention
+
+Run from the application directory so CodeIgniter loads the intended `.env`.
+For example, apply all policies every day at 03:00:
+
+```cron
+0 3 * * * cd /srv/codeigniter-chat && /usr/bin/php spark retention:apply >> writable/logs/retention.log 2>&1
+```
+
+Daily execution is appropriate for messages and CSP reports; daily or weekly
+execution is sufficient for the longer audit and archive policies. Deploy the
+cron entry with `--dry-run` first, inspect several runs, then remove that flag
+to enable writes. Do not overlap invocations; schedule the next run after the
+largest observed cleanup window.
+
+Hard deletes do not necessarily return filesystem space immediately. After a
+large first cleanup, use the database vendor's manual maintenance procedure
+(`OPTIMIZE TABLE` for MySQL or `VACUUM` for SQLite) during a maintenance window.
+The application command deliberately does not run storage maintenance.
+
 ## Archiving old messages
 
 The `messages:archive` Spark command moves old rows from `messages` to
@@ -29,10 +88,12 @@ Archived messages are read-only. Because reactions belong to live messages,
 their rows are removed by the existing foreign-key cascade when a message is
 archived. Search also remains live-message-only.
 
-### Scheduling
+### Scheduling archive-only runs
 
 Run from the application directory so CodeIgniter loads the intended `.env`.
-For example, archive messages older than 90 days every day at 02:15:
+The unified retention command above is recommended for routine scheduling. If
+an archive-only schedule is needed, archive messages older than 90 days every
+day at 02:15:
 
 ```cron
 15 2 * * * cd /srv/codeigniter-chat && /usr/bin/php spark messages:archive --older-than 90d --channel all >> writable/logs/archive.log 2>&1
