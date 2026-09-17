@@ -75,23 +75,22 @@ class ValidationHelper
         bool $required = true,
         bool $unique = true,
         int $minLength = 3,
-        int $maxLength = 50
+        int $maxLength = 30
     ): array {
         $rules = [
-            'rules' => 'alpha_numeric',
+            'rules' => sprintf('regex_match[/^[A-Za-z0-9_]{%d,%d}$/]', max(1, $minLength), max(1, $maxLength)),
             'errors' => [
-                'alpha_numeric' => 'Username can only contain alphanumeric characters',
+                'regex_match' => sprintf(
+                    'Username must be %d-%d letters, numbers, or underscores',
+                    max(1, $minLength),
+                    max(1, $maxLength),
+                ),
             ],
         ];
 
         if ($required) {
             $rules['rules'] = 'required|' . $rules['rules'];
             $rules['errors']['required'] = 'Username is required';
-        }
-
-        if ($minLength > 0) {
-            $rules['rules'] .= '|min_length[' . $minLength . ']';
-            $rules['errors']['min_length'] = 'Username must be at least ' . $minLength . ' characters long';
         }
 
         if ($maxLength > 0) {

@@ -47,7 +47,8 @@ final class ChatModelTest extends CIUnitTestCase
     {
         $allowedFields = $this->chatModel->allowedFields;
 
-        $this->assertContains('user', $allowedFields);
+        $this->assertContains('user_id', $allowedFields);
+        $this->assertContains('channel_id', $allowedFields);
         $this->assertContains('msg', $allowedFields);
         $this->assertContains('time', $allowedFields);
     }

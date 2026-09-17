@@ -78,8 +78,8 @@ jobs:
       - name: Run Composer audit
         run: composer audit
 
-  mysql-search:
-    name: MySQL 8 message search
+  mysql-integration:
+    name: MySQL 8 integration
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -120,5 +120,5 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run message search integration tests against MySQL
+      - name: Run database integration tests against MySQL
         run: composer test:integration:mysql

@@ -9,7 +9,7 @@ These k6 scenarios exercise the application through its public HTTP and WebSocke
 - SQLite support, or a configured MySQL database
 - The application migrations applied to the benchmark database
 
-Prepare a reproducible dataset. This replaces messages owned by the reserved `k6-user-*` accounts and creates 100 local benchmark users with password `Benchmark123!`:
+Prepare a reproducible dataset. This replaces messages owned by the reserved `k6_user_*` accounts and creates 100 local benchmark users with password `Benchmark123!`:
 
 ```shell
 DB_DRIVER=SQLite3 php spark migrate --all

@@ -65,12 +65,11 @@ class Validation extends BaseConfig
      */
     public array $registration = [
         'username' => [
-            'rules' => 'required|min_length[3]|max_length[50]|alpha_numeric|is_unique[users.username]',
+            'rules' => 'required|max_length[30]|regex_match[/^[A-Za-z0-9_]{3,30}$/]|is_unique[users.username]',
             'errors' => [
                 'required' => 'Username is required',
-                'min_length' => 'Username must be at least 3 characters long',
-                'max_length' => 'Username cannot exceed 50 characters',
-                'alpha_numeric' => 'Username can only contain alphanumeric characters',
+                'max_length' => 'Username cannot exceed 30 characters',
+                'regex_match' => 'Username must be 3-30 letters, numbers, or underscores',
                 'is_unique' => 'Username is already taken',
             ],
         ],

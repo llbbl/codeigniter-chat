@@ -1,150 +1,114 @@
-# CodeIgniter Chat Database Schema
+# Database schema
 
-This document describes the database schema used by the CodeIgniter Chat application. It includes details about each table, its columns, and the relationships between tables.
+The application supports MySQL 8 and SQLite. Migrations in
+`app/Database/Migrations/` are the source of truth; this document highlights
+the core account and message relationships and the constraints that protect
+them.
 
-## Tables Overview
+## Core relationships
 
-The CodeIgniter Chat application uses the following tables:
-
-1. `users` - Stores user account information
-2. `messages` - Stores chat messages
-3. `ci_sessions` - Stores session data (CodeIgniter's built-in session management)
-
-## Table Structures
-
-### users
-
-The `users` table stores information about registered users.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | int | PRIMARY KEY, AUTO_INCREMENT | Unique identifier for the user |
-| username | varchar(255) | NOT NULL | User's username (used for login) |
-| email | varchar(255) | NOT NULL | User's email address |
-| password | varchar(255) | NOT NULL | Hashed password |
-| created_at | datetime | NOT NULL | Timestamp when the user account was created |
-| updated_at | datetime | NOT NULL | Timestamp when the user account was last updated |
-
-#### Indexes
-- PRIMARY KEY on `id`
-- UNIQUE INDEX on `username`
-- UNIQUE INDEX on `email`
-
-### messages
-
-The `messages` table stores chat messages sent by users.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | int(7) | PRIMARY KEY, AUTO_INCREMENT | Unique identifier for the message |
-| user | varchar(255) | NOT NULL | Username of the message sender |
-| msg | text | NOT NULL | Content of the message |
-| time | int(11) | NOT NULL, DEFAULT '0' | Unix timestamp when the message was sent |
-
-#### Indexes
-- PRIMARY KEY on `id`
-
-### ci_sessions
-
-The `ci_sessions` table is used by CodeIgniter to store session data.
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | varchar(40) | PRIMARY KEY | Session identifier |
-| ip_address | varchar(45) | NOT NULL | IP address of the user |
-| timestamp | int(10) unsigned | NOT NULL, DEFAULT '0' | Unix timestamp when the session was last updated |
-| data | blob | NOT NULL | Serialized session data |
-
-#### Indexes
-- PRIMARY KEY on `id`
-- INDEX `ci_sessions_timestamp` on `timestamp`
-
-## Relationships
-
-### Logical Relationships
-
-While there are no explicit foreign key constraints in the database schema, there are logical relationships between the tables:
-
-1. **User to Messages (One-to-Many)**
-   - A user can send multiple messages
-   - Each message is associated with one user through the `user` column in the `messages` table, which corresponds to the `username` column in the `users` table
-
-### Data Integrity
-
-Since there are no explicit foreign key constraints, data integrity is maintained at the application level:
-
-- When a message is inserted, the application ensures that the user exists
-- The application validates user input before inserting data into the database
-- The application uses parameterized queries to prevent SQL injection
-
-## Database Diagram
-
-```
-+---------------+       +---------------+
-|    users      |       |   messages    |
-+---------------+       +---------------+
-| id (PK)       |       | id (PK)       |
-| username      |<----->| user          |
-| email         |       | msg           |
-| password      |       | time          |
-| created_at    |       |               |
-| updated_at    |       |               |
-+---------------+       +---------------+
-                        
-+---------------+
-| ci_sessions   |
-+---------------+
-| id (PK)       |
-| ip_address    |
-| timestamp     |
-| data          |
-+---------------+
+```text
+users 1 ──── * messages          * ──── 1 channels
+  │                │
+  │                └─ nullable user_id preserves content after user deletion
+  │
+  ├──── * archived_messages      * ──── 1 channels
+  ├──── * channel_members        * ──── 1 channels
+  ├──── * message_reactions      * ──── 1 messages
+  └──── * push_subscriptions
 ```
 
-## SQL Scripts
+`messages` and `archived_messages` store the author's numeric `user_id`, not a
+copy of the username. Repository reads join `users` and continue to expose a
+`user` string in HTTP and WebSocket payloads. If an account is deleted, the
+foreign key sets `user_id` to `NULL` and reads and exports show `[deleted]`.
 
-### Create Tables
+## Relevant columns
 
-The following SQL scripts can be used to create the necessary tables:
+### `users`
 
-```sql
--- Create users table
-CREATE TABLE `users` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `created_at` datetime NOT NULL,
-  `updated_at` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+| Column | Constraints | Purpose |
+| --- | --- | --- |
+| `id` | primary key | Stable account identifier |
+| `username` | unique, `chk_users_username_format` | Login and display handle |
+| `email` | unique | Login and account email |
+| `password` | `chk_users_password_hash` | Output of PHP `password_hash()` |
+| profile columns | see `AddUserProfileFields` | Display name, avatar, theme, notifications, and presence |
 
--- Create messages table
-CREATE TABLE `messages` (
-  `id` int(7) NOT NULL AUTO_INCREMENT,
-  `user` varchar(255) CHARACTER SET latin1 NOT NULL,
-  `msg` text CHARACTER SET latin1 NOT NULL,
-  `time` int(11) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+The schema column is named `password`; it contains a password hash. The check
+name uses “password hash” to make that invariant explicit.
 
--- Create ci_sessions table
-CREATE TABLE `ci_sessions` (
-  `id` varchar(40) NOT NULL,
-  `ip_address` varchar(45) NOT NULL,
-  `timestamp` int(10) unsigned NOT NULL DEFAULT '0',
-  `data` blob NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `ci_sessions_timestamp` (`timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-```
+### `messages`
 
-## Notes
+| Column | Constraints | Purpose |
+| --- | --- | --- |
+| `id` | primary key | Stable message and cursor identifier |
+| `channel_id` | not null, FK to `channels.id`, delete restricted | Owning channel |
+| `user_id` | nullable, `fk_messages_user`, delete sets null | Author account |
+| `msg` | not null, `chk_messages_msg_length` | 1–500 character body |
+| `time` | not null, `chk_messages_time_positive` | Positive Unix timestamp |
 
-1. The `users` table is managed by the `UserModel` class in `app/Models/UserModel.php`.
-2. The `messages` table is managed by the `ChatModel` class in `app/Models/ChatModel.php`.
-3. The `ci_sessions` table is managed by CodeIgniter's built-in session management.
-4. Passwords are hashed using PHP's `password_hash()` function with the `PASSWORD_DEFAULT` algorithm.
-5. The `time` column in the `messages` table stores Unix timestamps, which can be converted to human-readable dates using PHP's `date()` function.
+### `archived_messages`
+
+Archived messages preserve the original message ID, channel, author reference,
+body, and timestamp and add `archived_at`. They use the equivalent named checks
+`chk_archived_messages_msg_length` and
+`chk_archived_messages_time_positive`, plus the nullable
+`fk_archived_messages_user` foreign key. This keeps live and archived history
+under the same data-integrity rules.
+
+## Constraint rationale
+
+| Constraint | Rule | Why it exists |
+| --- | --- | --- |
+| `chk_users_username_format` | 3–30 ASCII letters, digits, or underscores | Prevents invalid handles from direct SQL or missed validation |
+| `chk_users_password_hash` | starts with `$2y$` or `$argon2` | Rejects accidental plain-text password writes |
+| `chk_messages_msg_length` | character length is 1–500 | Enforces the public message contract in storage |
+| `chk_messages_time_positive` | `time > 0` | Rejects zero and negative sentinel timestamps |
+| `chk_archived_messages_msg_length` | character length is 1–500 | Gives archived rows parity with live rows |
+| `chk_archived_messages_time_positive` | `time > 0` | Gives archived rows parity with live rows |
+| `fk_messages_user` | nullable user FK, `ON DELETE SET NULL`, `ON UPDATE CASCADE` | Preserves messages without retaining a stale username |
+| `fk_archived_messages_user` | nullable user FK, `ON DELETE SET NULL`, `ON UPDATE CASCADE` | Preserves archived history after account deletion |
+
+Application validation deliberately repeats the username, message-length, and
+password requirements. It provides useful client errors; the database checks
+are the final safety net for direct SQL, migrations, and missed code paths.
+
+## Migration behavior
+
+`TightenMessagesConstraints` replaces the legacy string `user` columns in both
+message tables with `user_id`. It backfills IDs by matching the old username to
+`users.username`. A row whose username no longer exists receives `NULL` instead
+of blocking the migration.
+
+Run a pre-deployment audit for usernames outside the allowed format, password
+values without a supported hash prefix, empty or over-500-character messages,
+and non-positive timestamps. Existing rows that violate a new check cause the
+migration to fail; the migration does not silently rewrite invalid account or
+message data.
+
+On rollback, `user_id` is converted back to a username. Rows with a deleted or
+otherwise missing author become `[deleted]`, so a deleted username cannot be
+recovered by rolling back.
+
+### MySQL and MariaDB
+
+MySQL must be 8.0.16 or newer for enforced `CHECK` constraints; CI runs these
+migrations and direct-SQL constraint tests against MySQL 8.4. MariaDB supports
+checks but differs across releases in named-check syntax and metadata. Confirm
+the exact MariaDB target version in staging before deployment and use the
+constraint names above when inspecting or removing checks.
+
+### SQLite
+
+SQLite cannot add these checks and foreign keys to an existing table in place,
+so the migrations rebuild `users`, `messages`, and `archived_messages`, copy the
+data, recreate indexes and FTS5 triggers, and run `PRAGMA foreign_key_check`.
+Foreign-key enforcement still requires `PRAGMA foreign_keys=ON`; CodeIgniter
+enables it for the application connections. If a migration is interrupted,
+inspect both the original table and any `*_constraint_rebuild` table before
+retrying.
+
+Message full-text indexes contain only `msg` after normalization. Exact author
+filtering joins `users.username`; deleted authors remain readable as
+`[deleted]` but cannot match a former username.

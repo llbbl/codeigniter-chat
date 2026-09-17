@@ -12,7 +12,7 @@ export function login() {
 }
 
 export function loginForUser(sequence) {
-  const username = `k6-user-${String(sequence).padStart(3, '0')}`;
+  const username = `k6_user_${String(sequence).padStart(3, '0')}`;
   const loginPage = http.get(`${baseUrl}/auth/login`, { tags: { name: 'GET /auth/login' } });
   const loginCsrf = metaValue(loginPage.body, 'csrf-token');
 

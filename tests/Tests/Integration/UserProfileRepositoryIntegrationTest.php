@@ -12,7 +12,7 @@ final class UserProfileRepositoryIntegrationTest extends IntegrationTestCase
     public function testNewUsersReceiveProfileDefaults(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('profile-user', 'profile@example.com', 'Password123!');
+        $userId = $model->createUser('profile_user', 'profile@example.com', 'Password123!');
 
         $this->assertIsInt($userId);
         $user = $model->findUserById($userId);
@@ -29,7 +29,7 @@ final class UserProfileRepositoryIntegrationTest extends IntegrationTestCase
     public function testProfilesCanBeUpdatedAndReadPublicly(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('profile-user', 'profile@example.com', 'Password123!');
+        $userId = $model->createUser('profile_user', 'profile@example.com', 'Password123!');
         $this->assertIsInt($userId);
 
         $this->assertTrue($model->updateProfile($userId, [
@@ -46,9 +46,9 @@ final class UserProfileRepositoryIntegrationTest extends IntegrationTestCase
         $this->assertSame('dark', $user['theme']);
         $this->assertSame('away', $user['presence']);
 
-        $profiles = $model->findPublicProfilesByUsernames([' profile-user ', '', 'profile-user']);
+        $profiles = $model->findPublicProfilesByUsernames([' profile_user ', '', 'profile_user']);
         $this->assertCount(1, $profiles);
-        $this->assertSame('profile-user', $profiles[0]['username']);
+        $this->assertSame('profile_user', $profiles[0]['username']);
         $this->assertArrayNotHasKey('email', $profiles[0]);
         $this->assertArrayNotHasKey('password', $profiles[0]);
     }

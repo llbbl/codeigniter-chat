@@ -80,10 +80,15 @@ final class SeedMessages extends BaseCommand
     {
         $db->transException(true)->transStart();
 
-        $this->seedUsers($db);
+        $userIds = $this->seedUsers($db);
+        $general = $db->table('channels')->select('id')->where('slug', 'general')->get()->getRowArray();
+        if (! is_array($general)) {
+            throw new \LogicException('The #general channel is missing. Run database migrations.');
+        }
+        $channelId = (int) $general['id'];
 
         $messages = $db->table('messages');
-        $messages->like('user', 'k6-user-', 'after')->delete();
+        $messages->whereIn('user_id', array_values($userIds))->delete();
 
         for ($offset = 0; $offset < $count; $offset += self::BATCH_SIZE) {
             $batchSize = min(self::BATCH_SIZE, $count - $offset);
@@ -91,8 +96,10 @@ final class SeedMessages extends BaseCommand
 
             for ($index = 0; $index < $batchSize; $index++) {
                 $sequence = $offset + $index + 1;
+                $username = self::usernameFor($sequence);
                 $rows[] = [
-                    'user' => self::usernameFor($sequence),
+                    'user_id' => $userIds[$username],
+                    'channel_id' => $channelId,
                     'msg' => sprintf('Benchmark message %08d', $sequence),
                     'time' => 1_700_000_000 + $sequence,
                 ];
@@ -104,11 +111,13 @@ final class SeedMessages extends BaseCommand
         $db->transComplete();
     }
 
-    private function seedUsers(BaseConnection $db): void
+    /** @return array<string, int> */
+    private function seedUsers(BaseConnection $db): array
     {
         $users = $db->table('users');
         $password = password_hash(self::BENCHMARK_PASSWORD, PASSWORD_DEFAULT);
         $now = date('Y-m-d H:i:s');
+        $ids = [];
 
         for ($sequence = 1; $sequence <= self::BENCHMARK_USER_COUNT; $sequence++) {
             $username = self::usernameFor($sequence);
@@ -124,14 +133,18 @@ final class SeedMessages extends BaseCommand
                     'username' => $username,
                     'created_at' => $now,
                 ]);
+                $ids[$username] = (int) $db->insertID();
             } else {
                 $users->where('id', $existing['id'])->update($row);
+                $ids[$username] = (int) $existing['id'];
             }
         }
+
+        return $ids;
     }
 
     private static function usernameFor(int $sequence): string
     {
-        return sprintf('k6-user-%03d', (($sequence - 1) % self::BENCHMARK_USER_COUNT) + 1);
+        return sprintf('k6_user_%03d', (($sequence - 1) % self::BENCHMARK_USER_COUNT) + 1);
     }
 }

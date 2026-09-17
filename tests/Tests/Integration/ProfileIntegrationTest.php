@@ -40,19 +40,19 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testAuthenticatedUserCanReadAndUpdateProfile(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('profile-user', 'profile@example.com', 'Password123!');
+        $userId = $model->createUser('profile_user', 'profile@example.com', 'Password123!');
         $this->assertIsInt($userId);
 
         $getResult = $this->loginAs([
             'id' => $userId,
-            'username' => 'profile-user',
+            'username' => 'profile_user',
             'email' => 'profile@example.com',
         ])->withHeaders(['Origin' => 'http://localhost'])
             ->call('get', '/api/v1/profile');
 
         $this->assertSame(200, $getResult->response()->getStatusCode());
         $profile = json_decode($getResult->getJSON(), true, flags: JSON_THROW_ON_ERROR)['profile'];
-        $this->assertSame('profile-user', $profile['display_name']);
+        $this->assertSame('profile_user', $profile['display_name']);
         $this->assertSame('system', $profile['theme']);
 
         $updateResult = $this->withHeaders([
@@ -76,12 +76,12 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testProfileUpdateRejectsInvalidPreferences(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('profile-user', 'profile@example.com', 'Password123!');
+        $userId = $model->createUser('profile_user', 'profile@example.com', 'Password123!');
         $this->assertIsInt($userId);
 
         $result = $this->loginAs([
             'id' => $userId,
-            'username' => 'profile-user',
+            'username' => 'profile_user',
             'email' => 'profile@example.com',
         ])->withHeaders([
             'Origin' => 'http://localhost',
@@ -98,19 +98,19 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testPublicProfileLookupDoesNotExposePrivateFields(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('profile-user', 'profile@example.com', 'Password123!');
+        $userId = $model->createUser('profile_user', 'profile@example.com', 'Password123!');
         $this->assertIsInt($userId);
 
         $result = $this->loginAs([
             'id' => $userId,
-            'username' => 'profile-user',
+            'username' => 'profile_user',
             'email' => 'profile@example.com',
         ])->withHeaders(['Origin' => 'http://localhost'])
-            ->call('get', '/api/v1/profiles?usernames=profile-user');
+            ->call('get', '/api/v1/profiles?usernames=profile_user');
 
         $this->assertSame(200, $result->response()->getStatusCode());
         $profile = json_decode($result->getJSON(), true, flags: JSON_THROW_ON_ERROR)['profiles'][0];
-        $this->assertSame('profile-user', $profile['username']);
+        $this->assertSame('profile_user', $profile['username']);
         $this->assertArrayNotHasKey('email', $profile);
         $this->assertArrayNotHasKey('theme', $profile);
     }
@@ -118,7 +118,7 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testAvatarUploadIsCroppedToA256PixelWebp(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('avatar-user', 'avatar@example.com', 'Password123!');
+        $userId = $model->createUser('avatar_user', 'avatar@example.com', 'Password123!');
         $this->assertIsInt($userId);
         $source = $this->createPng(400, 200);
         $avatarPath = WRITEPATH . "uploads/avatars/{$userId}.webp";
@@ -139,7 +139,7 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testAvatarUploadRejectsImagesLargerThan1024Pixels(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('avatar-user', 'avatar@example.com', 'Password123!');
+        $userId = $model->createUser('avatar_user', 'avatar@example.com', 'Password123!');
         $this->assertIsInt($userId);
 
         $result = $this->uploadAvatar($this->createPng(1025, 20), $userId);
@@ -152,13 +152,13 @@ final class ProfileIntegrationTest extends IntegrationTestCase
     public function testThemeIsReappliedAfterLogoutAndLogin(): void
     {
         $model = new UserModel();
-        $userId = $model->createUser('theme-user', 'theme@example.com', 'Password123!');
+        $userId = $model->createUser('theme_user', 'theme@example.com', 'Password123!');
         $this->assertIsInt($userId);
         $model->updateProfile($userId, ['theme' => 'dark']);
 
         $login = fn () => $this->withHeaders(['Origin' => 'http://localhost'])
             ->call('post', '/auth/processLogin', [
-                'username' => 'theme-user',
+                'username' => 'theme_user',
                 'password' => 'Password123!',
                 csrf_token() => csrf_hash(),
             ]);
@@ -188,7 +188,7 @@ final class ProfileIntegrationTest extends IntegrationTestCase
 
     private function uploadAvatar(string $source, int $userId): TestResponse
     {
-        session()->set(['logged_in' => true, 'user_id' => $userId, 'username' => 'avatar-user']);
+        session()->set(['logged_in' => true, 'user_id' => $userId, 'username' => 'avatar_user']);
         $request = service('incomingrequest', config(\Config\App::class), false);
         $files = new FileCollection();
         (new ReflectionProperty(FileCollection::class, 'files'))->setValue($files, [

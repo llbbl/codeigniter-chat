@@ -60,10 +60,13 @@ abstract class IntegrationTestCase extends CIUnitTestCase
 
     protected function assertMessageInDatabase(string $username, string $message): void
     {
-        $this->seeInDatabase('messages', [
-            'user' => $username,
-            'msg' => $message,
-        ]);
+        $count = $this->db->table('messages AS messages')
+            ->join('users AS users', 'users.id = messages.user_id')
+            ->where('users.username', $username)
+            ->where('messages.msg', $message)
+            ->countAllResults();
+
+        $this->assertSame(1, $count);
     }
 
     private function resetApplicationServices(): void

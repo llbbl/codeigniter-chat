@@ -57,7 +57,7 @@ final class ChatIntegrationTest extends IntegrationTestCase
         $this->assertIsArray($user);
 
         $this->hasInDatabase('messages', [
-            'user' => 'xmluser',
+            'user_id' => $userId,
             'msg' => 'Real XML row',
             'time' => 1_700_000_000,
         ]);

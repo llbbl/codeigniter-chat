@@ -22,7 +22,7 @@ final class SeedMessagesCommandTest extends IntegrationTestCase
         $command = new SeedMessages(service('logger'), service('commands'));
 
         $this->assertSame(1, $command->run(['1']));
-        $this->assertSame(0, $this->db->table('users')->like('username', 'k6-user-', 'after')->countAllResults());
+        $this->assertSame(0, $this->db->table('users')->like('username', 'k6_user_', 'after')->countAllResults());
     }
 
     public function testItRejectsInvalidCounts(): void
@@ -40,11 +40,11 @@ final class SeedMessagesCommandTest extends IntegrationTestCase
         $command = new SeedMessages(service('logger'), service('commands'));
 
         $this->assertSame(0, $command->run(['3']));
-        $this->assertSame(3, $this->db->table('messages')->like('user', 'k6-user-', 'after')->countAllResults());
-        $this->assertSame(100, $this->db->table('users')->like('username', 'k6-user-', 'after')->countAllResults());
+        $this->assertSame(3, $this->benchmarkMessages()->countAllResults());
+        $this->assertSame(100, $this->db->table('users')->like('username', 'k6_user_', 'after')->countAllResults());
 
         $this->assertSame(0, $command->run(['2']));
-        $messages = $this->db->table('messages')->like('user', 'k6-user-', 'after')->orderBy('time')->get()->getResultArray();
+        $messages = $this->benchmarkMessages()->orderBy('messages.time')->get()->getResultArray();
 
         $this->assertCount(2, $messages);
         $this->assertSame('Benchmark message 00000001', $messages[0]['msg']);
@@ -63,5 +63,12 @@ final class SeedMessagesCommandTest extends IntegrationTestCase
         putenv('BENCHMARK_MODE=' . $value);
         $_ENV['BENCHMARK_MODE'] = $value;
         $_SERVER['BENCHMARK_MODE'] = $value;
+    }
+
+    private function benchmarkMessages(): \CodeIgniter\Database\BaseBuilder
+    {
+        return $this->db->table('messages AS messages')
+            ->join('users AS users', 'users.id = messages.user_id')
+            ->like('users.username', 'k6_user_', 'after');
     }
 }

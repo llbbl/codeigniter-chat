@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\ChatRepository;
 use CodeIgniter\Cache\CacheInterface;
+use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Model;
 use CodeIgniter\Validation\ValidationInterface;
@@ -22,7 +23,7 @@ class ChatModel extends Model implements ChatRepository
 {
     protected $table = 'messages';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['user', 'msg', 'time', 'channel_id'];
+    protected $allowedFields = ['user_id', 'msg', 'time', 'channel_id'];
 
     /**
      * Cache key for messages
@@ -79,15 +80,16 @@ class ChatModel extends Model implements ChatRepository
         if ($result === null) {
             $channelId ??= $this->generalChannelId();
             // Get total count for pagination
-            $totalCount = $this->where('channel_id', $channelId)->countAllResults();
+            $totalCount = $this->db->table('messages')->where('channel_id', $channelId)->countAllResults();
 
             // Use time index for ordering instead of id
             // This is more efficient for chat applications where time-based ordering is natural
-            $messages = $this->where('channel_id', $channelId)
-                            ->orderBy('time', 'DESC')
-                            ->limit($perPage, $offset)
-                            ->get()
-                            ->getResultArray();
+            $messages = $this->liveMessageBuilder()
+                ->where('messages.channel_id', $channelId)
+                ->orderBy('messages.time', 'DESC')
+                ->limit($perPage, $offset)
+                ->get()
+                ->getResultArray();
 
             // Calculate total pages
             $totalPages = ceil($totalCount / $perPage);
@@ -147,7 +149,8 @@ class ChatModel extends Model implements ChatRepository
         $limit = max(1, min(100, $limit));
         $messages = $this->db->prefixTable('messages');
         $archived = $this->db->prefixTable('archived_messages');
-        $cursor = $before === null ? '' : ' AND id < ?';
+        $users = $this->db->prefixTable('users');
+        $cursor = $before === null ? '' : ' AND message.id < ?';
         $bindings = [$channelId];
         if ($before !== null) {
             $bindings[] = $before;
@@ -160,9 +163,13 @@ class ChatModel extends Model implements ChatRepository
 
         $rows = $this->db->query(
             "SELECT id, channel_id, user, msg, time, archived FROM (
-                SELECT id, channel_id, user, msg, time, 0 AS archived FROM {$messages} WHERE channel_id = ?{$cursor}
+                SELECT message.id, message.channel_id, COALESCE(author.username, '[deleted]') AS user, message.msg, message.time, 0 AS archived
+                FROM {$messages} AS message LEFT JOIN {$users} AS author ON author.id = message.user_id
+                WHERE message.channel_id = ?{$cursor}
                 UNION ALL
-                SELECT id, channel_id, user, msg, time, 1 AS archived FROM {$archived} WHERE channel_id = ?{$cursor}
+                SELECT message.id, message.channel_id, COALESCE(author.username, '[deleted]') AS user, message.msg, message.time, 1 AS archived
+                FROM {$archived} AS message LEFT JOIN {$users} AS author ON author.id = message.user_id
+                WHERE message.channel_id = ?{$cursor}
             ) AS channel_history ORDER BY id DESC LIMIT ?",
             $bindings,
         )->getResultArray();
@@ -209,6 +216,7 @@ class ChatModel extends Model implements ChatRepository
         $user = $user !== null ? trim($user) : null;
 
         $messagesTable = $this->db->prefixTable($this->table);
+        $usersTable = $this->db->prefixTable('users');
         $bindings = [];
         $conditions = [];
         $channelId ??= $this->generalChannelId();
@@ -217,20 +225,20 @@ class ChatModel extends Model implements ChatRepository
 
         if ($this->db->getPlatform() === 'SQLite3' && $text !== null && $text !== '') {
             $searchTable = $this->db->prefixTable('messages_fts');
-            $fromClause = "{$messagesTable} AS messages INNER JOIN {$searchTable} ON {$searchTable}.rowid = messages.id";
+            $fromClause = "{$messagesTable} AS messages INNER JOIN {$searchTable} ON {$searchTable}.rowid = messages.id LEFT JOIN {$usersTable} AS users ON users.id = messages.user_id";
             $conditions[] = "{$searchTable} MATCH ?";
             $bindings[] = $this->toSqliteFtsQuery($text);
         } else {
-            $fromClause = "{$messagesTable} AS messages";
+            $fromClause = "{$messagesTable} AS messages LEFT JOIN {$usersTable} AS users ON users.id = messages.user_id";
 
             if ($this->db->getPlatform() === 'MySQLi' && $text !== null && $text !== '') {
-                $conditions[] = 'MATCH(messages.user, messages.msg) AGAINST (? IN NATURAL LANGUAGE MODE)';
+                $conditions[] = 'MATCH(messages.msg) AGAINST (? IN NATURAL LANGUAGE MODE)';
                 $bindings[] = $text;
             }
         }
 
         if ($user !== null && $user !== '') {
-            $conditions[] = 'messages.user = ?';
+            $conditions[] = 'users.username = ?';
             $bindings[] = $user;
         }
         if ($from !== null) {
@@ -248,7 +256,8 @@ class ChatModel extends Model implements ChatRepository
 
         $queryBindings = [...$bindings, $perPage, $offset];
         $messages = $this->db->query(
-            "SELECT messages.* FROM {$fromClause}{$where} ORDER BY messages.time DESC, messages.id DESC LIMIT ? OFFSET ?",
+            "SELECT messages.id, messages.channel_id, COALESCE(users.username, '[deleted]') AS user, messages.msg, messages.time
+            FROM {$fromClause}{$where} ORDER BY messages.time DESC, messages.id DESC LIMIT ? OFFSET ?",
             $queryBindings,
         )->getResultArray();
         $totalPages = (int) ceil($totalItems / $perPage);
@@ -282,8 +291,13 @@ class ChatModel extends Model implements ChatRepository
      */
     public function insertMsg(string $name, string $message, int $current, ?int $channelId = null): int|bool
     {
+        $user = $this->db->table('users')->select('id')->where('username', $name)->get()->getRowArray();
+        if (! is_array($user)) {
+            return false;
+        }
+
         $result = $this->insert([
-            'user' => $name,
+            'user_id' => (int) $user['id'],
             'msg' => $message,
             'time' => $current,
             'channel_id' => $channelId ?? $this->generalChannelId(),
@@ -318,7 +332,7 @@ class ChatModel extends Model implements ChatRepository
             $archiveRows = array_map(static fn (array $row): array => [
                 'id' => (int) $row['id'],
                 'channel_id' => (int) $row['channel_id'],
-                'user' => (string) $row['user'],
+                'user_id' => $row['user_id'] === null ? null : (int) $row['user_id'],
                 'msg' => (string) $row['msg'],
                 'time' => (int) $row['time'],
                 'archived_at' => $archivedAt,
@@ -341,26 +355,29 @@ class ChatModel extends Model implements ChatRepository
         $batchSize = max(1, min(5_000, $batchSize));
         $messages = $this->db->prefixTable('messages');
         $archived = $this->db->prefixTable('archived_messages');
+        $users = $this->db->prefixTable('users');
         $after = 0;
 
         do {
-            $where = ['id > ?'];
+            $where = ['message.id > ?'];
             $tableBindings = [$after];
             if ($channelId !== null) {
-                $where[] = 'channel_id = ?';
+                $where[] = 'message.channel_id = ?';
                 $tableBindings[] = $channelId;
             }
             if ($username !== null) {
-                $where[] = 'user = ?';
+                $where[] = 'author.username = ?';
                 $tableBindings[] = $username;
             }
             $condition = implode(' AND ', $where);
             $bindings = [...$tableBindings, ...$tableBindings, $batchSize];
             $rows = $this->db->query(
                 "SELECT id, channel_id, user, msg, time, archived FROM (
-                    SELECT id, channel_id, user, msg, time, 0 AS archived FROM {$messages} WHERE {$condition}
+                    SELECT message.id, message.channel_id, COALESCE(author.username, '[deleted]') AS user, message.msg, message.time, 0 AS archived
+                    FROM {$messages} AS message LEFT JOIN {$users} AS author ON author.id = message.user_id WHERE {$condition}
                     UNION ALL
-                    SELECT id, channel_id, user, msg, time, 1 AS archived FROM {$archived} WHERE {$condition}
+                    SELECT message.id, message.channel_id, COALESCE(author.username, '[deleted]') AS user, message.msg, message.time, 1 AS archived
+                    FROM {$archived} AS message LEFT JOIN {$users} AS author ON author.id = message.user_id WHERE {$condition}
                 ) AS message_export ORDER BY id ASC LIMIT ?",
                 $bindings,
             )->getResultArray();
@@ -403,15 +420,20 @@ class ChatModel extends Model implements ChatRepository
         // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
-            $totalCount = $this->where('channel_id', $channelId)->where('user', $username)->countAllResults();
+            $totalCount = $this->db->table('messages AS messages')
+                ->join('users AS users', 'users.id = messages.user_id')
+                ->where('messages.channel_id', $channelId)
+                ->where('users.username', $username)
+                ->countAllResults();
 
             // Use user index for filtering and time index for ordering
-            $messages = $this->where('channel_id', $channelId)
-                            ->where('user', $username)
-                            ->orderBy('time', 'DESC')
-                            ->limit($perPage, $offset)
-                            ->get()
-                            ->getResultArray();
+            $messages = $this->liveMessageBuilder()
+                ->where('messages.channel_id', $channelId)
+                ->where('users.username', $username)
+                ->orderBy('messages.time', 'DESC')
+                ->limit($perPage, $offset)
+                ->get()
+                ->getResultArray();
 
             // Calculate total pages
             $totalPages = ceil($totalCount / $perPage);
@@ -491,19 +513,21 @@ class ChatModel extends Model implements ChatRepository
         // If not in the cache or cache expired, get from the database and store in the cache
         if ($result === null) {
             // Get total count for pagination
-            $totalCount = $this->where('channel_id', $channelId)
-                               ->where('time >=', $startTime)
-                               ->where('time <=', $endTime)
-                               ->countAllResults();
+            $totalCount = $this->db->table('messages')
+                ->where('channel_id', $channelId)
+                ->where('time >=', $startTime)
+                ->where('time <=', $endTime)
+                ->countAllResults();
 
             // Use time index for filtering and ordering
-            $messages = $this->where('channel_id', $channelId)
-                            ->where('time >=', $startTime)
-                            ->where('time <=', $endTime)
-                            ->orderBy('time', 'DESC')
-                            ->limit($perPage, $offset)
-                            ->get()
-                            ->getResultArray();
+            $messages = $this->liveMessageBuilder()
+                ->where('messages.channel_id', $channelId)
+                ->where('messages.time >=', $startTime)
+                ->where('messages.time <=', $endTime)
+                ->orderBy('messages.time', 'DESC')
+                ->limit($perPage, $offset)
+                ->get()
+                ->getResultArray();
 
             // Calculate total pages
             $totalPages = ceil($totalCount / $perPage);
@@ -576,6 +600,13 @@ class ChatModel extends Model implements ChatRepository
     {
         // A quoted phrase treats user input as text rather than FTS5 syntax.
         return '"' . str_replace('"', '""', $text) . '"';
+    }
+
+    private function liveMessageBuilder(): BaseBuilder
+    {
+        return $this->db->table('messages AS messages')
+            ->select("messages.id, messages.channel_id, COALESCE(users.username, '[deleted]') AS user, messages.msg, messages.time", false)
+            ->join('users AS users', 'users.id = messages.user_id', 'left');
     }
 
     private function generalChannelId(): int
