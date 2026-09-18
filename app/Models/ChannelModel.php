@@ -3,7 +3,11 @@
 namespace App\Models;
 
 use App\Contracts\ChannelRepository;
+use App\Contracts\WebhookDispatcher;
+use App\Services\NullWebhookDispatcher;
+use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Model;
+use CodeIgniter\Validation\ValidationInterface;
 
 final class ChannelModel extends Model implements ChannelRepository
 {
@@ -11,6 +15,17 @@ final class ChannelModel extends Model implements ChannelRepository
     protected $primaryKey = 'id';
     protected $useTimestamps = true;
     protected $allowedFields = ['name', 'slug', 'channel_type', 'topic', 'created_by', 'archived_at'];
+
+    private readonly WebhookDispatcher $webhooks;
+
+    public function __construct(
+        ?ConnectionInterface $db = null,
+        ?ValidationInterface $validation = null,
+        ?WebhookDispatcher $webhooks = null,
+    ) {
+        parent::__construct($db, $validation);
+        $this->webhooks = $webhooks ?? new NullWebhookDispatcher();
+    }
 
     public function generalChannelId(): int
     {
@@ -100,7 +115,23 @@ final class ChannelModel extends Model implements ChannelRepository
         }
         $this->db->transComplete();
 
-        return $this->db->transStatus() && $channelId !== false ? (int) $channelId : false;
+        if (! $this->db->transStatus() || $channelId === false) {
+            return false;
+        }
+
+        $channelId = (int) $channelId;
+        $this->webhooks->dispatch('channel.created', [
+            'channel' => [
+                'id' => $channelId,
+                'name' => $name,
+                'slug' => $slug,
+                'channel_type' => 'public',
+                'topic' => $topic,
+                'created_by' => $creatorId,
+            ],
+        ]);
+
+        return $channelId;
     }
 
     public function join(int $channelId, int $userId): bool

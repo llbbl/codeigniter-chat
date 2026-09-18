@@ -12,6 +12,6 @@ test('renders the embedded OpenAPI contract with Swagger UI', async ({ page }) =
 
   await expect(page).toHaveTitle('CodeIgniter Chat API documentation');
   await expect(page.locator('.swagger-ui .info .title')).toContainText('CodeIgniter Chat API');
-  await expect(page.locator('.swagger-ui .opblock')).toHaveCount(24);
+  await expect(page.locator('.swagger-ui .opblock')).toHaveCount(30);
   expect(consoleErrors).toEqual([]);
 });

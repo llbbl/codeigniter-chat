@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Contracts\ChatRepository;
+use App\Contracts\WebhookDispatcher;
+use App\Services\NullWebhookDispatcher;
 use CodeIgniter\Cache\CacheInterface;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\Database\ConnectionInterface;
@@ -41,13 +43,17 @@ class ChatModel extends Model implements ChatRepository
 
     private readonly CacheInterface $cache;
 
+    private readonly WebhookDispatcher $webhooks;
+
     public function __construct(
         ?ConnectionInterface $db = null,
         ?ValidationInterface $validation = null,
         ?CacheInterface $cache = null,
+        ?WebhookDispatcher $webhooks = null,
     ) {
         parent::__construct($db, $validation);
         $this->cache = $cache ?? Services::cache();
+        $this->webhooks = $webhooks ?? new NullWebhookDispatcher();
     }
 
     /**
@@ -296,17 +302,27 @@ class ChatModel extends Model implements ChatRepository
             return false;
         }
 
+        $resolvedChannelId = $channelId ?? $this->generalChannelId();
         $result = $this->insert([
             'user_id' => (int) $user['id'],
             'msg' => $message,
             'time' => $current,
-            'channel_id' => $channelId ?? $this->generalChannelId(),
+            'channel_id' => $resolvedChannelId,
         ]);
 
         // If insert was successful, invalidate the cache
         if ($result) {
             $this->invalidateCache();
             log_message('debug', 'Chat messages cache invalidated after new message.');
+            $this->webhooks->dispatch('message.created', [
+                'message' => [
+                    'id' => (int) $result,
+                    'channel_id' => $resolvedChannelId,
+                    'user' => $name,
+                    'msg' => $message,
+                    'time' => $current,
+                ],
+            ], $resolvedChannelId);
         }
 
         return $result;

@@ -34,6 +34,10 @@ class RateLimit extends BaseConfig
             'anonymous' => [1, 3_600],
             'authenticated' => [5, 3_600],
         ],
+        'webhook' => [
+            'anonymous' => [1, 3_600],
+            'authenticated' => [10, 3_600],
+        ],
     ];
 
     public function __construct()

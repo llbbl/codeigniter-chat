@@ -11,10 +11,13 @@ use App\Contracts\CspReportRepository;
 use App\Contracts\PushSubscriptionRepository;
 use App\Contracts\ReactionRepository;
 use App\Contracts\UserRepository;
+use App\Contracts\WebhookHttpClient;
+use App\Contracts\WebhookRepository;
 use App\Controllers\Api\V1\ChannelsController;
 use App\Controllers\Api\V1\MessagesController;
 use App\Controllers\Api\V1\PushSubscriptionsController;
 use App\Controllers\Api\V1\ReactionsController;
+use App\Controllers\Api\V1\WebhooksController;
 use App\Controllers\ApiDocs;
 use App\Controllers\AuditLog;
 use App\Controllers\Auth;
@@ -31,10 +34,14 @@ use App\Models\CspReportModel;
 use App\Models\MessageReactionModel;
 use App\Models\PushSubscriptionModel;
 use App\Models\UserModel;
+use App\Models\WebhookModel;
 use App\Services\AuditLogger;
 use App\Services\ChatFormatter;
+use App\Services\CodeIgniterWebhookHttpClient;
 use App\Services\CorrelationId;
 use App\Services\NullAuditLogger;
+use App\Services\WebhookDeliveryService;
+use App\Services\WebhookUrlValidator;
 use CodeIgniter\CodeIgniter;
 use CodeIgniter\Config\BaseService;
 use CodeIgniter\Controller;
@@ -79,6 +86,7 @@ class Services extends BaseService
             ChannelsController::class => new ChannelsController(static::channelRepository(), static::chatRepository(), static::userRepository()),
             PushSubscriptionsController::class => new PushSubscriptionsController(static::pushSubscriptionRepository()),
             ReactionsController::class => new ReactionsController(static::reactionRepository(), static::channelRepository()),
+            WebhooksController::class => new WebhooksController(static::webhookRepository(), static::webhookUrlValidator()),
             Auth::class => new Auth(static::userRepository(), static::auditLogger()),
             Profile::class => new Profile(static::userRepository()),
             CspReport::class => new CspReport(static::cspReportRepository()),
@@ -93,7 +101,7 @@ class Services extends BaseService
             return static::getSharedInstance('chatRepository');
         }
 
-        return new ChatModel();
+        return new ChatModel(webhooks: static::webhookRepository());
     }
 
     public static function channelRepository(bool $getShared = true): ChannelRepository
@@ -102,7 +110,7 @@ class Services extends BaseService
             return static::getSharedInstance('channelRepository');
         }
 
-        return new ChannelModel();
+        return new ChannelModel(webhooks: static::webhookRepository());
     }
 
     public static function userRepository(bool $getShared = true): UserRepository
@@ -147,7 +155,49 @@ class Services extends BaseService
             return static::getSharedInstance('reactionRepository');
         }
 
-        return new MessageReactionModel();
+        return new MessageReactionModel(webhooks: static::webhookRepository());
+    }
+
+    public static function webhookRepository(bool $getShared = true): WebhookRepository
+    {
+        if ($getShared) {
+            return static::getSharedInstance('webhookRepository');
+        }
+
+        return new WebhookModel();
+    }
+
+    public static function webhookHttpClient(bool $getShared = true): WebhookHttpClient
+    {
+        if ($getShared) {
+            return static::getSharedInstance('webhookHttpClient');
+        }
+
+        return new CodeIgniterWebhookHttpClient(parent::curlrequest([], null, null, false));
+    }
+
+    public static function webhookUrlValidator(bool $getShared = true): WebhookUrlValidator
+    {
+        if ($getShared) {
+            return static::getSharedInstance('webhookUrlValidator');
+        }
+
+        $environment = strtolower((string) ($_SERVER['CI_ENVIRONMENT'] ?? getenv('CI_ENVIRONMENT') ?: 'production'));
+
+        return new WebhookUrlValidator(allowHttpLoopback: in_array($environment, ['development', 'testing'], true));
+    }
+
+    public static function webhookDeliveryService(bool $getShared = true): WebhookDeliveryService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('webhookDeliveryService');
+        }
+
+        return new WebhookDeliveryService(
+            static::webhookRepository(),
+            static::webhookHttpClient(),
+            urlValidator: static::webhookUrlValidator(),
+        );
     }
 
     public static function auditLogRepository(bool $getShared = true): AuditLogRepository

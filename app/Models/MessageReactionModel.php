@@ -3,7 +3,11 @@
 namespace App\Models;
 
 use App\Contracts\ReactionRepository;
+use App\Contracts\WebhookDispatcher;
+use App\Services\NullWebhookDispatcher;
+use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Model;
+use CodeIgniter\Validation\ValidationInterface;
 
 final class MessageReactionModel extends Model implements ReactionRepository
 {
@@ -13,6 +17,17 @@ final class MessageReactionModel extends Model implements ReactionRepository
     protected $updatedField = '';
     protected $allowedFields = ['message_id', 'user_id', 'emoji'];
 
+    private readonly WebhookDispatcher $webhooks;
+
+    public function __construct(
+        ?ConnectionInterface $db = null,
+        ?ValidationInterface $validation = null,
+        ?WebhookDispatcher $webhooks = null,
+    ) {
+        parent::__construct($db, $validation);
+        $this->webhooks = $webhooks ?? new NullWebhookDispatcher();
+    }
+
     public function messageExists(int $messageId): bool
     {
         return $this->db->table('messages')->where('id', $messageId)->countAllResults() === 1;
@@ -20,6 +35,9 @@ final class MessageReactionModel extends Model implements ReactionRepository
 
     public function add(int $messageId, int $userId, string $emoji): bool
     {
+        if ($this->hasReaction($messageId, $userId, $emoji)) {
+            return true;
+        }
         $saved = $this->db->table($this->table)->ignore(true)->insert([
             'message_id' => $messageId,
             'user_id' => $userId,
@@ -27,7 +45,19 @@ final class MessageReactionModel extends Model implements ReactionRepository
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        return $saved && $this->hasReaction($messageId, $userId, $emoji);
+        if ($saved) {
+            $message = $this->db->table('messages')->select('channel_id')->where('id', $messageId)->get()->getRowArray();
+            $channelId = is_array($message) ? (int) $message['channel_id'] : null;
+            $this->webhooks->dispatch('reaction.added', [
+                'reaction' => [
+                    'message_id' => $messageId,
+                    'user_id' => $userId,
+                    'emoji' => $emoji,
+                ],
+            ], $channelId);
+        }
+
+        return $saved;
     }
 
     public function remove(int $messageId, int $userId, string $emoji): bool

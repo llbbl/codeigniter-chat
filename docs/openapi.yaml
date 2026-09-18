@@ -25,6 +25,7 @@ tags:
   - name: Reactions
   - name: Push subscriptions
   - name: Profiles
+  - name: Webhooks
 security:
   - sessionAuth: []
 paths:
@@ -837,6 +838,176 @@ paths:
                 csrf_token: 8e90d72f31e54e9aa26760cf6f26a06f
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/v1/webhooks:
+    get:
+      operationId: listWebhooks
+      tags: [Webhooks]
+      summary: List the current user's outgoing webhooks
+      responses:
+        '200':
+          description: Webhooks without their write-only signing secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhooks]
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createWebhook
+      tags: [Webhooks]
+      summary: Create an outgoing webhook
+      description: The signing secret is returned only in this response. Creation is limited to 10 requests per hour.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookInput'
+            example:
+              url: https://example.com/hooks/chat
+              events: [message.created, reaction.added]
+              active: true
+      responses:
+        '201':
+          description: Webhook created; copy the secret immediately.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhook, secret]
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/Webhook'
+                  secret:
+                    type: string
+                    pattern: '^[a-f0-9]{64}$'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/webhooks/{webhookId}:
+    patch:
+      operationId: updateWebhook
+      tags: [Webhooks]
+      summary: Update an owned webhook
+      parameters:
+        - $ref: '#/components/parameters/WebhookId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookUpdate'
+      responses:
+        '200':
+          description: Updated webhook.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhook]
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      operationId: deleteWebhook
+      tags: [Webhooks]
+      summary: Delete an owned webhook and its delivery history
+      parameters:
+        - $ref: '#/components/parameters/WebhookId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Webhook deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/webhooks/{webhookId}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      tags: [Webhooks]
+      summary: List recent delivery attempts for an owned webhook
+      parameters:
+        - $ref: '#/components/parameters/WebhookId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Delivery history, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries]
+                properties:
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookDelivery'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /api/v1/webhook-deliveries/{deliveryId}/redeliver:
+    post:
+      operationId: redeliverWebhookDelivery
+      tags: [Webhooks]
+      summary: Reset an owned delivery to pending
+      parameters:
+        - $ref: '#/components/parameters/DeliveryId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '202':
+          description: Delivery queued again.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 components:
   securitySchemes:
     sessionAuth:
@@ -866,6 +1037,22 @@ components:
         type: integer
         minimum: 1
       example: 42
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 12
+    DeliveryId:
+      name: deliveryId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 91
     CsrfToken:
       name: X-CSRF-TOKEN
       in: header
@@ -953,6 +1140,89 @@ components:
         success:
           type: boolean
           const: true
+    WebhookEvent:
+      type: string
+      enum: [message.created, reaction.added, channel.created]
+    WebhookInput:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: HTTPS endpoint. HTTP loopback endpoints are accepted only outside production for local testing.
+        events:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/WebhookEvent'
+        active:
+          type: boolean
+          default: true
+    WebhookUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        events:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/WebhookEvent'
+        active:
+          type: boolean
+    Webhook:
+      type: object
+      required: [id, url, events, active]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEvent'
+        active:
+          type: boolean
+        created_at:
+          type: [string, 'null']
+        updated_at:
+          type: [string, 'null']
+    WebhookDelivery:
+      type: object
+      required: [id, event, status, attempts]
+      properties:
+        id:
+          type: integer
+        event:
+          $ref: '#/components/schemas/WebhookEvent'
+        status:
+          type: string
+          enum: [pending, processing, retrying, delivered, dropped]
+        attempts:
+          type: integer
+          minimum: 0
+          maximum: 5
+        response_status:
+          type: [integer, 'null']
+        last_error:
+          type: [string, 'null']
+        next_attempt_at:
+          type: [string, 'null']
+        delivered_at:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+        updated_at:
+          type: [string, 'null']
     Message:
       type: object
       required: [id, channel_id, user, msg, time]

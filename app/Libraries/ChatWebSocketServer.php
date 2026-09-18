@@ -11,6 +11,7 @@ use App\Models\ChatModel;
 use App\Models\MessageReactionModel;
 use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
+use Config\Services;
 use Exception;
 use Ratchet\ConnectionInterface;
 use Ratchet\MessageComponentInterface;
@@ -114,11 +115,11 @@ class ChatWebSocketServer implements MessageComponentInterface
         ?ChannelRepository $channels = null,
     ) {
         $this->clients = $clients ?? new SplObjectStorage();
-        $this->chatModel = $chatModel ?? new ChatModel();
+        $this->chatModel = $chatModel ?? new ChatModel(webhooks: Services::webhookRepository());
         $this->requireAuth = $requireAuth;
         $this->users = $users ?? new UserModel();
-        $this->reactions = $reactions ?? new MessageReactionModel();
-        $this->channels = $channels ?? new ChannelModel();
+        $this->reactions = $reactions ?? new MessageReactionModel(webhooks: Services::webhookRepository());
+        $this->channels = $channels ?? new ChannelModel(webhooks: Services::webhookRepository());
 
         $this->logServerStart();
     }

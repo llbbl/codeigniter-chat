@@ -19,6 +19,10 @@ for (const match of routesSource.slice(groupStart, groupEnd).matchAll(routePatte
     ? ['channelId']
     : route.startsWith('messages/')
       ? ['messageId', 'emoji']
+      : route.startsWith('webhooks/')
+        ? ['webhookId']
+        : route.startsWith('webhook-deliveries/')
+          ? ['deliveryId']
       : [];
   let parameterIndex = 0;
   const normalizedRoute = route.replace(/\(:(?:num|segment)\)/g, () => {
