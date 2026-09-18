@@ -1,0 +1,1458 @@
+openapi: 3.1.0
+info:
+  title: CodeIgniter Chat API
+  version: 1.0.0
+  description: |
+    Contract for the versioned HTTP API. Browser clients authenticate with the
+    CodeIgniter session cookie. Mutating requests also send the current CSRF
+    token in the `X-CSRF-TOKEN` header or form body.
+
+    The YAML file is the source of truth. Generated client SDKs are a possible
+    follow-up and are intentionally not shipped by this project.
+  contact:
+    name: CodeIgniter Chat maintainers
+    url: https://github.com/llbbl/codeigniter-chat
+servers:
+  - url: /
+    description: Current application origin
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://chat.example.com
+    description: Production placeholder
+tags:
+  - name: Messages
+  - name: Channels
+  - name: Reactions
+  - name: Push subscriptions
+  - name: Profiles
+security:
+  - sessionAuth: []
+paths:
+  /api/v1/messages:
+    get:
+      operationId: listMessages
+      tags: [Messages]
+      summary: List messages in the general channel
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/GeneralMessagePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createGeneralMessage
+      tags: [Messages]
+      summary: Create a message in the general channel
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              message: Hello from the API
+      responses:
+        '200':
+          description: Message created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/messages/search:
+    get:
+      operationId: searchMessages
+      tags: [Messages]
+      summary: Search live messages in the general channel
+      description: At least one of `text`, `user`, `from`, or `to` is required.
+      parameters:
+        - $ref: '#/components/parameters/SearchText'
+        - $ref: '#/components/parameters/SearchUser'
+        - $ref: '#/components/parameters/FromTimestamp'
+        - $ref: '#/components/parameters/ToTimestamp'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Matching messages, pagination, and normalized filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageSearchResult'
+              example:
+                messages:
+                  - id: 42
+                    channel_id: 1
+                    user: alice
+                    msg: Hello from class
+                    time: 1700000000
+                pagination:
+                  page: 1
+                  perPage: 10
+                  totalItems: 1
+                  totalPages: 1
+                  hasNext: false
+                  hasPrev: false
+                filters:
+                  text: Hello
+                  user: alice
+                  from: 1699990000
+                  to: 1700010000
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/messages/xml:
+    get:
+      operationId: listMessagesXml
+      tags: [Messages]
+      summary: List general-channel messages as XML
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: XML message page.
+          content:
+            text/xml:
+              schema:
+                type: string
+              example: '<?xml version="1.0"?><response><status>1</status><time>1700000000</time><pagination><page>1</page><perPage>10</perPage><totalItems>1</totalItems><totalPages>1</totalPages><hasNext>false</hasNext><hasPrev>false</hasPrev></pagination><messages><message><id>42</id><author>alice</author><text>Hello</text></message></messages></response>'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/channels:
+    get:
+      operationId: listChannels
+      tags: [Channels]
+      summary: List channels visible to the current user
+      responses:
+        '200':
+          description: Visible public channels and joined direct messages.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [channels]
+                properties:
+                  channels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Channel'
+              example:
+                channels:
+                  - id: 1
+                    name: General
+                    slug: general
+                    channel_type: public
+                    topic: General conversation
+                    created_by: null
+                    archived_at: null
+                    created_at: '2026-09-18 10:00:00'
+                    updated_at: '2026-09-18 10:00:00'
+                    last_read_message_id: 41
+                    unread_count: 1
+                    is_member: true
+                    members: [alice, bob]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createChannel
+      tags: [Channels]
+      summary: Create a public channel
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelCreateInput'
+            example:
+              name: Project Room
+              slug: project-room
+              topic: Planning the next release
+      responses:
+        '201':
+          $ref: '#/components/responses/ChannelResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/channels/{channelId}:
+    patch:
+      operationId: updateChannel
+      tags: [Channels]
+      summary: Update a public channel as its creator
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelUpdateInput'
+            example:
+              name: Release Room
+              topic: Release coordination
+              archived: false
+      responses:
+        '200':
+          $ref: '#/components/responses/ChannelResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/channels/{channelId}/join:
+    post:
+      operationId: joinChannel
+      tags: [Channels]
+      summary: Join an active public channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          $ref: '#/components/responses/ChannelResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/channels/{channelId}/leave:
+    post:
+      operationId: leaveChannel
+      tags: [Channels]
+      summary: Leave a public channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Membership removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/channels/{channelId}/messages:
+    get:
+      operationId: listChannelMessages
+      tags: [Messages]
+      summary: List live or cursor-based channel history
+      description: Use `before`/`limit` for live plus archived cursor history, or `page`/`per_page` for live-message pagination.
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/BeforeMessageId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ChannelMessagePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createChannelMessage
+      tags: [Messages]
+      summary: Create a message in a joined channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              message: Channel-only update
+      responses:
+        '201':
+          description: Created message.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    $ref: '#/components/schemas/CreatedMessage'
+              example:
+                message:
+                  id: 43
+                  channel_id: 7
+                  user: alice
+                  msg: Channel-only update
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/channels/{channelId}/messages/search:
+    get:
+      operationId: searchChannelMessages
+      tags: [Messages]
+      summary: Search live messages in a joined channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/SearchText'
+        - $ref: '#/components/parameters/SearchUser'
+        - $ref: '#/components/parameters/FromTimestamp'
+        - $ref: '#/components/parameters/ToTimestamp'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Channel-scoped search result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageSearchResult'
+              example:
+                messages:
+                  - id: 43
+                    channel_id: 7
+                    user: alice
+                    msg: Channel-only update
+                    time: 1700000001
+                pagination:
+                  page: 1
+                  perPage: 10
+                  totalItems: 1
+                  totalPages: 1
+                  hasNext: false
+                  hasPrev: false
+                filters:
+                  text: update
+                  user: alice
+                  from: null
+                  to: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/channels/{channelId}/export:
+    get:
+      operationId: exportChannelMessages
+      tags: [Messages]
+      summary: Download all live and archived messages in a joined channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelId'
+        - $ref: '#/components/parameters/ExportFormat'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageExport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/users/me/export:
+    get:
+      operationId: exportMyMessages
+      tags: [Messages]
+      summary: Download all live and archived messages authored by the current user
+      parameters:
+        - $ref: '#/components/parameters/ExportFormat'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageExport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/dms:
+    post:
+      operationId: createDirectMessage
+      tags: [Channels]
+      summary: Find or create a direct-message channel
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [user_id]
+                  properties:
+                    user_id:
+                      type: integer
+                      minimum: 1
+                - type: object
+                  required: [username]
+                  properties:
+                    username:
+                      type: string
+                      minLength: 3
+                      maxLength: 30
+            example:
+              username: bob
+      responses:
+        '201':
+          $ref: '#/components/responses/ChannelResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/messages/{messageId}/reactions:
+    get:
+      operationId: listMessageReactions
+      tags: [Reactions]
+      summary: List reactions for an accessible live message
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Aggregated reaction groups.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reaction'
+              example:
+                - emoji: 👍
+                  count: 2
+                  users: [alice, bob]
+                  reacted_by_current_user: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createMessageReaction
+      tags: [Reactions]
+      summary: Add the current user's reaction
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              properties:
+                emoji:
+                  type: string
+                  minLength: 1
+                  maxLength: 10
+            example:
+              emoji: 👍
+      responses:
+        '201':
+          description: Current aggregate for the saved emoji.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message_id, reaction]
+                properties:
+                  message_id:
+                    type: integer
+                  reaction:
+                    $ref: '#/components/schemas/Reaction'
+              example:
+                message_id: 42
+                reaction:
+                  emoji: 👍
+                  count: 2
+                  users: [alice, bob]
+                  reacted_by_current_user: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/messages/{messageId}/reactions/{emoji}:
+    delete:
+      operationId: deleteMessageReaction
+      tags: [Reactions]
+      summary: Remove the current user's reaction
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+        - name: emoji
+          in: path
+          required: true
+          description: URL-encoded emoji.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          example: 👍
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Reaction removed; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/push-subscriptions:
+    post:
+      operationId: savePushSubscription
+      tags: [Push subscriptions]
+      summary: Save or replace a browser push subscription
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscriptionInput'
+            example:
+              endpoint: https://push.example.test/subscriptions/abc123
+              keys:
+                p256dh: BPV1_public_key_material
+                auth: auth_secret
+      responses:
+        '201':
+          description: Subscription saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+              example:
+                success: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      operationId: deletePushSubscription
+      tags: [Push subscriptions]
+      summary: Delete a browser push subscription
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+            example:
+              endpoint: https://push.example.test/subscriptions/abc123
+      responses:
+        '204':
+          description: Subscription removed; no response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/profile:
+    get:
+      operationId: getCurrentProfile
+      tags: [Profiles]
+      summary: Get the current user's private profile
+      responses:
+        '200':
+          description: Current profile and a fresh CSRF token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile, csrf_token]
+                properties:
+                  profile:
+                    $ref: '#/components/schemas/PrivateProfile'
+                  csrf_token:
+                    type: string
+              example:
+                profile:
+                  id: 7
+                  username: alice
+                  display_name: Alice Example
+                  avatar_url: https://chat.example.com/profile/avatar/7
+                  presence: online
+                  last_seen_at: '2026-09-18 10:00:00'
+                  email: alice@example.com
+                  theme: dark
+                  notification_prefs:
+                    desktop: true
+                    sound: false
+                csrf_token: 8e90d72f31e54e9aa26760cf6f26a06f
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: updateCurrentProfile
+      tags: [Profiles]
+      summary: Update the current user's profile preferences
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateInput'
+            example:
+              display_name: Alice Example
+              theme: dark
+              presence: online
+              notification_prefs:
+                desktop: true
+                sound: false
+      responses:
+        '200':
+          description: Updated profile and fresh CSRF token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile, csrf_token]
+                properties:
+                  profile:
+                    $ref: '#/components/schemas/PrivateProfile'
+                  csrf_token:
+                    type: string
+              example:
+                profile:
+                  id: 7
+                  username: alice
+                  display_name: Alice Example
+                  avatar_url: null
+                  presence: online
+                  last_seen_at: '2026-09-18 10:00:00'
+                  email: alice@example.com
+                  theme: dark
+                  notification_prefs:
+                    desktop: true
+                    sound: false
+                csrf_token: 8e90d72f31e54e9aa26760cf6f26a06f
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/profile/avatar:
+    post:
+      operationId: uploadProfileAvatar
+      tags: [Profiles]
+      summary: Upload and normalize the current user's avatar
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+            encoding:
+              avatar:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        '201':
+          description: Avatar saved and resized to WebP.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avatar_url, csrf_token]
+                properties:
+                  avatar_url:
+                    type: string
+                    format: uri
+                  csrf_token:
+                    type: string
+              example:
+                avatar_url: https://chat.example.com/profile/avatar/7
+                csrf_token: 8e90d72f31e54e9aa26760cf6f26a06f
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/v1/profiles:
+    get:
+      operationId: listPublicProfiles
+      tags: [Profiles]
+      summary: Resolve up to 50 public profiles by username
+      parameters:
+        - name: usernames
+          in: query
+          required: true
+          description: Comma-separated usernames; at most the first 50 are used.
+          schema:
+            type: string
+          example: alice,bob
+      responses:
+        '200':
+          description: Matching public profiles and a fresh CSRF token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profiles, csrf_token]
+                properties:
+                  profiles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicProfile'
+                  csrf_token:
+                    type: string
+              example:
+                profiles:
+                  - id: 7
+                    username: alice
+                    display_name: Alice Example
+                    avatar_url: https://chat.example.com/profile/avatar/7
+                    presence: online
+                    last_seen_at: '2026-09-18 10:00:00'
+                  - id: 8
+                    username: bob
+                    display_name: bob
+                    avatar_url: null
+                    presence: away
+                    last_seen_at: '2026-09-18 09:55:00'
+                csrf_token: 8e90d72f31e54e9aa26760cf6f26a06f
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: ci_session
+      description: CodeIgniter browser session cookie.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Reserved for a future non-browser authentication flow; not currently accepted.
+  parameters:
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 7
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 42
+    CsrfToken:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+      example: 8e90d72f31e54e9aa26760cf6f26a06f
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      example: 10
+    BeforeMessageId:
+      name: before
+      in: query
+      description: Return messages with IDs lower than this cursor.
+      schema:
+        type: integer
+        minimum: 1
+      example: 100
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+      example: 25
+    SearchText:
+      name: text
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 500
+      example: release notes
+    SearchUser:
+      name: user
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 30
+      example: alice
+    FromTimestamp:
+      name: from
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+      example: 1699990000
+    ToTimestamp:
+      name: to
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+      example: 1700010000
+    ExportFormat:
+      name: format
+      in: query
+      schema:
+        type: string
+        enum: [json, csv]
+        default: json
+      example: json
+  schemas:
+    Success:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    Message:
+      type: object
+      required: [id, channel_id, user, msg, time]
+      properties:
+        id:
+          type: integer
+        channel_id:
+          type: integer
+        user:
+          type: string
+          description: Current username, or `[deleted]` after account deletion.
+        msg:
+          type: string
+          minLength: 1
+          maxLength: 500
+        time:
+          type: integer
+          minimum: 1
+        archived:
+          type: integer
+          enum: [0, 1]
+          description: Present on cursor history and exports.
+    CreatedMessage:
+      type: object
+      required: [id, channel_id, user, msg]
+      properties:
+        id:
+          type: integer
+        channel_id:
+          type: integer
+        user:
+          type: string
+        msg:
+          type: string
+          minLength: 1
+          maxLength: 500
+    Pagination:
+      type: object
+      required: [page, perPage, totalItems, totalPages, hasNext, hasPrev]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        perPage:
+          type: integer
+          minimum: 1
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+    MessagePage:
+      type: object
+      required: [messages, pagination]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    GeneralMessagePage:
+      allOf:
+        - $ref: '#/components/schemas/MessagePage'
+        - type: object
+          required: [status, time]
+          properties:
+            status:
+              type: integer
+              enum: [1, 2]
+              description: "1 when messages are present and 2 when the page is empty."
+            time:
+              type: integer
+              minimum: 1
+    CursorPagination:
+      type: object
+      required: [limit, nextBefore, hasMore]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        nextBefore:
+          type: [integer, 'null']
+          minimum: 1
+        hasMore:
+          type: boolean
+    ChannelMessagePage:
+      oneOf:
+        - $ref: '#/components/schemas/MessagePage'
+        - type: object
+          required: [messages, pagination]
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+            pagination:
+              $ref: '#/components/schemas/CursorPagination'
+    MessageSearchResult:
+      allOf:
+        - $ref: '#/components/schemas/MessagePage'
+        - type: object
+          required: [filters]
+          properties:
+            filters:
+              type: object
+              required: [text, user, from, to]
+              properties:
+                text:
+                  type: [string, 'null']
+                user:
+                  type: [string, 'null']
+                from:
+                  type: [integer, 'null']
+                  minimum: 0
+                to:
+                  type: [integer, 'null']
+                  minimum: 0
+    Channel:
+      type: object
+      required: [id, name, slug, channel_type]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 80
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]{3,50}$'
+        channel_type:
+          type: string
+          enum: [public, dm]
+        topic:
+          type: [string, 'null']
+          maxLength: 200
+        created_by:
+          type: [integer, 'null']
+        archived_at:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+        updated_at:
+          type: [string, 'null']
+        last_read_message_id:
+          type: [integer, 'null']
+        unread_count:
+          type: integer
+          minimum: 0
+        is_member:
+          type: boolean
+        members:
+          type: array
+          items:
+            type: string
+    ChannelCreateInput:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]{3,50}$'
+        topic:
+          type: [string, 'null']
+          maxLength: 200
+    ChannelUpdateInput:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]{3,50}$'
+        topic:
+          type: [string, 'null']
+          maxLength: 200
+        archived:
+          type: boolean
+    Reaction:
+      type: object
+      required: [emoji, count, users, reacted_by_current_user]
+      properties:
+        emoji:
+          type: string
+          minLength: 1
+          maxLength: 10
+        count:
+          type: integer
+          minimum: 0
+        users:
+          type: array
+          items:
+            type: string
+        reacted_by_current_user:
+          type: boolean
+    PushSubscriptionInput:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          maxLength: 2048
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              minLength: 1
+              maxLength: 255
+            auth:
+              type: string
+              minLength: 1
+              maxLength: 255
+    PublicProfile:
+      type: object
+      required: [id, username, display_name, avatar_url, presence, last_seen_at]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+          pattern: '^[A-Za-z0-9_]{3,30}$'
+        display_name:
+          type: string
+          maxLength: 100
+        avatar_url:
+          type: [string, 'null']
+          format: uri
+        presence:
+          type: string
+          enum: [online, away, busy, offline]
+        last_seen_at:
+          type: [string, 'null']
+    PrivateProfile:
+      allOf:
+        - $ref: '#/components/schemas/PublicProfile'
+        - type: object
+          required: [email, theme, notification_prefs]
+          properties:
+            email:
+              type: string
+              format: email
+            theme:
+              type: string
+              enum: [system, light, dark]
+            notification_prefs:
+              $ref: '#/components/schemas/NotificationPreferences'
+    NotificationPreferences:
+      type: object
+      required: [desktop, sound]
+      properties:
+        desktop:
+          type: boolean
+        sound:
+          type: boolean
+    ProfileUpdateInput:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 100
+        theme:
+          type: string
+          enum: [system, light, dark]
+        presence:
+          type: string
+          enum: [online, away, busy]
+        notification_prefs:
+          $ref: '#/components/schemas/NotificationPreferences'
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [type, message]
+          properties:
+            type:
+              type: string
+              enum: [validation, database, storage, export, conflict, authentication, authorization, not_found, rate_limit, server]
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            correlation_id:
+              type: string
+              description: Present on errors emitted by shared filters and the central error handler.
+  responses:
+    GeneralMessagePage:
+      description: Paginated general-channel messages with legacy status metadata.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeneralMessagePage'
+          example:
+            messages:
+              - id: 42
+                channel_id: 1
+                user: alice
+                msg: Hello from class
+                time: 1700000000
+            status: 1
+            time: 1700000001
+            pagination:
+              page: 1
+              perPage: 10
+              totalItems: 1
+              totalPages: 1
+              hasNext: false
+              hasPrev: false
+    ChannelMessagePage:
+      description: Live-message page or live-plus-archive cursor history.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChannelMessagePage'
+          examples:
+            page:
+              summary: Page-based live messages
+              value:
+                messages:
+                  - id: 42
+                    channel_id: 7
+                    user: alice
+                    msg: Hello from class
+                    time: 1700000000
+                pagination:
+                  page: 1
+                  perPage: 10
+                  totalItems: 1
+                  totalPages: 1
+                  hasNext: false
+                  hasPrev: false
+            cursor:
+              summary: Cursor history including archived messages
+              value:
+                messages:
+                  - id: 42
+                    channel_id: 7
+                    user: alice
+                    msg: Hello from class
+                    time: 1700000000
+                    archived: 0
+                pagination:
+                  limit: 25
+                  nextBefore: null
+                  hasMore: false
+    ChannelResult:
+      description: Channel state.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [channel]
+            properties:
+              channel:
+                $ref: '#/components/schemas/Channel'
+          example:
+            channel:
+              id: 7
+              name: Project Room
+              slug: project-room
+              channel_type: public
+              topic: Planning the next release
+              created_by: 7
+              archived_at: null
+              created_at: '2026-09-18 10:00:00'
+              updated_at: '2026-09-18 10:00:00'
+    MessageExport:
+      description: Downloaded message history in the selected format.
+      headers:
+        Content-Disposition:
+          schema:
+            type: string
+          description: Attachment filename.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Message'
+          example:
+            - id: 42
+              channel_id: 7
+              user: alice
+              msg: Exported message
+              time: 1700000000
+              archived: 0
+        text/csv:
+          schema:
+            type: string
+          example: |-
+            id,channel_id,user,msg,time,archived
+            42,7,alice,"Exported message",1700000000,0
+    BadRequest:
+      description: Invalid query, form, or JSON input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: validation
+              message: Provide at least one search filter.
+    Unauthorized:
+      description: A valid logged-in session is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: authentication
+              message: Authentication required
+              details: {}
+              correlation_id: 8fbc0e2d79d745569abeb2f5335c1712
+    Forbidden:
+      description: The current user cannot perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: authorization
+              message: You are not a channel member.
+    NotFound:
+      description: The requested resource is missing or inaccessible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: not_found
+              message: Channel not found.
+    Conflict:
+      description: A unique resource value is already in use.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: conflict
+              message: The channel slug is already in use.
+    UnprocessableEntity:
+      description: The submitted entity has invalid fields.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: validation
+              message: Choose a valid theme.
+    RateLimited:
+      description: The endpoint's rate limit was exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until another request is allowed.
+        X-Correlation-ID:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: rate_limit
+              message: Too many requests. Please try again later.
+              details:
+                retry_after: 60
+              correlation_id: 8fbc0e2d79d745569abeb2f5335c1712
+    ServerError:
+      description: Storage or server failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              type: server
+              message: An unexpected error occurred.

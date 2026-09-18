@@ -159,6 +159,7 @@ Start your web server and navigate to:
 See:
 
 - `docs/public-api.md` (HTTP + WebSocket + frontend entrypoints + reusable PHP APIs)
+- `docs/openapi.yaml` (machine-readable OpenAPI 3.1 contract, rendered at `/api/docs`)
 - `docs/api.md` (message reaction HTTP and WebSocket contracts)
 - `docs/user-profiles.md` (profile settings, avatars, themes, and WebSocket presence)
 - `docs/channels.md` (public channels, private DMs, APIs, WebSocket routing, and migration operations)

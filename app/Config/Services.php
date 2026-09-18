@@ -15,6 +15,7 @@ use App\Controllers\Api\V1\ChannelsController;
 use App\Controllers\Api\V1\MessagesController;
 use App\Controllers\Api\V1\PushSubscriptionsController;
 use App\Controllers\Api\V1\ReactionsController;
+use App\Controllers\ApiDocs;
 use App\Controllers\AuditLog;
 use App\Controllers\Auth;
 use App\Controllers\Chat;
@@ -72,6 +73,7 @@ class Services extends BaseService
 
         return match ($controllerClass) {
             Home::class => new Home(),
+            ApiDocs::class => new ApiDocs(),
             Chat::class => new Chat(static::chatRepository(), static::chatFormatter()),
             MessagesController::class => new MessagesController(static::chatRepository(), static::chatFormatter()),
             ChannelsController::class => new ChannelsController(static::channelRepository(), static::chatRepository(), static::userRepository()),
