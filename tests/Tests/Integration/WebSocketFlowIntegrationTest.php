@@ -103,8 +103,10 @@ final class WebSocketFlowIntegrationTest extends IntegrationTestCase
 
     public function testGetMessagesSearchReturnsADistinguishableResult(): void
     {
+        $userId = (new UserModel())->createUser('socketuser', 'socket-search@example.com', 'Password123!');
+        $this->assertIsInt($userId);
         $this->hasInDatabase('messages', [
-            'user' => 'socketuser',
+            'user_id' => $userId,
             'msg' => 'A uniquely searchable websocket message',
             'time' => 1_700_000_000,
         ]);

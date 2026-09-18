@@ -49,14 +49,14 @@ final class RetentionIntegrationTest extends IntegrationTestCase
     public function testArchivePolicyDelegatesToMessageArchivingAndIsIdempotent(): void
     {
         $user = new UserModel();
-        $userId = $user->createUser('retention-user', 'retention@example.com', 'Password123!');
+        $userId = $user->createUser('retention_user', 'retention@example.com', 'Password123!');
         $this->assertIsInt($userId);
         $channelId = (new ChannelModel())->createPublic('Retention', 'retention', null, $userId);
         $this->assertIsInt($channelId);
 
         $messages = new ChatModel();
-        $messages->insertMsg('retention-user', 'old message', strtotime('-91 days'), $channelId);
-        $messages->insertMsg('retention-user', 'new message', strtotime('-89 days'), $channelId);
+        $messages->insertMsg('retention_user', 'old message', strtotime('-91 days'), $channelId);
+        $messages->insertMsg('retention_user', 'new message', strtotime('-89 days'), $channelId);
 
         $command = new RetentionApply(service('logger'), service('commands'));
         $params = ['policy' => 'messages', 'batch-size' => '1'];

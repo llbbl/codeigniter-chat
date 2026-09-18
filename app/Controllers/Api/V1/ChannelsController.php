@@ -231,7 +231,7 @@ final class ChannelsController extends BaseController
         }
 
         $textInput = $this->optionalQueryString('text', 500);
-        $userInput = $this->optionalQueryString('user', 255);
+        $userInput = $this->optionalQueryString('user', 30);
         $fromInput = $this->optionalTimestamp('from');
         $toInput = $this->optionalTimestamp('to');
         $page = $this->positiveIntegerQuery('page', 1, PHP_INT_MAX);

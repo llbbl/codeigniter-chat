@@ -70,7 +70,7 @@ final class MessagesController extends Chat
     private function validatedSearchInput(): array
     {
         $text = $this->optionalString('text', 500);
-        $user = $this->optionalString('user', 255);
+        $user = $this->optionalString('user', 30);
         $from = $this->optionalUnsignedInteger('from');
         $to = $this->optionalUnsignedInteger('to');
         $page = $this->positiveInteger('page', 1, PHP_INT_MAX);

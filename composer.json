@@ -56,7 +56,7 @@
         "test:database": "phpunit tests/Tests/Database",
         "test:feature": "phpunit tests/Tests/Feature",
         "test:integration": "phpunit --testsuite Integration --group integration --exclude-group integration-websocket",
-        "test:integration:mysql": "phpunit --testsuite Integration --group message-search",
+        "test:integration:mysql": "phpunit --testsuite Integration --group message-search --group database-constraints",
         "test:integration:websocket": "phpunit --testsuite Integration --group integration-websocket",
         "test:all": "phpunit --exclude-group integration-websocket",
         "test:coverage": "phpunit --colors --coverage-html build/logs/html",

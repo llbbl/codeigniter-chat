@@ -13,6 +13,7 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
 {
     public function testSearchIndexExistsAndStaysSynchronized(): void
     {
+        $this->createUser('alice');
         $model = new ChatModel();
         $id = $model->insertMsg('alice', 'A cobalt telescope is ready', 1_700_000_000);
         $this->assertIsInt($id);
@@ -32,12 +33,14 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
 
     public function testSearchCombinesTextUserTimeAndPagination(): void
     {
+        $aliceId = $this->createUser('alice');
+        $bobId = $this->createUser('bob');
         $this->db->table('messages')->insertBatch([
-            ['user' => 'alice', 'msg' => 'Indexed meteor report one', 'time' => 100],
-            ['user' => 'alice', 'msg' => 'Indexed meteor report two', 'time' => 200],
-            ['user' => 'alice', 'msg' => 'Indexed meteor report outside range', 'time' => 300],
-            ['user' => 'bob', 'msg' => 'Indexed meteor report by Bob', 'time' => 150],
-            ['user' => 'alice', 'msg' => 'Unrelated conversation', 'time' => 175],
+            ['user_id' => $aliceId, 'msg' => 'Indexed meteor report one', 'time' => 100],
+            ['user_id' => $aliceId, 'msg' => 'Indexed meteor report two', 'time' => 200],
+            ['user_id' => $aliceId, 'msg' => 'Indexed meteor report outside range', 'time' => 300],
+            ['user_id' => $bobId, 'msg' => 'Indexed meteor report by Bob', 'time' => 150],
+            ['user_id' => $aliceId, 'msg' => 'Unrelated conversation', 'time' => 175],
         ]);
 
         $result = (new ChatModel())->searchMessages('Indexed meteor report', 'alice', 100, 250, 2, 1);
@@ -60,11 +63,13 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
         $this->assertIsInt($userId);
         $user = $userModel->find($userId);
         $this->assertIsArray($user);
+        $aliceId = $this->createUser('alice');
+        $bobId = $this->createUser('bob');
 
         $this->db->table('messages')->insertBatch([
-            ['user' => 'alice', 'msg' => 'The classroom has a brass telescope', 'time' => 200],
-            ['user' => 'alice', 'msg' => 'The classroom has a paper map', 'time' => 100],
-            ['user' => 'bob', 'msg' => 'The classroom has a brass telescope', 'time' => 200],
+            ['user_id' => $aliceId, 'msg' => 'The classroom has a brass telescope', 'time' => 200],
+            ['user_id' => $aliceId, 'msg' => 'The classroom has a paper map', 'time' => 100],
+            ['user_id' => $bobId, 'msg' => 'The classroom has a brass telescope', 'time' => 200],
         ]);
 
         $response = $this->loginAs($user)
@@ -82,10 +87,14 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
 
     public function testFullTextSearchUsesTheNativeIndexAtPracticalScale(): void
     {
+        $userIds = [];
+        for ($i = 0; $i < 20; ++$i) {
+            $userIds[$i] = $this->createUser('user' . $i);
+        }
         $rows = [];
         for ($i = 0; $i < 2_000; ++$i) {
             $rows[] = [
-                'user' => 'user' . ($i % 20),
+                'user_id' => $userIds[$i % 20],
                 'msg' => $i === 1_337 ? 'distinctive quasar observatory signal' : "ordinary classroom message {$i}",
                 'time' => 1_700_000_000 + $i,
             ];
@@ -123,8 +132,8 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
 
         $table = $this->db->prefixTable('messages');
         $indexes = $this->db->query("SHOW INDEX FROM {$table} WHERE Key_name = 'idx_messages_fulltext'")->getResultArray();
-        $this->assertCount(2, $indexes);
-        $this->assertSame(['user', 'msg'], array_values(array_unique(array_column($indexes, 'Column_name'))));
+        $this->assertCount(1, $indexes);
+        $this->assertSame(['msg'], array_values(array_unique(array_column($indexes, 'Column_name'))));
     }
 
     private function assertQueryPlanUsesSearchIndex(string $text): void
@@ -144,10 +153,18 @@ final class MessageSearchIntegrationTest extends IntegrationTestCase
         }
 
         $plan = $this->db->query(
-            "EXPLAIN SELECT messages.* FROM {$messages} AS messages WHERE MATCH(messages.user, messages.msg) AGAINST (? IN NATURAL LANGUAGE MODE)",
+            "EXPLAIN SELECT messages.* FROM {$messages} AS messages WHERE MATCH(messages.msg) AGAINST (? IN NATURAL LANGUAGE MODE)",
             [$text],
         )->getResultArray();
         $this->assertContains('fulltext', array_map('strtolower', array_column($plan, 'type')));
         $this->assertContains('idx_messages_fulltext', array_column($plan, 'key'));
+    }
+
+    private function createUser(string $username): int
+    {
+        $id = (new UserModel())->createUser($username, "{$username}@example.com", 'Password123!');
+        $this->assertIsInt($id);
+
+        return $id;
     }
 }

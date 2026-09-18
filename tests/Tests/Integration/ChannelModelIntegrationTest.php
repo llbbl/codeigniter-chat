@@ -18,7 +18,7 @@ final class ChannelModelIntegrationTest extends IntegrationTestCase
         $generalId = $channels->ensureGeneralMembership($userId);
 
         $messageId = $this->db->table('messages')->insert([
-            'user' => 'alice',
+            'user_id' => $userId,
             'msg' => 'A legacy client message',
             'time' => 1_700_000_000,
         ], true);

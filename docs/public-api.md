@@ -249,15 +249,16 @@ curl -sS -b cookies.txt "$BASE_URL/api/v1/messages?page=1&per_page=10" | python 
 - **Auth**: required
 - **Response**: JSON
 - **Query filters** (at least one is required):
-  - `text`: full-text search of usernames and message bodies (maximum 500 characters)
-  - `user`: exact username (maximum 255 characters)
+  - `text`: full-text search of message bodies (maximum 500 characters)
+  - `user`: exact username (maximum 30 characters)
   - `from`: inclusive, non-negative Unix timestamp
   - `to`: inclusive, non-negative Unix timestamp
 - **Pagination**: `page` defaults to 1; `per_page` defaults to 10 and is capped at 100
 
 SQLite installations use an FTS5 index kept in sync by database triggers.
-MySQL installations use a native `FULLTEXT` index. Search results are newest
-first, with message ID as a deterministic tie-breaker.
+MySQL installations use a native `FULLTEXT` index. Exact author filtering uses
+the joined user record rather than the full-text index. Search results are
+newest first, with message ID as a deterministic tie-breaker.
 
 ```json
 {
