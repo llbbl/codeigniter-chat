@@ -64,6 +64,23 @@ pnpm format
 
 Please ensure the PHP and frontend checks pass before submitting a pull request. Biome covers repository JavaScript and TypeScript; framework-aware diagnostics are handled separately by `svelte-check` and `vue-tsc`.
 
+### API contract
+
+`docs/openapi.yaml` is the reviewed source of truth for every `/api/v1/*`
+operation. When a pull request adds, removes, or changes a versioned endpoint,
+update the OpenAPI operation, schemas, status codes, and concrete examples in
+the same pull request.
+
+Validate the contract locally with:
+
+```bash
+pnpm api:lint
+```
+
+This runs Spectral's OpenAPI 3.1 rules and compares the documented operations
+with the CodeIgniter route group. CI rejects invalid specifications and route
+drift. The rendered contract is available at `/api/docs` in a running app.
+
 ## Code Style Guidelines
 
 - Follow PSR-12 coding standards (enforced by PHP-CS-Fixer)

@@ -30,6 +30,9 @@ jobs:
       - name: Run frontend checks
         run: pnpm check
 
+      - name: Validate OpenAPI contract
+        run: pnpm api:lint
+
   test:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest

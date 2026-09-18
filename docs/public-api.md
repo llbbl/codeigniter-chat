@@ -1,5 +1,9 @@
 # Public API Reference (Backend + WebSocket + Frontend)
 
+The machine-readable OpenAPI 3.1 contract for every `/api/v1/*` route is in
+[`openapi.yaml`](openapi.yaml) and is rendered as interactive Swagger UI at
+`/api/docs`.
+
 This document describes the **public surface area** of this repository:
 
 - **HTTP endpoints** (CodeIgniter routes/controllers)

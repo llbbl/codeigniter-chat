@@ -38,6 +38,9 @@ export default defineConfig({
           'maskable-icon-512x512.png',
           'apple-touch-icon-180x180.png',
         ],
+        // Swagger UI is only needed on /api/docs. Keep its large, docs-only
+        // bundles out of the install-time cache used by regular chat clients.
+        globIgnores: ['dist/js/api-docs-*.js', 'dist/css/api-docs-*.css'],
       },
     }),
   ],
@@ -70,6 +73,7 @@ export default defineConfig({
         'chat-html': resolve(import.meta.dirname, 'src/js/chat-html.js'),
         'chat-vue': resolve(import.meta.dirname, 'src/vue/main.js'), // Vue.js entry point
         'chat-svelte': resolve(import.meta.dirname, 'src/svelte/main.js'), // Svelte entry point
+        'api-docs': resolve(import.meta.dirname, 'src/js/api-docs.js'),
         styles: resolve(import.meta.dirname, 'src/css/chat.scss'),
         zipcodes: resolve(import.meta.dirname, 'src/css/zipcodes.scss'),
       },

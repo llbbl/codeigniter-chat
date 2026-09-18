@@ -31,6 +31,8 @@ $routes->get('chat/vue', 'Chat::vue');
 $routes->get('chat/svelte', 'Chat::svelte');
 
 // Stable, machine-consumed API routes.
+$routes->get('api/docs', 'ApiDocs::index');
+
 $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static function (RouteCollection $routes): void {
     $routes->get('messages', 'MessagesController::list', ['filter' => ['apiFormat', 'auth']]);
     $routes->get('messages/search', 'MessagesController::search', ['filter' => ['apiFormat', 'auth']]);
