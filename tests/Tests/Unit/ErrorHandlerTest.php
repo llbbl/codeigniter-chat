@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Exceptions\EnvValidationException;
 use App\Libraries\AppExceptionHandler;
 use App\Libraries\ErrorHandler;
 use App\Services\CorrelationId;
@@ -18,6 +19,27 @@ use RuntimeException;
  */
 final class ErrorHandlerTest extends CIUnitTestCase
 {
+    public function testEnvironmentValidationExceptionReturnsServiceUnavailableResponse(): void
+    {
+        $request = new IncomingRequest(new App(), new URI('https://example.com/'), null, new UserAgent());
+        $response = new Response(new App());
+        $handler = new AppExceptionHandler(new ErrorHandler($request, $response, new CorrelationId($request)));
+
+        ob_start();
+        $handler->handle(
+            new EnvValidationException(['APP_URL must be a valid URL.']),
+            $request,
+            $response,
+            503,
+            EXIT_ERROR,
+        );
+        $output = ob_get_clean();
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertStringContainsString('Environment configuration is invalid', $output);
+        $this->assertStringContainsString('APP_URL must be a valid URL.', $output);
+    }
+
     public function testJsonErrorsUseNestedEnvelopeWithMatchingCorrelationHeader(): void
     {
         $request = new IncomingRequest(new App(), new URI('https://example.com/chat'), null, new UserAgent());

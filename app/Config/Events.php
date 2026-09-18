@@ -2,6 +2,8 @@
 
 namespace Config;
 
+use App\Services\EnvStartupGuard;
+use App\Services\EnvValidator;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\FrameworkException;
 use CodeIgniter\HotReloader\HotReloader;
@@ -24,6 +26,10 @@ use CodeIgniter\HotReloader\HotReloader;
  */
 
 Events::on('pre_system', static function (): void {
+    if (ENVIRONMENT !== 'testing') {
+        new EnvStartupGuard(new EnvValidator(new EnvSchema()->schema))->assertValid();
+    }
+
     if (ENVIRONMENT !== 'testing') {
         if (ini_get('zlib.output_compression')) {
             throw FrameworkException::forEnabledZlibOutputCompression();
@@ -52,4 +58,22 @@ Events::on('pre_system', static function (): void {
             });
         }
     }
+});
+
+Events::on('pre_command', static function (): void {
+    if (ENVIRONMENT === 'testing') {
+        return;
+    }
+
+    $command = $_SERVER['argv'][1] ?? 'list';
+    $target = $_SERVER['argv'][2] ?? '';
+    if (
+        str_starts_with($command, 'env:')
+        || $command === 'list'
+        || ($command === 'help' && str_starts_with($target, 'env:'))
+    ) {
+        return;
+    }
+
+    new EnvStartupGuard(new EnvValidator(new EnvSchema()->schema))->assertValid();
 });

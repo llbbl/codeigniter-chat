@@ -2,6 +2,7 @@
 
 namespace App\Libraries;
 
+use App\Exceptions\EnvValidationException;
 use CodeIgniter\Debug\ExceptionHandlerInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -20,6 +21,23 @@ final class AppExceptionHandler implements ExceptionHandlerInterface
         int $statusCode,
         int $exitCode,
     ): void {
+        if ($exception instanceof EnvValidationException) {
+            log_message('critical', 'Application startup rejected invalid environment configuration: {errors}', [
+                'errors' => implode('; ', $exception->errors),
+            ]);
+
+            $message = ENVIRONMENT === 'production'
+                ? 'Service unavailable due to invalid environment configuration.'
+                : $exception->getMessage();
+            $response
+                ->setStatusCode(503)
+                ->setContentType('text/plain')
+                ->setBody($message)
+                ->send();
+
+            return;
+        }
+
         $type = $statusCode === 404
             ? ErrorHandler::ERROR_TYPE_NOT_FOUND
             : ErrorHandler::ERROR_TYPE_SERVER;

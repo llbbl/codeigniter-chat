@@ -68,6 +68,19 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Validate environment configuration
+        env:
+          DB_PASSWORD: db-${{ github.run_id }}-${{ github.run_attempt }}-validation-value
+          DB_ROOT_PASSWORD: root-${{ github.run_id }}-${{ github.run_attempt }}-validation-value
+          WEBSOCKET_TOKEN_SECRET: websocket-${{ github.sha }}-${{ github.run_id }}
+        run: |
+          cp .env.example .env
+          sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=${DB_PASSWORD}|" .env
+          sed -i "s|^DB_ROOT_PASSWORD=.*|DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}|" .env
+          sed -i "s|^WEBSOCKET_TOKEN_SECRET=.*|WEBSOCKET_TOKEN_SECRET=${WEBSOCKET_TOKEN_SECRET}|" .env
+          php spark env:check --no-header
+          php spark env:diff --no-header
+
       - name: Check PHP coding style
         run: composer cs-check
 
