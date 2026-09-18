@@ -163,6 +163,7 @@ See:
 - `docs/api.md` (message reaction HTTP and WebSocket contracts)
 - `docs/user-profiles.md` (profile settings, avatars, themes, and WebSocket presence)
 - `docs/channels.md` (public channels, private DMs, APIs, WebSocket routing, and migration operations)
+- `docs/webhooks.md` (outgoing event schemas, signature verification, delivery worker, and retries)
 - `docs/operations.md` (data retention, message archiving, batching, backups, and export storage)
 - `docs/database-schema.md` (core relationships, named constraints, and cross-database migration behavior)
 

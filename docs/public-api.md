@@ -4,6 +4,9 @@ The machine-readable OpenAPI 3.1 contract for every `/api/v1/*` route is in
 [`openapi.yaml`](openapi.yaml) and is rendered as interactive Swagger UI at
 `/api/docs`.
 
+Outgoing webhook event bodies, HMAC verification, and worker operations are
+documented in [`webhooks.md`](webhooks.md).
+
 This document describes the **public surface area** of this repository:
 
 - **HTTP endpoints** (CodeIgniter routes/controllers)

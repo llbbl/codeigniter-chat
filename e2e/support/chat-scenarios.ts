@@ -13,6 +13,7 @@ interface ChatScenario {
     path: string;
     format: NetworkFormat;
   };
+  afterAssertions?: (page: Page) => Promise<void>;
 }
 
 export function chatScenario(scenario: ChatScenario): void {
@@ -59,6 +60,9 @@ export function chatScenario(scenario: ChatScenario): void {
       await expect(page.getByText('You’re offline.')).toBeHidden();
     }
     await assertNoSeriousAccessibilityViolations(page);
+    if (scenario.afterAssertions) {
+      await scenario.afterAssertions(page);
+    }
 
     const message = `${scenario.name} message ${Date.now()}`;
     if (scenario.authorInput) {
@@ -476,7 +480,7 @@ async function installModernChatWebSocket(page: Page): Promise<void> {
   });
 }
 
-async function login(page: Page): Promise<void> {
+export async function login(page: Page): Promise<void> {
   await page.goto('/auth/login');
   await page.locator('#username').fill('e2euser');
   await page.locator('#password').fill('Playwright123!');

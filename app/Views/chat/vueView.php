@@ -38,7 +38,9 @@
             pushSubscriptions: "<?= esc(site_url('api/v1/push-subscriptions')) ?>",
             profile: "<?= esc(site_url('api/v1/profile')) ?>",
             profileAvatar: "<?= esc(site_url('api/v1/profile/avatar')) ?>",
-            profiles: "<?= esc(site_url('api/v1/profiles')) ?>"
+            profiles: "<?= esc(site_url('api/v1/profiles')) ?>",
+            webhooks: "<?= esc(site_url('api/v1/webhooks')) ?>",
+            webhookDeliveries: "<?= esc(site_url('api/v1/webhook-deliveries')) ?>"
         };
 
         // CSRF protection token name (CodeIgniter's built-in XSS protection)

@@ -10,6 +10,7 @@
           Enable notifications
         </button>
         <ProfilePanel @updated="handleOwnProfile" />
+        <WebhookPanel />
         <a href="/auth/logout" class="logout-btn"> <i class="icon-logout" aria-hidden="true"></i> Logout </a>
       </div>
     </header>
@@ -286,9 +287,10 @@
     userScopedMessagesUrl,
   } from '../js/pwa.js';
   import ProfilePanel from './ProfilePanel.vue';
+  import WebhookPanel from './WebhookPanel.vue';
 
   export default {
-    components: { ProfilePanel },
+    components: { ProfilePanel, WebhookPanel },
     data() {
       return {
         // User information (from global properties set in main.js)

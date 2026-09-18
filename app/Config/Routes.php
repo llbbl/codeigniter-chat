@@ -58,6 +58,12 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
     $routes->post('profile', '\\App\\Controllers\\Profile::update', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
     $routes->post('profile/avatar', '\\App\\Controllers\\Profile::uploadAvatar', ['filter' => ['apiFormat', 'auth', 'rate:write']]);
     $routes->get('profiles', '\\App\\Controllers\\Profile::profiles', ['filter' => ['apiFormat', 'auth']]);
+    $routes->get('webhooks', 'WebhooksController::list', ['filter' => ['apiFormat', 'auth']]);
+    $routes->post('webhooks', 'WebhooksController::create', ['filter' => ['apiFormat', 'auth', 'rate:webhook']]);
+    $routes->patch('webhooks/(:num)', 'WebhooksController::update/$1', ['filter' => ['apiFormat', 'auth', 'rate:webhook']]);
+    $routes->delete('webhooks/(:num)', 'WebhooksController::delete/$1', ['filter' => ['apiFormat', 'auth', 'rate:webhook']]);
+    $routes->get('webhooks/(:num)/deliveries', 'WebhooksController::deliveries/$1', ['filter' => ['apiFormat', 'auth']]);
+    $routes->post('webhook-deliveries/(:num)/redeliver', 'WebhooksController::redeliver/$1', ['filter' => ['apiFormat', 'auth', 'rate:webhook']]);
 });
 
 // Compatibility shims: same v1 implementation, with machine-readable sunset metadata.

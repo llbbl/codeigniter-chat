@@ -32,6 +32,8 @@ app.config.globalProperties.$chatRoutes = {
   profile: window.CHAT_ROUTES.profile,
   profileAvatar: window.CHAT_ROUTES.profileAvatar,
   profiles: window.CHAT_ROUTES.profiles,
+  webhooks: window.CHAT_ROUTES.webhooks,
+  webhookDeliveries: window.CHAT_ROUTES.webhookDeliveries,
 };
 
 // CSRF token name for form submissions
