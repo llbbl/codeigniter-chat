@@ -36,6 +36,7 @@
             <file>./app/Config/Routes.php</file>
         </exclude>
     </source>
+    <coverage includeUncoveredFiles="true"/>
     <php>
         <server name="app.baseURL" value="http://example.com/"/>
         <server name="CODEIGNITER_SCREAM_DEPRECATIONS" value="0"/>

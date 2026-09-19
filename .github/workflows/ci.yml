@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
 jobs:
   frontend:
     name: Frontend checks
@@ -36,6 +39,9 @@ jobs:
   test:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     strategy:
       fail-fast: false
@@ -51,11 +57,11 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, xml, curl, intl, json, mysqlnd, sockets
-          coverage: none
+          coverage: pcov
 
       - name: Get Composer cache directory
         id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
@@ -84,7 +90,22 @@ jobs:
       - name: Check PHP coding style
         run: composer cs-check
 
+      - name: Run PHPUnit tests with coverage
+        if: github.event_name == 'pull_request'
+        run: composer test:coverage
+
+      - name: Upload PHP coverage to Codecov
+        if: github.event_name == 'pull_request'
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          fail_ci_if_error: true
+          files: build/logs/clover.xml
+          flags: php
+          name: php-8.4
+          use_oidc: true
+
       - name: Run PHPUnit tests
+        if: github.event_name != 'pull_request'
         run: composer test
 
       - name: Run database integration tests

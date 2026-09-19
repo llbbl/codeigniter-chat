@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+
+comment:
+  layout: "condensed_header, diff, condensed_files, condensed_footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
