@@ -199,4 +199,19 @@ class App extends BaseConfig
      * @see http://www.w3.org/TR/CSP/
      */
     public bool $CSPEnabled = true;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        if (ENVIRONMENT === 'testing') {
+            return;
+        }
+
+        $appUrl = env('APP_URL', '');
+        $scheme = is_string($appUrl) ? parse_url($appUrl, PHP_URL_SCHEME) : null;
+        if (is_string($appUrl) && filter_var($appUrl, FILTER_VALIDATE_URL) !== false && in_array($scheme, ['http', 'https'], true)) {
+            $this->baseURL = rtrim($appUrl, '/') . '/';
+        }
+    }
 }
