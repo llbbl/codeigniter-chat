@@ -62,6 +62,20 @@ By default, the suite refuses to reuse processes already listening on its HTTP, 
 
 Shared behavior belongs in `e2e/support/chat-scenarios.ts`; keep one small spec in `e2e/` for each frontend route. Pull requests run the suite through `.github/workflows/e2e.yml`.
 
+## Code coverage
+
+Pull requests collect PHP line coverage with PCOV and upload the Clover report at `build/logs/clover.xml` to Codecov. Codecov records coverage history, reports project and patch coverage as status checks, and posts a coverage summary on each pull request. The project status permits a one percentage-point drop from the base commit; new and changed code must maintain at least 80% patch coverage.
+
+Run the same fast-suite report locally with PCOV enabled:
+
+```shell
+composer test:coverage
+```
+
+The initial fast-suite baseline measured on September 19, 2026 is **40.54% line coverage** (1,601 of 3,949 executable lines). The long-term target is 80% line coverage. PCOV intentionally prioritizes fast line coverage and does not collect branch coverage; the long-term branch-coverage target is 70% if the coverage toolchain later adds that metric without making routine pull-request feedback prohibitively slow.
+
+Views and route declarations are excluded because they are declarative boundaries. Coverage is one signal, not proof that assertions are meaningful. Pair it with the mutation-testing workflow below, which evaluates whether the suite detects behavioral changes.
+
 ## Mutation testing
 
 [Infection](https://infection.github.io/) checks whether the PHP suite detects small changes to application behavior. Install and enable PCOV, then run:

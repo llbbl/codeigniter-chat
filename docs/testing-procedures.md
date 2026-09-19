@@ -48,8 +48,9 @@ Database tests are located in the `tests/database/` directory.
 
 The CodeIgniter Chat project aims for high test coverage:
 
-- **Minimum Coverage**: 80% overall code coverage
-- **Target Coverage**: 90% for critical components
+- **Current Baseline**: 40.54% line coverage for the fast PHP suite
+- **Long-Term Target**: 80% line coverage and 70% branch coverage when the coverage toolchain supports that metric
+- **Pull Request Target**: At least 80% coverage for new and changed lines, without lowering project coverage by more than one percentage point
 - **Uncovered Code**: Should be documented with a reason for exclusion
 
 ### Test Quality Requirements

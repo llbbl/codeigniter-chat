@@ -1,6 +1,7 @@
 # CodeIgniter Chat
 
 [![CI](https://github.com/llbbl/codeigniter-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/llbbl/codeigniter-chat/actions/workflows/ci.yml)
+[![Codecov](https://codecov.io/gh/llbbl/codeigniter-chat/graph/badge.svg)](https://codecov.io/gh/llbbl/codeigniter-chat)
 
 This is a basic shoutboard built using CodeIgniter. Originally only used XML for the backend, 
 but was rewritten to illustrate different types of web services. The application has been migrated from 
