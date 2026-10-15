@@ -32,10 +32,10 @@ Before you begin, ensure you have the following installed on your system:
 - **Composer** (Dependency Manager for PHP)
   - Verify your Composer installation: `composer --version`
 
-- **Node.js and NPM** (for frontend development)
-  - Recommended: Node.js 16+ and NPM 8+
+- **Node.js and pnpm** (for frontend development)
+  - Required: Node.js 22.12.0 or higher and pnpm 10.34.5 (see `package.json`)
   - Verify your Node.js version: `node -v`
-  - Verify your NPM version: `npm -v`
+  - Verify your pnpm version: `pnpm -v`
 
 - **Git** (for version control)
   - Verify your Git installation: `git --version`
@@ -60,7 +60,7 @@ This will install all the required PHP packages, including CodeIgniter 4 framewo
 ### 3. Install Frontend Dependencies
 
 ```bash
-npm install
+pnpm install --frozen-lockfile
 ```
 
 This will install all the required frontend packages, including jQuery, Vue.js, and other dependencies specified in `package.json`.
@@ -68,7 +68,7 @@ This will install all the required frontend packages, including jQuery, Vue.js, 
 ### 4. Build Frontend Assets
 
 ```bash
-npm run build
+pnpm build
 ```
 
 This will compile and bundle all frontend assets (JavaScript, CSS) using Vite.
@@ -76,7 +76,7 @@ This will compile and bundle all frontend assets (JavaScript, CSS) using Vite.
 For development with hot reloading:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ### 5. Database Configuration
@@ -295,9 +295,9 @@ Start your web server and navigate to:
    - Clear Composer cache: `composer clear-cache`
 
 5. **Frontend Asset Issues**
-   - Ensure Node.js and NPM are installed correctly
-   - Try clearing the NPM cache: `npm cache clean --force`
-   - Rebuild assets: `npm run build`
+   - Ensure Node.js 22.12.0+ and pnpm 10.34.5 are installed correctly
+   - Reinstall dependencies: `pnpm install --frozen-lockfile`
+   - Rebuild assets: `pnpm build`
 
 ### Debugging Tips
 
@@ -324,7 +324,7 @@ Start your web server and navigate to:
 
 2. Start the Vite development server for frontend assets:
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
 3. Make your changes to the codebase
@@ -336,7 +336,7 @@ Start your web server and navigate to:
 
 5. Build frontend assets for production:
    ```bash
-   npm run build
+   pnpm build
    ```
 
 ## Alternative: Docker Setup

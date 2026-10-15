@@ -2403,16 +2403,16 @@
         },
         {
             "name": "symfony/http-foundation",
-            "version": "v6.4.41",
+            "version": "v6.4.48",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-foundation.git",
-                "reference": "48d76c29a67a301e0f7779a512bf76417395ffef"
+                "reference": "b1721caa556f32d150d9a14bb0a3fc4b86dfda33"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/48d76c29a67a301e0f7779a512bf76417395ffef",
-                "reference": "48d76c29a67a301e0f7779a512bf76417395ffef",
+                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/b1721caa556f32d150d9a14bb0a3fc4b86dfda33",
+                "reference": "b1721caa556f32d150d9a14bb0a3fc4b86dfda33",
                 "shasum": ""
             },
             "require": {
@@ -2460,7 +2460,7 @@
             "description": "Defines an object-oriented layer for the HTTP specification",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-foundation/tree/v6.4.41"
+                "source": "https://github.com/symfony/http-foundation/tree/v6.4.48"
             },
             "funding": [
                 {
@@ -2480,7 +2480,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-24T10:54:17+00:00"
+            "time": "2026-10-08T07:59:58+00:00"
         },
         {
             "name": "symfony/options-resolver",

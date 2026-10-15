@@ -40,6 +40,7 @@ use App\Services\ChatFormatter;
 use App\Services\CodeIgniterWebhookHttpClient;
 use App\Services\CorrelationId;
 use App\Services\NullAuditLogger;
+use App\Services\PinnedWebhookCURLRequest;
 use App\Services\WebhookDeliveryService;
 use App\Services\WebhookUrlValidator;
 use CodeIgniter\CodeIgniter;
@@ -173,7 +174,7 @@ class Services extends BaseService
             return static::getSharedInstance('webhookHttpClient');
         }
 
-        return new CodeIgniterWebhookHttpClient(parent::curlrequest([], null, null, false));
+        return new CodeIgniterWebhookHttpClient(new PinnedWebhookCURLRequest(config(App::class), static::webhookUrlValidator()));
     }
 
     public static function webhookUrlValidator(bool $getShared = true): WebhookUrlValidator
@@ -182,7 +183,9 @@ class Services extends BaseService
             return static::getSharedInstance('webhookUrlValidator');
         }
 
-        $environment = strtolower((string) ($_SERVER['CI_ENVIRONMENT'] ?? getenv('CI_ENVIRONMENT') ?: 'production'));
+        $environment = strtolower((string) (defined('ENVIRONMENT')
+            ? ENVIRONMENT
+            : ($_SERVER['CI_ENVIRONMENT'] ?? getenv('CI_ENVIRONMENT') ?: 'production')));
 
         return new WebhookUrlValidator(allowHttpLoopback: in_array($environment, ['development', 'testing'], true));
     }

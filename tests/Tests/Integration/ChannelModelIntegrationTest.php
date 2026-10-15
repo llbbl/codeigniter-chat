@@ -77,6 +77,105 @@ final class ChannelModelIntegrationTest extends IntegrationTestCase
         $this->seeInDatabase('channels', ['id' => $first, 'channel_type' => 'dm']);
     }
 
+    public function testPublicChannelsCannotClaimDirectMessageSlugs(): void
+    {
+        $creatorId = $this->createUser('creator');
+        $channels = new ChannelModel();
+
+        $this->assertFalse($channels->createPublic('Impersonated DM', 'dm-1-2', null, $creatorId));
+        $this->assertFalse($channels->createPublic('Impersonated DM', ' DM-1-2 ', null, $creatorId));
+        $channelId = $channels->createPublic('Team', 'team-room', null, $creatorId);
+        $this->assertIsInt($channelId);
+        $this->assertFalse($channels->updateChannel($channelId, ['slug' => 'dm-anything']));
+        $this->seeInDatabase('channels', ['id' => $channelId, 'slug' => 'team-room']);
+    }
+
+    public function testLegacyPublicSlugCollisionCannotAcquireDirectMessageMembers(): void
+    {
+        $aliceId = $this->createUser('alice');
+        $bobId = $this->createUser('bob');
+        $malloryId = $this->createUser('mallory');
+        $channels = new ChannelModel();
+        $this->db->table('channels')->insert([
+            'name' => 'Legacy public collision',
+            'slug' => "dm-{$aliceId}-{$bobId}",
+            'channel_type' => 'public',
+            'created_by' => $malloryId,
+        ]);
+        $channelId = (int) $this->db->insertID();
+        $channels->join($channelId, $malloryId);
+
+        $this->assertFalse($channels->findOrCreateDm($aliceId, $bobId));
+        $this->assertFalse($channels->findOrCreateDm($bobId, $aliceId));
+        $this->assertSame([$malloryId], $channels->memberIds($channelId));
+        $this->seeInDatabase('channels', ['id' => $channelId, 'channel_type' => 'public']);
+    }
+
+    public function testContaminatedDirectMessageCannotBeReusedOrRepaired(): void
+    {
+        $aliceId = $this->createUser('alice');
+        $bobId = $this->createUser('bob');
+        $malloryId = $this->createUser('mallory');
+        $channels = new ChannelModel();
+        $channelId = $channels->findOrCreateDm($aliceId, $bobId);
+        $this->assertIsInt($channelId);
+        $channels->join($channelId, $malloryId);
+
+        $this->assertFalse($channels->findOrCreateDm($aliceId, $bobId));
+        $this->assertEqualsCanonicalizing([$aliceId, $bobId, $malloryId], $channels->memberIds($channelId));
+
+        $channels->leave($channelId, $bobId);
+        $this->assertFalse($channels->findOrCreateDm($bobId, $aliceId));
+        $this->assertEqualsCanonicalizing([$aliceId, $malloryId], $channels->memberIds($channelId));
+
+        $channels->leave($channelId, $malloryId);
+        $this->assertFalse($channels->findOrCreateDm($aliceId, $bobId));
+        $this->assertSame([$aliceId], $channels->memberIds($channelId));
+    }
+
+    public function testIgnoredInsertRechecksChannelTypeAndMembers(): void
+    {
+        if ($this->db->getPlatform() !== 'SQLite3') {
+            $this->markTestSkipped('The deterministic ignored-insert trigger uses SQLite syntax.');
+        }
+
+        $aliceId = $this->createUser('alice');
+        $bobId = $this->createUser('bob');
+        $malloryId = $this->createUser('mallory');
+        $channels = new ChannelModel();
+        $table = $this->db->prefixTable('channels');
+        $members = $this->db->prefixTable('channel_members');
+        $slug = "dm-{$aliceId}-{$bobId}";
+
+        foreach (['public', 'polluted-dm', 'valid-dm'] as $collision) {
+            $type = $collision === 'public' ? 'public' : 'dm';
+            $outsider = $collision === 'valid-dm' ? '' : "INSERT INTO {$members} (channel_id, user_id, joined_at) SELECT id, {$malloryId}, CURRENT_TIMESTAMP FROM {$table} WHERE slug = '{$slug}';";
+            // Simulate a competing insert after the first lookup but before INSERT OR IGNORE.
+            $this->db->query("CREATE TRIGGER dm_insert_collision BEFORE INSERT ON {$table}
+                WHEN NEW.slug = '{$slug}' BEGIN
+                    INSERT INTO {$table} (name, slug, channel_type, created_by) VALUES ('Collision', '{$slug}', '{$type}', {$aliceId});
+                    INSERT INTO {$members} (channel_id, user_id, joined_at) SELECT id, {$aliceId}, CURRENT_TIMESTAMP FROM {$table} WHERE slug = '{$slug}';
+                    INSERT INTO {$members} (channel_id, user_id, joined_at) SELECT id, {$bobId}, CURRENT_TIMESTAMP FROM {$table} WHERE slug = '{$slug}';
+                    {$outsider}
+                    SELECT RAISE(IGNORE);
+                END");
+
+            try {
+                $channelId = $channels->findOrCreateDm($bobId, $aliceId);
+                if ($collision === 'valid-dm') {
+                    $this->assertIsInt($channelId);
+                    $this->assertEqualsCanonicalizing([$aliceId, $bobId], $channels->memberIds($channelId));
+                    $this->assertSame($channelId, $channels->findOrCreateDm($aliceId, $bobId));
+                } else {
+                    $this->assertFalse($channelId, $collision);
+                }
+            } finally {
+                $this->db->query('DROP TRIGGER dm_insert_collision');
+                $this->db->table('channels')->where('slug', $slug)->delete();
+            }
+        }
+    }
+
     private function createUser(string $username): int
     {
         $id = (new UserModel())->createUser($username, "{$username}@example.com", 'Password123!');
