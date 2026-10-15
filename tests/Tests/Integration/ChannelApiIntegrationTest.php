@@ -114,6 +114,48 @@ final class ChannelApiIntegrationTest extends IntegrationTestCase
         $this->assertSame(404, $reactionDenied->response()->getStatusCode());
     }
 
+    public function testPublicChannelCreateAndUpdateRejectReservedDirectMessageNamespace(): void
+    {
+        $alice = $this->createUser('alice');
+        $channels = new ChannelModel();
+        $channelId = $channels->createPublic('Team', 'team-room', null, (int) $alice['id']);
+        $this->assertIsInt($channelId);
+
+        foreach (['dm-1-2', 'dm-anything', ' dm-3-4 '] as $slug) {
+            $created = $this->jsonRequest($alice, 'post', '/api/v1/channels', ['name' => 'Impersonated DM', 'slug' => $slug]);
+            $this->assertSame(400, $created->response()->getStatusCode());
+            $this->assertSame('validation', $this->json($created)['error']['type']);
+
+            $updated = $this->jsonRequest($alice, 'patch', "/api/v1/channels/{$channelId}", ['slug' => $slug]);
+            $this->assertSame(400, $updated->response()->getStatusCode());
+            $this->assertSame('validation', $this->json($updated)['error']['type']);
+        }
+        $this->seeInDatabase('channels', ['id' => $channelId, 'slug' => 'team-room']);
+    }
+
+    public function testLegacyPublicCollisionCannotBeOpenedAsADirectMessage(): void
+    {
+        $alice = $this->createUser('alice');
+        $bob = $this->createUser('bob');
+        $mallory = $this->createUser('mallory');
+        $channels = new ChannelModel();
+        $this->db->table('channels')->insert([
+            'name' => 'Legacy public collision',
+            'slug' => "dm-{$alice['id']}-{$bob['id']}",
+            'channel_type' => 'public',
+            'created_by' => $mallory['id'],
+        ]);
+        $channelId = (int) $this->db->insertID();
+        $channels->join($channelId, (int) $mallory['id']);
+
+        $opened = $this->jsonRequest($alice, 'post', '/api/v1/dms', ['user_id' => $bob['id']]);
+        $this->assertSame(500, $opened->response()->getStatusCode());
+        $this->assertSame([(int) $mallory['id']], $channels->memberIds($channelId));
+        $message = $this->jsonRequest($alice, 'post', "/api/v1/channels/{$channelId}/messages", ['message' => 'Private message']);
+        $this->assertSame(403, $message->response()->getStatusCode());
+        $this->dontSeeInDatabase('messages', ['channel_id' => $channelId]);
+    }
+
     public function testChannelMessagesRequireMembershipAndAreChannelScoped(): void
     {
         $alice = $this->createUser('alice');

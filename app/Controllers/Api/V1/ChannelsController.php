@@ -317,6 +317,9 @@ final class ChannelsController extends BaseController
             if (! is_string($input['slug'] ?? null) || preg_match('/^[a-z0-9-]{3,50}$/', trim((string) $input['slug'])) !== 1) {
                 return 'Channel slug must match ^[a-z0-9-]{3,50}$.';
             }
+            if (str_starts_with(trim((string) $input['slug']), 'dm-')) {
+                return 'The dm- slug prefix is reserved for direct messages.';
+            }
             if (trim((string) $input['slug']) === 'general' && $partial) {
                 return 'The #general slug is reserved.';
             }
