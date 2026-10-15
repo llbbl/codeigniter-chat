@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Contracts\WebhookHttpClient;
-use CodeIgniter\HTTP\CURLRequest;
 
 final class CodeIgniterWebhookHttpClient implements WebhookHttpClient
 {
-    public function __construct(private readonly CURLRequest $client)
+    public function __construct(private readonly PinnedWebhookCURLRequest $client)
     {
     }
 
