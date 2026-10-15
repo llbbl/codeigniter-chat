@@ -88,7 +88,7 @@
     class="pwa-action"
     aria-expanded={open}
     aria-controls="svelte-profile-panel"
-    onclick={() => open = !open}
+    onclick={() => (open = !open)}
   >
     Profile
   </button>
