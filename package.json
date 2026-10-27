@@ -4,7 +4,7 @@
   "description": "CodeIgniter Chat Application",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=20.19"
   },

@@ -23,9 +23,9 @@ The message field is associated with its formatting and keyboard help. Formattin
 Run the frontend static checks and production build before the browser suite:
 
 ```shell
-corepack pnpm@10.34.5 check
-corepack pnpm@10.34.5 build
-corepack pnpm@10.34.5 e2e
+corepack pnpm@12.15.0 check
+corepack pnpm@12.15.0 build
+corepack pnpm@12.15.0 e2e
 ```
 
 Playwright runs axe on every chat implementation and fails for serious or critical violations. The Vue and Svelte scenarios additionally verify landmarks, the live message log, skip navigation, formatting control names, draft keyboard behavior, and reduced-motion handling.

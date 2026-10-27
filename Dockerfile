@@ -44,11 +44,11 @@ FROM node:22-alpine AS node
 WORKDIR /app
 
 # Copy package files first (for better caching)
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install pnpm globally and install dependencies
 # Using pnpm as specified in project preferences
-RUN corepack enable && corepack prepare pnpm@latest --activate \
+RUN corepack enable && corepack prepare pnpm@12.15.0 --activate \
     && pnpm install --frozen-lockfile
 
 # Copy source files needed for the build
