@@ -1608,7 +1608,9 @@
                     class="reaction-picker-toggle"
                     aria-expanded={reactionPickerMessageId === Number(msg.id)}
                     aria-label={`React to message from ${msg.user}`}
-                    onclick={() => { reactionPickerMessageId = reactionPickerMessageId === Number(msg.id) ? null : Number(msg.id); }}
+                    onclick={() => {
+                      reactionPickerMessageId = reactionPickerMessageId === Number(msg.id) ? null : Number(msg.id);
+                    }}
                   >
                     +
                   </button>
@@ -1663,7 +1665,13 @@
 
   <!-- Message input form -->
   <div class="message-form-container">
-    <form onsubmit={(e) => { e.preventDefault(); sendMessage(); }} class="message-form">
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        sendMessage();
+      }}
+      class="message-form"
+    >
       <h2 id="compose-title" class="sr-only">Compose a message</h2>
       <!-- Message input -->
       {#if !sending}
