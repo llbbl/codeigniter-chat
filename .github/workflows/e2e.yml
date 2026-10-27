@@ -23,8 +23,11 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Enable pnpm
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/setup@v3
+        with:
+          version: '12.15.0'
+          install: false
 
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile
