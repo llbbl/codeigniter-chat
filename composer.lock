@@ -4018,16 +4018,16 @@
         },
         {
             "name": "infection/infection",
-            "version": "0.35.9",
+            "version": "0.35.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/infection/infection.git",
-                "reference": "3ca3e072dbb578257c636e81b947fe050bc61c69"
+                "reference": "c93d29a806a2c1575487858db5b77657225b82ae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/infection/infection/zipball/3ca3e072dbb578257c636e81b947fe050bc61c69",
-                "reference": "3ca3e072dbb578257c636e81b947fe050bc61c69",
+                "url": "https://api.github.com/repos/infection/infection/zipball/c93d29a806a2c1575487858db5b77657225b82ae",
+                "reference": "c93d29a806a2c1575487858db5b77657225b82ae",
                 "shasum": ""
             },
             "require": {
@@ -4142,7 +4142,7 @@
             ],
             "support": {
                 "issues": "https://github.com/infection/infection/issues",
-                "source": "https://github.com/infection/infection/tree/0.35.9"
+                "source": "https://github.com/infection/infection/tree/0.35.10"
             },
             "funding": [
                 {
@@ -4154,7 +4154,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-11-02T17:30:39+00:00"
+            "time": "2026-11-05T10:06:41+00:00"
         },
         {
             "name": "infection/mutator",
@@ -5236,16 +5236,16 @@
         },
         {
             "name": "sanmai/di-container",
-            "version": "0.2",
+            "version": "0.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sanmai/di-container.git",
-                "reference": "c14ca816bb5527e2361e3dc554a20829674c7ee1"
+                "reference": "428b00f3c18ef4d324703ba63f4968813066edc8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sanmai/di-container/zipball/c14ca816bb5527e2361e3dc554a20829674c7ee1",
-                "reference": "c14ca816bb5527e2361e3dc554a20829674c7ee1",
+                "url": "https://api.github.com/repos/sanmai/di-container/zipball/428b00f3c18ef4d324703ba63f4968813066edc8",
+                "reference": "428b00f3c18ef4d324703ba63f4968813066edc8",
                 "shasum": ""
             },
             "require": {
@@ -5303,7 +5303,7 @@
             ],
             "support": {
                 "issues": "https://github.com/sanmai/di-container/issues",
-                "source": "https://github.com/sanmai/di-container/tree/0.2"
+                "source": "https://github.com/sanmai/di-container/tree/0.2.2"
             },
             "funding": [
                 {
@@ -5311,7 +5311,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-11T06:42:18+00:00"
+            "time": "2026-11-09T10:32:19+00:00"
         },
         {
             "name": "sanmai/duoclock",
