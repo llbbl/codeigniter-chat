@@ -58,6 +58,7 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, xml, curl, intl, json, mysqlnd, sockets
           coverage: pcov
+          ini-values: pcov.directory=${{ github.workspace }}/app
 
       - name: Get Composer cache directory
         id: composer-cache
@@ -92,7 +93,7 @@ jobs:
 
       - name: Run PHPUnit tests with coverage
         if: github.event_name == 'pull_request'
-        run: composer test:coverage
+        run: composer test:all -- --coverage-clover build/logs/clover.xml --coverage-html build/logs/html
 
       - name: Upload PHP coverage to Codecov
         if: github.event_name == 'pull_request'
@@ -107,10 +108,6 @@ jobs:
       - name: Run PHPUnit tests
         if: github.event_name != 'pull_request'
         run: composer test
-
-      - name: Run database integration tests
-        if: github.event_name == 'pull_request'
-        run: composer test:integration
 
       - name: Run Composer audit
         run: composer audit
