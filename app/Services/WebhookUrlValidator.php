@@ -17,35 +17,42 @@ final class WebhookUrlValidator
 
     public function isAllowed(string $url): bool
     {
+        return $this->resolveAllowedAddresses($url) !== [];
+    }
+
+    /** @return list<string> Addresses that the transport must use without resolving the host again. */
+    public function resolveAllowedAddresses(string $url): array
+    {
         if ($url === '' || strlen($url) > 2_048 || filter_var($url, FILTER_VALIDATE_URL) === false) {
-            return false;
+            return [];
         }
 
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = strtolower(trim((string) parse_url($url, PHP_URL_HOST), '[]'));
         $loopback = in_array($host, ['127.0.0.1', '::1', 'localhost'], true);
         if ($scheme === 'http') {
-            return $this->allowHttpLoopback && $loopback;
+            // Never let localhost go through DNS, even in the development exception.
+            return $this->allowHttpLoopback && $loopback ? [$host === 'localhost' ? '127.0.0.1' : $host] : [];
         }
         if ($scheme !== 'https' || $host === '' || $loopback || str_ends_with($host, '.localhost')) {
-            return false;
+            return [];
         }
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            return self::isPublicAddress($host);
+            return self::isPublicAddress($host) ? [$host] : [];
         }
 
         $addresses = ($this->resolver)($host);
         if ($addresses === []) {
-            return false;
+            return [];
         }
 
         foreach ($addresses as $address) {
             if (! self::isPublicAddress($address)) {
-                return false;
+                return [];
             }
         }
 
-        return true;
+        return array_values(array_unique($addresses));
     }
 
     /** @return list<string> */

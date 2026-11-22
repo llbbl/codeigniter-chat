@@ -9,7 +9,6 @@ use App\Models\ChatModel;
 use App\Models\MessageReactionModel;
 use App\Models\UserModel;
 use App\Models\WebhookModel;
-use App\Services\CodeIgniterWebhookHttpClient;
 use App\Services\WebhookDeliveryService;
 use App\Services\WebhookUrlValidator;
 use CodeIgniter\Test\TestResponse;
@@ -126,21 +125,23 @@ final class WebhookIntegrationTest extends IntegrationTestCase
                 $webhooks,
                 (int) $alice['id'],
                 ['message.created'],
-                "http://127.0.0.1:{$port}/receive",
+                "http://localhost:{$port}/receive",
                 'test-signing-secret',
             );
             $this->assertSame(1, $webhooks->enqueue('message.created', ['message' => ['id' => 42]]));
-            $client = new CodeIgniterWebhookHttpClient(Services::curlrequest([], null, null, false));
+            $client = Services::webhookHttpClient(false);
             $result = (new WebhookDeliveryService(
                 $webhooks,
                 $client,
                 static fn (): int => 1_700_000_000,
                 new WebhookUrlValidator(allowHttpLoopback: true),
             ))->deliver();
-            $this->assertSame(['processed' => 1, 'delivered' => 1, 'retrying' => 0, 'dropped' => 0], $result);
+            $deliveryError = db_connect('tests')->table('webhook_deliveries')->where('webhook_id', $webhookId)->get()->getRowArray()['last_error'] ?? '';
+            $this->assertSame(['processed' => 1, 'delivered' => 1, 'retrying' => 0, 'dropped' => 0], $result, (string) $deliveryError);
             $this->seeInDatabase('webhook_deliveries', ['webhook_id' => $webhookId, 'status' => 'delivered', 'attempts' => 1]);
 
             $capture = json_decode((string) file_get_contents($captureFile), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame("localhost:{$port}", $capture['headers']['host']);
             $this->assertSame('message.created', $capture['headers']['x-webhook-event']);
             $this->assertSame('1700000000', $capture['headers']['x-webhook-timestamp']);
             $expected = 'v1=' . hash_hmac('sha256', '1700000000.' . $capture['body'], 'test-signing-secret');

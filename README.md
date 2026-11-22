@@ -23,6 +23,8 @@ PHP version 8.4 or higher is required, with the following extensions installed:
 - [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) for MySQL database (production)
 - [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
 
+Frontend development and asset builds require Node.js 22.12.0 or higher and pnpm 10.34.5, as specified in `package.json`.
+
 ## Installation
 
 1. Clone the repository:
@@ -37,12 +39,12 @@ PHP version 8.4 or higher is required, with the following extensions installed:
 
 3. Install Node.js dependencies (for front-end build system):
    ```bash
-   npm install
+   pnpm install --frozen-lockfile
    ```
 
 4. Build front-end assets:
    ```bash
-   npm run build
+   pnpm build
    ```
 
 5. Database Configuration:
@@ -186,7 +188,7 @@ This project uses [Vite](https://vitejs.dev/) as a front-end build system to pro
 To start the development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 This will start a development server at http://localhost:5173/ that will automatically reload when you make changes to the source files.
@@ -196,7 +198,7 @@ This will start a development server at http://localhost:5173/ that will automat
 To build the assets for production:
 
 ```bash
-npm run build
+pnpm build
 ```
 
 This will generate optimized files in the `public/dist/` directory.

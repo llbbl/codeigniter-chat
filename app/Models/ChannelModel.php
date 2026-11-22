@@ -102,6 +102,10 @@ final class ChannelModel extends Model implements ChannelRepository
 
     public function createPublic(string $name, string $slug, ?string $topic, int $creatorId): int|false
     {
+        if (str_starts_with(strtolower(trim($slug)), 'dm-')) {
+            return false;
+        }
+
         $this->db->transStart();
         $channelId = $this->insert([
             'name' => $name,
@@ -159,24 +163,28 @@ final class ChannelModel extends Model implements ChannelRepository
 
     public function updateChannel(int $channelId, array $changes): bool
     {
+        if (isset($changes['slug']) && str_starts_with(strtolower(trim((string) $changes['slug'])), 'dm-')) {
+            return false;
+        }
+
         return $this->update($channelId, $changes);
     }
 
     public function findOrCreateDm(int $firstUserId, int $secondUserId): int|false
     {
+        if ($firstUserId <= 0 || $secondUserId <= 0 || $firstUserId === $secondUserId) {
+            return false;
+        }
+
         [$firstUserId, $secondUserId] = [min($firstUserId, $secondUserId), max($firstUserId, $secondUserId)];
         $slug = "dm-{$firstUserId}-{$secondUserId}";
-        $existing = $this->select('id')->where('slug', $slug)->first();
+        $existing = $this->select('id, channel_type')->where('slug', $slug)->first();
         if (is_array($existing)) {
-            $channelId = (int) $existing['id'];
-            $this->join($channelId, $firstUserId);
-            $this->join($channelId, $secondUserId);
-
-            return $channelId;
+            return $this->validatedDmId($existing, $firstUserId, $secondUserId);
         }
 
         $this->db->transStart();
-        $this->db->table('channels')->ignore(true)->insert([
+        $inserted = $this->db->table('channels')->ignore(true)->insert([
             'name' => 'Direct message',
             'slug' => $slug,
             'channel_type' => 'dm',
@@ -184,15 +192,26 @@ final class ChannelModel extends Model implements ChannelRepository
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
-        $channel = $this->select('id')->where('slug', $slug)->first();
-        if (! is_array($channel)) {
+        $created = $inserted && $this->db->affectedRows() === 1;
+        $channel = $this->select('id, channel_type')->where('slug', $slug)->first();
+        if (! $inserted || ! is_array($channel) || $channel['channel_type'] !== 'dm') {
             $this->db->transRollback();
 
             return false;
         }
         $channelId = (int) $channel['id'];
-        $this->join($channelId, $firstUserId);
-        $this->join($channelId, $secondUserId);
+        // Only populate membership for our own insert. A competing row must already
+        // represent exactly this pair; never repair an untrusted slug collision.
+        if ($created && (! $this->join($channelId, $firstUserId) || ! $this->join($channelId, $secondUserId))) {
+            $this->db->transRollback();
+
+            return false;
+        }
+        if ($this->validatedDmId($channel, $firstUserId, $secondUserId) === false) {
+            $this->db->transRollback();
+
+            return false;
+        }
         $this->db->transComplete();
 
         return $this->db->transStatus() ? $channelId : false;
@@ -222,6 +241,19 @@ final class ChannelModel extends Model implements ChannelRepository
         $row = $this->db->table('messages')->select('channel_id')->where('id', $messageId)->get()->getRowArray();
 
         return is_array($row) ? (int) $row['channel_id'] : null;
+    }
+
+    /** @param array<string, mixed> $channel */
+    private function validatedDmId(array $channel, int $firstUserId, int $secondUserId): int|false
+    {
+        if ($channel['channel_type'] !== 'dm') {
+            return false;
+        }
+        $channelId = (int) $channel['id'];
+        $members = $this->memberIds($channelId);
+        sort($members);
+
+        return $members === [$firstUserId, $secondUserId] ? $channelId : false;
     }
 
     /** @return list<string> */
