@@ -48,8 +48,8 @@ both Vue and Svelte. It verifies:
 Run the browser suite after building production assets:
 
 ```bash
-corepack pnpm@10.34.5 build
-corepack pnpm@10.34.5 e2e
+corepack pnpm@12.15.0 build
+corepack pnpm@12.15.0 e2e
 ```
 
 For release checks, run Lighthouse in its mobile mode against both authenticated
