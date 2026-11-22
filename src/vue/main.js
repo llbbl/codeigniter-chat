@@ -2,7 +2,8 @@ import { createApp } from 'vue';
 import { setupPwa } from '../js/pwa.js';
 import App from './App.vue';
 
-// Import CSS
+// Load Vue page styles before the shared chat styles to preserve their cascade.
+import './App.scss';
 import '../css/chat.scss';
 
 // Create Vue app
