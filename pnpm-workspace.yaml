@@ -5,3 +5,4 @@ allowBuilds:
 
 overrides:
   picomatch: ^4.0.4
+  workbox-build@7.4.1>glob: 14.0.6
